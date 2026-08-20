@@ -1,0 +1,69 @@
+/**
+ * Encabezado de sección (08_UI_SYSTEM.md §6.2 «Roles tipográficos»).
+ *
+ * La jerarquía la construyen la escala y el tracking, no el color.
+ */
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  margin-block-end: var(--section-header-gap);
+}
+
+.heading {
+  min-width: 0;
+  /* Marca de acento a la izquierda del título, solo visible en tono inverso
+     (§Section, `--section-header-accent-*`): en tono claro estas variables
+     no existen y las tres reglas caen a "nada", sin desplazar el texto. */
+  padding-inline-start: var(--section-header-accent-gap, 0px);
+  border-inline-start: var(--section-header-accent-width, 0px) solid
+    var(--section-header-accent-color, transparent);
+}
+
+.eyebrow {
+  display: block;
+  margin-block-end: var(--spacing-1);
+  color: var(--section-text-muted, var(--color-text-muted));
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.title {
+  margin-block-end: var(--spacing-0);
+  font-size: var(--font-size-2xl);
+}
+
+@media (min-width: 992px) {
+  .title {
+    font-size: var(--font-size-3xl);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Enlace de escape: lleva al catálogo completo con el mismo filtro de la
+ * sección. El filete inferior aparece al pasar el puntero o al recibir foco.
+ * ----------------------------------------------------------------------- */
+.link {
+  flex-shrink: 0;
+  padding-block: var(--spacing-1);
+  border-block-end: var(--border-width-medium) var(--border-style-default) transparent;
+  color: var(--section-text-link, var(--color-text-link));
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: var(--transition-fast);
+}
+
+.link:hover,
+.link:focus-visible {
+  border-block-end-color: var(--section-text-link-hover, var(--color-action-primary-bg));
+  color: var(--section-text-link, var(--color-text-link));
+}

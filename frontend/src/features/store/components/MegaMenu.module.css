@@ -1,0 +1,94 @@
+/**
+ * Panel de subcategorías de un eje (09_COMPONENTES.md §9.8 `MegaMenu`).
+ *
+ * Es un panel de navegación, no un diálogo: no captura el foco.
+ */
+
+.panel {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 100%;
+  z-index: var(--z-index-dropdown);
+  background-color: var(--color-ink-800);
+  border-block-start: var(--border-width-thin) var(--border-style-default)
+    var(--color-border-inverse);
+  box-shadow: var(--shadow-md);
+}
+
+.inner {
+  width: 100%;
+  max-width: var(--container-max-width-store);
+  margin-inline: auto;
+  padding: var(--spacing-5) var(--section-inset-x);
+}
+
+.all {
+  display: inline-block;
+  margin-block-end: var(--spacing-5);
+  padding-block-end: var(--spacing-1);
+  border-block-end: var(--border-width-medium) var(--border-style-default) var(--color-volt-500);
+  color: var(--color-text-inverse);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--spacing-5);
+}
+
+.groupTitle {
+  display: block;
+  margin-block-end: var(--spacing-3);
+  color: var(--color-text-inverse);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.groupTitle:hover,
+.groupTitle:focus-visible {
+  color: var(--color-volt-500);
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: var(--spacing-0);
+  padding: var(--spacing-0);
+  list-style: none;
+}
+
+.item {
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+.item:hover,
+.item:focus-visible {
+  color: var(--color-text-inverse);
+}
+
+/* --------------------------------------------------------------------------
+ * Bloque "Marcas": mismas piezas que `BrandStrip`, en fila. Tono claro (no
+ * inverso, aunque el panel sea oscuro): los logotipos reales son tinta negra
+ * sobre transparente, y un tile oscuro los vuelve ilegibles.
+ * ----------------------------------------------------------------------- */
+.brandItems {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.brandTile {
+  width: 6rem;
+}

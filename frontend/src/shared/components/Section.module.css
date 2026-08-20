@@ -1,0 +1,67 @@
+/**
+ * Sección de la portada (08_UI_SYSTEM.md §6.3 «Ritmo de sección»).
+ *
+ * La respiración vertical la fija el token, no cada sección: así la Home
+ * mantiene una cadencia única aunque cambie el orden de los bloques.
+ */
+
+.section {
+  padding-block: var(--section-gap-y);
+}
+
+.container {
+  width: 100%;
+  max-width: var(--container-max-width-store);
+  margin-inline: auto;
+  padding-inline: var(--section-inset-x);
+}
+
+/* --------------------------------------------------------------------------
+ * Tonos. §6.1: la proporción es tinta y blanco; el tono inverso se reserva
+ * para los bloques que deben cortar la página.
+ * ----------------------------------------------------------------------- */
+.toneDefault {
+  background-color: var(--color-background);
+  /* Trama de puntos, casi imperceptible: hoy esta tonalidad la usa
+     exclusivamente "Destacados" en la Home, el único respiro claro entre
+     bloques de tinta. Si otro consumidor necesita blanco liso, esto pasa a
+     una variante propia en vez de tocarse acá. */
+  background-image: radial-gradient(var(--color-ink-200) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.toneAlt {
+  background-color: var(--color-surface-alt);
+}
+
+.toneInverse {
+  background-color: var(--color-surface-inverse);
+  color: var(--color-text-inverse);
+  --section-header-accent-width: 3px;
+  --section-header-accent-gap: var(--spacing-3);
+  --section-header-accent-color: var(--color-volt-500);
+  --section-text-muted: var(--color-text-inverse-muted);
+  --section-text-link: var(--color-text-inverse);
+  --section-text-link-hover: var(--color-volt-500);
+}
+
+.toneInverse :global(h1),
+.toneInverse :global(h2),
+.toneInverse :global(h3) {
+  color: var(--color-text-inverse);
+}
+
+/* §10.3: sobre tinta, el anillo de foco cambia al acento para seguir siendo visible. */
+.toneInverse :global(:focus-visible) {
+  outline-color: var(--focus-ring-color-inverse);
+}
+
+/* Sin relleno vertical: el hero llega hasta el borde del navegador. */
+.flush {
+  padding-block: var(--spacing-0);
+}
+
+.wide {
+  max-width: none;
+  padding-inline: var(--spacing-0);
+}

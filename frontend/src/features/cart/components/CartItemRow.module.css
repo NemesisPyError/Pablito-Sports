@@ -1,0 +1,5 @@
+/* UDS-03: el ancho del campo de cantidad es un valor estático y vive acá, no
+ * como estilo inline en el JSX. */
+.quantityInput {
+  width: var(--spacing-10);
+}

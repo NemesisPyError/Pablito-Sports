@@ -1,0 +1,41 @@
+# Secretos y entorno (03_SEGURIDAD.md §18)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Logs
+*.log
+logs/
+
+# Volúmenes y subidas locales
+uploads/
+backups/
+
+# Editores y sistema operativo
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Certificados locales de inspección TLS (no se versionan)
+backend/certs/*.crt
+frontend/certs/*.crt
+
+# Uploads al correr el backend fuera de Docker (.vscode/launch.json)
+.local-uploads/

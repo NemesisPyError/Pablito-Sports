@@ -1,0 +1,61 @@
+/**
+ * Precio (08_UI_SYSTEM.md §6.1 «Colores comerciales», §6.2 rol `Price`).
+ *
+ * El precio vigente es la cifra que manda: familia de display, peso semibold
+ * y `line-height` cerrado para que se lea como número, no como texto.
+ */
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  margin-block-end: var(--spacing-0);
+}
+
+.current {
+  color: var(--color-price-current);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+  line-height: var(--line-height-none);
+}
+
+.currentSale {
+  color: var(--color-price-sale);
+}
+
+.list {
+  color: var(--color-price-list);
+  font-size: var(--font-size-sm);
+  text-decoration: line-through;
+}
+
+.discount {
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-badge-sale-bg);
+  color: var(--color-badge-sale-text);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  line-height: var(--line-height-none);
+}
+
+/* --------------------------------------------------------------------------
+ * Tamaño grande: ficha de producto.
+ * ----------------------------------------------------------------------- */
+.sizeLg .current {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-tighter);
+}
+
+.sizeLg .list {
+  font-size: var(--font-size-lg);
+}
+
+.sizeLg .discount {
+  font-size: var(--font-size-xs);
+}

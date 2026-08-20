@@ -1,0 +1,162 @@
+/**
+ * Hero de la portada (09_COMPONENTES.md §9.8).
+ *
+ * Una sola pieza, no un carrusel: la portada abre con una afirmación, no con
+ * una rotación que obliga a esperar para leerla entera.
+ */
+
+.hero {
+  position: relative;
+  /* Halo radial en vez de tinta plana: se nota en el estado sin imagen
+     (`.plain`) y en el instante de carga, antes de que llegue la foto. */
+  background: radial-gradient(ellipse at 35% 50%, var(--color-ink-800) 0%, var(--color-ink-900) 75%);
+  color: var(--color-text-inverse);
+  overflow: hidden;
+}
+
+.media {
+  position: relative;
+}
+
+/*
+ * §6.1: velo de legibilidad. El administrador sube la foto que quiere y el
+ * texto tiene que leerse encima de cualquiera de ellas; sin degradado, un
+ * titular blanco sobre una zona clara desaparece. Cubre además el caso de la
+ * imagen que no carga, donde el respaldo del componente es claro.
+ */
+.veil {
+  position: absolute;
+  inset: 0;
+  background: var(--color-overlay-hero);
+}
+
+/* --------------------------------------------------------------------------
+ * Contenido. En móvil se apoya en el borde inferior, donde el degradado es
+ * más denso; desde `md` pasa a ocupar el flanco izquierdo.
+ * ----------------------------------------------------------------------- */
+.content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+}
+
+.inner {
+  width: 100%;
+  max-width: var(--container-max-width-store);
+  margin-inline: auto;
+  padding: var(--spacing-5) var(--section-inset-x);
+}
+
+@media (min-width: 768px) {
+  .content {
+    align-items: center;
+  }
+
+  .inner {
+    max-width: var(--container-max-width-store);
+    padding-block: var(--spacing-7);
+  }
+}
+
+.eyebrow {
+  display: block;
+  margin-block-end: var(--spacing-2);
+  color: var(--color-volt-500);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wider);
+  text-transform: uppercase;
+}
+
+.title {
+  max-width: 16ch;
+  margin-block-end: var(--spacing-2);
+  color: var(--color-text-inverse);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-tighter);
+  line-height: var(--line-height-tight);
+  text-transform: uppercase;
+}
+
+.subtitle {
+  max-width: 40ch;
+  margin-block-end: var(--spacing-5);
+  color: var(--color-text-inverse);
+  font-size: var(--font-size-md);
+}
+
+@media (min-width: 992px) {
+  .subtitle {
+    font-size: var(--font-size-lg);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Acciones
+ * ----------------------------------------------------------------------- */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-3) var(--spacing-5);
+  border: var(--border-width-thin) var(--border-style-default) transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: var(--transition-fast);
+}
+
+/* `UDS-11`: el acento solo como superficie, con texto tinta encima. */
+.actionPrimary {
+  background-color: var(--color-action-accent-bg);
+  color: var(--color-action-accent-text);
+}
+
+.actionPrimary:hover {
+  background-color: var(--color-action-accent-bg-hover);
+  color: var(--color-action-accent-text);
+}
+
+.actionSecondary {
+  border-color: var(--color-text-inverse);
+  color: var(--color-text-inverse);
+}
+
+.actionSecondary:hover {
+  background-color: var(--color-text-inverse);
+  color: var(--color-ink-900);
+}
+
+/* §10.3: sobre tinta, el anillo de foco cambia al acento. */
+.hero :focus-visible {
+  outline-color: var(--focus-ring-color-inverse);
+}
+
+/* --------------------------------------------------------------------------
+ * Sin imagen cargada. No se inventa una: la pieza se sostiene con tipografía
+ * sobre tinta, que es una portada legítima y no un hueco (`UDS-09`).
+ * ----------------------------------------------------------------------- */
+.plain {
+  display: flex;
+  align-items: center;
+  min-height: 18rem;
+  background: radial-gradient(ellipse at 35% 50%, var(--color-ink-800) 0%, var(--color-ink-900) 75%);
+}
+
+@media (min-width: 992px) {
+  .plain {
+    min-height: 26rem;
+  }
+}

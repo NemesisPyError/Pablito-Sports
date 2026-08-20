@@ -1,0 +1,352 @@
+/**
+ * Design tokens (08_UI_SYSTEM.md §6, §7, §10, §11).
+ *
+ * UDS-01: ningún componente define colores ni espaciados directamente.
+ * UDS-02: este archivo transcribe los valores aprobados; no inventa ninguno.
+ * UDS-04: todo color visible se referencia desde acá.
+ * UDS-07: la identidad es tinta sobre blanco con un único acento de energía.
+ *
+ * El tema oscuro (§12.2) se incorporará aplicando valores alternativos mediante
+ * una clase en <html>, sin reescribir componentes.
+ */
+
+:root {
+  /* ---------------------------------------------------------------------
+   * §6.1 Escala de tinta
+   * ------------------------------------------------------------------- */
+  --color-ink-900: #0e1116;
+  --color-ink-800: #171c23;
+  --color-ink-700: #242b34;
+  --color-ink-500: #5a636f;
+  --color-ink-400: #666f7a;
+  --color-ink-200: #dde1e6;
+  --color-ink-100: #f1f3f5;
+  --color-ink-050: #f8f9fa;
+  --color-white: #ffffff;
+
+  /* §6.1 Acento de energía (v2.2.0: azul, antes volt/lima — decisión del
+     usuario del 17/08/2026, `08_UI_SYSTEM.md` v2.2.0). El nombre `volt` queda
+     por no forzar un renombre en cada archivo que lo consume; el valor real
+     es este azul. Contraste verificado: `--color-volt-on` en blanco sobre
+     este azul da ~5:1, cumple WCAG AA de texto normal (4.5:1). */
+  --color-volt-500: #2f5fff;
+  --color-volt-600: #1e4bd8;
+  --color-volt-on: var(--color-white);
+
+  /* §6.1 Colores de estado */
+  --color-success: #0f6b41;
+  --color-success-soft: #e7f4ed;
+  --color-danger: #b32318;
+  --color-danger-soft: #fdecea;
+  --color-warning: #9a5b00;
+  --color-warning-soft: #fdf3e3;
+  --color-info: #0b5d8a;
+  --color-info-soft: #e8f2f8;
+
+  /* §6.1 Colores semánticos */
+  --color-background: var(--color-white);
+  --color-surface: var(--color-ink-100);
+  --color-surface-alt: var(--color-ink-050);
+  --color-surface-inverse: var(--color-ink-900);
+  --color-background-disabled: var(--color-ink-200);
+  --color-border: var(--color-ink-200);
+  --color-border-inverse: var(--color-ink-700);
+  --color-text-primary: var(--color-ink-900);
+  --color-text-secondary: var(--color-ink-500);
+  --color-text-muted: var(--color-ink-400);
+  --color-text-inverse: var(--color-white);
+  --color-text-inverse-muted: #a8b1bc;
+  --color-overlay: rgba(14, 17, 22, 0.55);
+  --color-overlay-media: linear-gradient(
+    180deg,
+    rgba(14, 17, 22, 0) 35%,
+    rgba(14, 17, 22, 0.78) 100%
+  );
+  /*
+   * Velo del hero: dos capas, porque el texto se apoya abajo en móvil y a la
+   * izquierda en escritorio. Con una sola dirección, el titular queda sobre
+   * zona transparente en uno de los dos casos y depende de que la foto sea
+   * oscura justo ahí, que no se puede garantizar: la elige el administrador.
+   */
+  --color-overlay-hero:
+    linear-gradient(180deg, rgba(14, 17, 22, 0.2) 0%, rgba(14, 17, 22, 0.85) 100%),
+    linear-gradient(90deg, rgba(14, 17, 22, 0.8) 0%, rgba(14, 17, 22, 0) 70%);
+  --color-shadow: rgba(14, 17, 22, 0.18);
+
+  /* §6.1 Colores de acción semánticos */
+  --color-action-primary-bg: var(--color-ink-900);
+  --color-action-primary-bg-hover: var(--color-ink-800);
+  --color-action-primary-text: var(--color-white);
+  --color-action-accent-bg: var(--color-volt-500);
+  --color-action-accent-bg-hover: var(--color-volt-600);
+  --color-action-accent-text: var(--color-white);
+  --color-action-secondary-bg: transparent;
+  --color-action-secondary-text: var(--color-ink-900);
+  --color-action-secondary-border: var(--color-ink-200);
+  --color-action-danger-bg: var(--color-danger);
+  --color-action-danger-text: var(--color-white);
+  --color-action-success-bg: var(--color-success);
+  --color-action-success-text: var(--color-white);
+  --color-link: var(--color-ink-900);
+  --color-link-hover: var(--color-ink-500);
+  --color-border-focus: var(--color-ink-900);
+  --color-border-focus-inverse: var(--color-volt-500);
+  --color-border-error: var(--color-danger);
+
+  /* §6.1 Colores comerciales */
+  --color-price-current: var(--color-ink-900);
+  --color-price-list: var(--color-ink-400);
+  --color-price-sale: var(--color-danger);
+  --color-badge-new-bg: var(--color-ink-900);
+  --color-badge-new-text: var(--color-white);
+  --color-badge-sale-bg: var(--color-volt-500);
+  --color-badge-sale-text: var(--color-white);
+
+  /* §11.3 Alias de compatibilidad */
+  --color-background-page: var(--color-background);
+  --color-background-card: var(--color-surface);
+  --color-text-heading: var(--color-text-primary);
+  --color-text-body: var(--color-text-primary);
+  --color-text-link: var(--color-link);
+  --color-text-link-hover: var(--color-link-hover);
+  --color-border-default: var(--color-border);
+
+  /* §11.4 Tokens retirados — puentes temporales.
+   *
+   * Existen solo para que las pantallas todavía no migradas no queden sin
+   * color mientras avanzan las etapas E2 a E9. Ya no son tokens de marca: el
+   * primario de la marca es la tinta. Se eliminan al cerrar la migración.
+   */
+  --color-primary: var(--color-ink-900);
+  --color-primary-hover: var(--color-ink-800);
+  --color-secondary: var(--color-ink-500);
+  --color-light: var(--color-ink-050);
+  --color-dark: var(--color-ink-900);
+
+  /* ---------------------------------------------------------------------
+   * §6.2 Tipografía
+   *
+   * UDSP-01: `font-family-display` se resuelve con la fuente alojada
+   * localmente si existe, y cae a la familia del sistema si no. Ningún
+   * componente nombra la fuente: solo usa el token.
+   * ------------------------------------------------------------------- */
+  --font-family-base:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-display: 'Archivo', 'Archivo Narrow', var(--font-family-base);
+  --font-family-heading: var(--font-family-display);
+  --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --font-size-2xs: 0.6875rem;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.375rem;
+  --font-size-2xl: 1.75rem;
+  --font-size-3xl: 2.25rem;
+  --font-size-display: clamp(2.25rem, 6vw, 3.5rem);
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  --line-height-none: 1;
+  --line-height-tight: 1.15;
+  --line-height-snug: 1.3;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  --letter-spacing-tighter: -0.03em;
+  --letter-spacing-tight: -0.015em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.08em;
+  --letter-spacing-wider: 0.14em;
+
+  /* ---------------------------------------------------------------------
+   * §6.3 Espaciado — base 8px con medios pasos
+   * ------------------------------------------------------------------- */
+  --spacing-0: 0;
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.5rem;
+  --spacing-6: 2rem;
+  --spacing-7: 2.5rem;
+  --spacing-8: 3rem;
+  --spacing-9: 4rem;
+  --spacing-10: 5rem;
+  --spacing-11: 6rem;
+
+  /* §6.3 Ritmo de sección — valores móviles; crecen en §7.3 */
+  --section-gap-y: 2.5rem;
+  --section-header-gap: 1rem;
+  --section-inset-x: 1rem;
+
+  /* ---------------------------------------------------------------------
+   * §6.4 Border radius — esquinas cortas, medios sin redondear
+   * ------------------------------------------------------------------- */
+  --radius-none: 0;
+  --radius-media: 0;
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-pill: 50rem;
+  --radius-circle: 50%;
+
+  /* ---------------------------------------------------------------------
+   * §6.5 Sombras — la elevación comunica superposición, no existencia
+   * ------------------------------------------------------------------- */
+  --shadow-none: none;
+  --shadow-sm: 0 1px 2px rgba(14, 17, 22, 0.06);
+  --shadow-md: 0 8px 24px -12px rgba(14, 17, 22, 0.25);
+  --shadow-lg: 0 24px 48px -24px rgba(14, 17, 22, 0.35);
+
+  /* ---------------------------------------------------------------------
+   * §6.6 Bordes
+   * ------------------------------------------------------------------- */
+  --border-width-thin: 1px;
+  --border-width-medium: 2px;
+  --border-width-thick: 4px;
+  --border-style-default: solid;
+
+  /* ---------------------------------------------------------------------
+   * §7.1 Contenedores
+   * ------------------------------------------------------------------- */
+  --container-max-width-sm: 540px;
+  --container-max-width-md: 720px;
+  --container-max-width-lg: 960px;
+  --container-max-width-xl: 1140px;
+  --container-max-width-xxl: 1320px;
+  --container-max-width-store: 1440px;
+  --container-padding-x: 1rem;
+
+  /* §7.2 Grid */
+  --grid-columns: 12;
+  --grid-gutter: 1.5rem;
+  --grid-gutter-sm: 0.75rem;
+
+  /* ---------------------------------------------------------------------
+   * §7.4 Z-index
+   * ------------------------------------------------------------------- */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1070;
+  --z-index-tooltip: 1080;
+  --z-index-toast: 1090;
+
+  /* ---------------------------------------------------------------------
+   * §7.5 Relaciones de aspecto — UDS-10: ninguna imagen sin caja reservada
+   * ------------------------------------------------------------------- */
+  --aspect-product: 1 / 1;
+  --aspect-product-detail: 4 / 5;
+  --aspect-hero: 4 / 5;
+  --aspect-category: 3 / 4;
+  --aspect-brand: 3 / 2;
+
+  /* ---------------------------------------------------------------------
+   * §7.6 Métrica de carruseles — piezas visibles, no píxeles
+   * ------------------------------------------------------------------- */
+  --carousel-visible-products: 2.2;
+  --carousel-visible-brands: 2.5;
+  /* Piezas grandes y editoriales (Novedades/Promociones, BannerRail): una
+     pieza dominante con apenas un asomo de la siguiente, no una grilla. */
+  --carousel-visible-categories: 1.15;
+  --carousel-gap: var(--spacing-3);
+  --carousel-control-size: 2.75rem;
+
+  /* ---------------------------------------------------------------------
+   * §8 Iconografía — tamaños
+   * ------------------------------------------------------------------- */
+  --icon-size-sm: 16px;
+  --icon-size-md: 20px;
+  --icon-size-lg: 24px;
+  --icon-size-xl: 32px;
+
+  /* ---------------------------------------------------------------------
+   * §11.2 Movimiento — UDS-06: ninguna animación supera 300 ms
+   * ------------------------------------------------------------------- */
+  --duration-instant: 0ms;
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 300ms;
+
+  --delay-none: 0ms;
+  --delay-short: 100ms;
+  --delay-medium: 200ms;
+
+  --easing-default: ease-in-out;
+  --easing-enter: ease-out;
+  --easing-exit: ease-in;
+  --easing-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  --transition-fast: all var(--duration-fast) var(--easing-default);
+  --transition-standard: all var(--duration-normal) var(--easing-default);
+  --transition-slow: all var(--duration-slow) var(--easing-default);
+
+  /* ---------------------------------------------------------------------
+   * §10.3 Foco
+   * ------------------------------------------------------------------- */
+  --focus-ring-width: var(--border-width-medium);
+  --focus-ring-offset: 2px;
+  --focus-ring-color: var(--color-border-focus);
+  --focus-ring-color-inverse: var(--color-border-focus-inverse);
+
+  /* §10.1 Área táctil mínima 44x44px */
+  --touch-target-min: 44px;
+}
+
+/* --------------------------------------------------------------------------
+ * §7.3 Escalado por breakpoint. Solo cambian los tokens que dependen del
+ * ancho disponible: ritmo de sección, proporción del hero y cuántas piezas
+ * muestra cada carrusel (§7.6). Ningún componente repite estos valores.
+ * ----------------------------------------------------------------------- */
+@media (min-width: 576px) {
+  :root {
+    --carousel-visible-products: 2.5;
+    --carousel-visible-brands: 3.5;
+    --carousel-visible-categories: 1.3;
+  }
+}
+
+@media (min-width: 768px) {
+  :root {
+    --section-gap-y: 3.5rem;
+    --section-header-gap: 1.25rem;
+    --section-inset-x: 1.5rem;
+
+    --aspect-hero: 16 / 9;
+
+    --carousel-visible-products: 3.5;
+    --carousel-visible-brands: 5;
+    --carousel-visible-categories: 1.6;
+    --carousel-gap: var(--spacing-4);
+  }
+}
+
+@media (min-width: 992px) {
+  :root {
+    --section-gap-y: 4.5rem;
+    --section-header-gap: 1.5rem;
+    --section-inset-x: 2rem;
+
+    --aspect-hero: 21 / 9;
+
+    --carousel-visible-products: 5;
+    --carousel-visible-brands: 6;
+    --carousel-visible-categories: 2;
+  }
+}
+
+@media (min-width: 1200px) {
+  :root {
+    --carousel-visible-products: 6;
+    --carousel-visible-brands: 7;
+    --carousel-visible-categories: 2.4;
+  }
+}

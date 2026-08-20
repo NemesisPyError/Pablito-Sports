@@ -1,0 +1,184 @@
+/**
+ * Tarjeta de producto (09_COMPONENTES.md §9.8, anatomía aprobada).
+ *
+ * §6.5: en reposo la tarjeta no lleva sombra, lleva filete. La elevación
+ * aparece solo al pasar el puntero, para comunicar que se puede accionar.
+ */
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-background);
+  overflow: hidden;
+  transition: var(--transition-fast);
+}
+
+.card:hover {
+  border-color: var(--color-action-primary-bg);
+  box-shadow: var(--shadow-md);
+}
+
+/*
+ * El anillo de foco lo dibuja la tarjeta entera, no el enlace: el objetivo
+ * accionable es la tarjeta y el foco debe coincidir con lo que se acciona.
+ */
+.card:focus-within {
+  outline: var(--focus-ring-width) var(--border-style-default) var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* --------------------------------------------------------------------------
+ * Imagen. §7.5: `contain` sobre superficie clara, para no recortar calzado
+ * ni prendas que el administrador subió con proporciones arbitrarias.
+ * ----------------------------------------------------------------------- */
+.media {
+  position: relative;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-media);
+}
+
+/*
+ * Segunda foto: superpuesta a la principal, oculta hasta el hover. La
+ * transición es de opacidad (no un salto de `src`) para que el cambio se
+ * sienta como parte de la tarjeta, no como una recarga de imagen.
+ */
+.hoverImage {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  pointer-events: none;
+}
+
+.hoverImageVisible {
+  opacity: 1;
+}
+
+.badges {
+  position: absolute;
+  inset-block-start: var(--spacing-2);
+  inset-inline: var(--spacing-2);
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  pointer-events: none;
+}
+
+.badge {
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  line-height: var(--line-height-normal);
+  text-transform: uppercase;
+}
+
+.badgeSale {
+  background-color: var(--color-badge-sale-bg);
+  color: var(--color-badge-sale-text);
+}
+
+.badgeNew {
+  margin-inline-start: auto;
+  background-color: var(--color-badge-new-bg);
+  color: var(--color-badge-new-text);
+}
+
+/* --------------------------------------------------------------------------
+ * Cuerpo
+ * ----------------------------------------------------------------------- */
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3);
+}
+
+.brand {
+  margin-block-end: var(--spacing-0);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wider);
+  line-height: var(--line-height-normal);
+  text-transform: uppercase;
+}
+
+/*
+ * El nombre ocupa siempre dos líneas, tenga una o tenga dos: sin altura
+ * reservada, dos tarjetas contiguas desalinean su precio y la fila entera se
+ * ve rota.
+ */
+.name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-height: calc(2 * var(--line-height-snug) * var(--font-size-sm));
+  margin-block-end: var(--spacing-0);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-normal);
+  line-height: var(--line-height-snug);
+}
+
+/*
+ * Toda la tarjeta es el enlace. El pseudoelemento cubre la superficie sin
+ * anidar interactivos, que es lo que rompería la navegación por teclado.
+ */
+.link {
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.link:focus-visible {
+  outline: none;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin-block-start: auto;
+}
+
+/* --------------------------------------------------------------------------
+ * Variantes. §10 de 09_COMPONENTES.md: no existen tarjetas por viewport; la
+ * diferencia es de composición y la decide quien la usa.
+ * ----------------------------------------------------------------------- */
+.variantCompact .body {
+  padding: var(--spacing-2);
+}
+
+.variantCompact .name {
+  min-height: calc(2 * var(--line-height-snug) * var(--font-size-xs));
+  font-size: var(--font-size-xs);
+}
+
+@media (min-width: 768px) {
+  .variantGrid .name,
+  .variantRail .name {
+    min-height: calc(2 * var(--line-height-snug) * var(--font-size-md));
+    font-size: var(--font-size-md);
+  }
+
+  .variantGrid .body,
+  .variantRail .body {
+    padding: var(--spacing-4);
+  }
+}

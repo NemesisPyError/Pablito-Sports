@@ -1,0 +1,116 @@
+# Entorno local de Pablito Sports (12_DEPLOY.md §6, DPL-05).
+# Topología: Nginx → (Vite dev server | Gunicorn+Flask) → PostgreSQL.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pablito_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/postgres:/docker-entrypoint-initdb.d:ro
+    # 03_SEGURIDAD.md §17.2: PostgreSQL NO publica ningún puerto en el host. La
+    # aplicación se conecta por la red interna de Compose (`postgres:5432`), de
+    # modo que el motor es inalcanzable desde fuera de Docker. Para inspección
+    # local se usa `docker compose exec postgres psql`, que entra al contenedor
+    # sin exponer el puerto.
+    #
+    # Para acceso con un cliente de escritorio del host, descomentar y elegir un
+    # puerto de loopback LIBRE (5432 suele estar ocupado por un PostgreSQL
+    # nativo del host):
+    #   ports:
+    #     - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        REQUIREMENTS: requirements/dev.txt
+    container_name: pablito_backend
+    restart: unless-stopped
+    environment:
+      FLASK_ENV: ${FLASK_ENV}
+      FLASK_APP: wsgi:application
+      DATABASE_URL: ${DATABASE_URL}
+      TEST_DATABASE_URL: ${TEST_DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE}
+      UPLOAD_FOLDER: ${UPLOAD_FOLDER}
+      LOG_LEVEL: ${LOG_LEVEL}
+      # Semilla del superadministrador (04_BASE_DATOS.md §11.3). Solo la usa la
+      # migración; la contraseña nunca se versiona (03_SEGURIDAD.md §18.2).
+      ADMIN_INITIAL_USERNAME: ${ADMIN_INITIAL_USERNAME:-admin}
+      ADMIN_INITIAL_EMAIL: ${ADMIN_INITIAL_EMAIL:-admin@pablitosports.local}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    volumes:
+      - ./backend:/app
+      # scripts/ vive en la raíz del repositorio (99_AI_DEVELOPMENT_GUIDE.md §7.2)
+      # y se monta para poder ejecutarlo dentro del contenedor.
+      - ./scripts:/scripts:ro
+      - uploads_data:${UPLOAD_FOLDER}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # --reload keeps the local edit loop short; production uses the image CMD.
+    # No --access-logfile: RequestLoggingMiddleware emits the structured record.
+    command: >
+      gunicorn --bind 0.0.0.0:8000 --workers 2 --reload
+      --error-logfile - wsgi:application
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: pablito_frontend
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    environment:
+      VITE_API_BASE_URL: /api/v1
+    healthcheck:
+      # 127.0.0.1 explicitly: Vite binds IPv4 only and busybox wget prefers ::1.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5173/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: pablito_nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/proxy_params:/etc/nginx/proxy_params:ro
+      - ./nginx/security_headers:/etc/nginx/security_headers:ro
+      # Nginx solo lee el volumen de imágenes (12_DEPLOY.md §19.2).
+      - uploads_data:/var/lib/pablito/uploads:ro
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres_data:
+  uploads_data:
+  frontend_node_modules:

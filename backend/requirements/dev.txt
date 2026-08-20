@@ -1,0 +1,7 @@
+-r base.txt
+
+# Tooling required by 11_TESTING.md §20.1 (lint, unit tests, coverage)
+pytest==8.3.4
+pytest-cov==6.0.0
+ruff==0.8.4
+black==24.10.0

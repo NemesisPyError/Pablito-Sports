@@ -1,0 +1,100 @@
+/**
+ * Pieza de contenido con imagen administrable (09_COMPONENTES.md §9.8).
+ *
+ * `UDS-09`: mientras no haya imagen, la variante tipográfica **no** es un
+ * hueco ni un marcador de posición. Es una solución diseñada, presentable, y
+ * la que se va a ver hasta que se carguen los logotipos.
+ */
+
+.tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--spacing-3);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  text-align: center;
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+.tile:hover {
+  border-color: var(--color-action-primary-bg);
+}
+
+/* --------------------------------------------------------------------------
+ * Proporciones de §7.5
+ * ----------------------------------------------------------------------- */
+.aspectBrand {
+  aspect-ratio: var(--aspect-brand);
+}
+
+.aspectCategory {
+  aspect-ratio: var(--aspect-category);
+}
+
+/* --------------------------------------------------------------------------
+ * Con imagen: el logotipo respira dentro de la caja y no se recorta.
+ * ----------------------------------------------------------------------- */
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* --------------------------------------------------------------------------
+ * Sin imagen: el nombre compuesto tipográficamente. Al enfocar o pasar el
+ * puntero, la superficie se invierte a tinta.
+ * ----------------------------------------------------------------------- */
+.wordmark {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-wider);
+  line-height: var(--line-height-snug);
+  text-transform: uppercase;
+  /* Un nombre largo no debe desbordar ni encoger la pieza. */
+  overflow-wrap: anywhere;
+}
+
+.fallback:hover,
+.fallback:focus-visible {
+  background-color: var(--color-action-primary-bg);
+  border-color: var(--color-action-primary-bg);
+  color: var(--color-action-primary-text);
+}
+
+.eyebrow {
+  display: block;
+  margin-block-end: var(--spacing-1);
+  color: var(--color-text-muted);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+}
+
+.fallback:hover .eyebrow,
+.fallback:focus-visible .eyebrow {
+  color: var(--color-text-inverse-muted);
+}
+
+/* --------------------------------------------------------------------------
+ * Tono inverso: la misma pieza sobre un bloque de tinta.
+ * ----------------------------------------------------------------------- */
+.toneInverse {
+  border-color: var(--color-border-inverse);
+  background-color: var(--color-ink-800);
+  color: var(--color-text-inverse);
+}
+
+.toneInverse:hover,
+.toneInverse:focus-visible {
+  border-color: var(--color-volt-500);
+  background-color: var(--color-ink-800);
+  color: var(--color-volt-500);
+}

@@ -1,0 +1,237 @@
+/**
+ * Aplicación de los tokens a la página y a Bootstrap.
+ *
+ * UDS-05: Bootstrap es capa de implementación, no autoridad. Acá se le imponen
+ * los tokens del proyecto, de modo que las utilidades de Bootstrap que se usen
+ * sigan derivando de 08_UI_SYSTEM.md.
+ *
+ * Nota de implementación (08_UI_SYSTEM.md §13.1): el proyecto consume el CSS
+ * ya compilado de Bootstrap (`bootstrap/dist/css/bootstrap.min.css`), no sus
+ * fuentes Sass. Sus valores de marca están horneados en el archivo, así que la
+ * imposición de tokens se hace sobre las variables CSS que Bootstrap 5.3 sí
+ * lee en tiempo de ejecución: las `--bs-*-rgb` de las utilidades y las
+ * `--bs-btn-*` de cada variante de botón.
+ */
+
+/* --------------------------------------------------------------------------
+ * Bootstrap consume los tokens del proyecto (§13.1)
+ * ----------------------------------------------------------------------- */
+:root {
+  --bs-primary: var(--color-action-primary-bg);
+  --bs-secondary: var(--color-text-secondary);
+  --bs-success: var(--color-success);
+  --bs-danger: var(--color-danger);
+  --bs-warning: var(--color-warning);
+  --bs-info: var(--color-info);
+  --bs-light: var(--color-surface-alt);
+  --bs-dark: var(--color-ink-900);
+
+  /* Las utilidades de color (`text-*`, `bg-*`, `border-*`) resuelven por RGB. */
+  --bs-primary-rgb: 14, 17, 22;
+  --bs-secondary-rgb: 90, 99, 111;
+  --bs-success-rgb: 15, 107, 65;
+  --bs-danger-rgb: 179, 35, 24;
+  --bs-warning-rgb: 154, 91, 0;
+  --bs-info-rgb: 11, 93, 138;
+  --bs-light-rgb: 248, 249, 250;
+  --bs-dark-rgb: 14, 17, 22;
+
+  /* `.text-muted` de Bootstrap 5.3 resuelve por esta variable. */
+  --bs-secondary-color: var(--color-text-muted);
+
+  --bs-body-bg: var(--color-background-page);
+  --bs-body-color: var(--color-text-body);
+  --bs-body-font-family: var(--font-family-base);
+  --bs-body-font-size: var(--font-size-md);
+  --bs-body-line-height: var(--line-height-normal);
+  --bs-border-color: var(--color-border-default);
+  --bs-border-radius: var(--radius-md);
+  --bs-border-radius-sm: var(--radius-sm);
+  --bs-border-radius-lg: var(--radius-lg);
+  --bs-border-radius-pill: var(--radius-pill);
+  --bs-link-color: var(--color-text-link);
+  --bs-link-hover-color: var(--color-text-link-hover);
+
+  --bs-gutter-x: var(--grid-gutter);
+}
+
+/* --------------------------------------------------------------------------
+ * Botones: cada variante de Bootstrap 5.3 declara sus propias `--bs-btn-*`
+ * con valores literales. Se reemplazan por tokens, sin tocar la estructura de
+ * clases que ya usan las pantallas.
+ * ----------------------------------------------------------------------- */
+.btn-primary {
+  --bs-btn-bg: var(--color-action-primary-bg);
+  --bs-btn-border-color: var(--color-action-primary-bg);
+  --bs-btn-color: var(--color-action-primary-text);
+  --bs-btn-hover-bg: var(--color-action-primary-bg-hover);
+  --bs-btn-hover-border-color: var(--color-action-primary-bg-hover);
+  --bs-btn-hover-color: var(--color-action-primary-text);
+  --bs-btn-active-bg: var(--color-action-primary-bg-hover);
+  --bs-btn-active-border-color: var(--color-action-primary-bg-hover);
+  --bs-btn-active-color: var(--color-action-primary-text);
+  --bs-btn-disabled-bg: var(--color-action-primary-bg);
+  --bs-btn-disabled-border-color: var(--color-action-primary-bg);
+  --bs-btn-disabled-color: var(--color-action-primary-text);
+}
+
+.btn-outline-primary,
+.btn-outline-secondary {
+  --bs-btn-color: var(--color-action-secondary-text);
+  --bs-btn-border-color: var(--color-action-secondary-border);
+  --bs-btn-bg: var(--color-action-secondary-bg);
+  --bs-btn-hover-bg: var(--color-action-primary-bg);
+  --bs-btn-hover-border-color: var(--color-action-primary-bg);
+  --bs-btn-hover-color: var(--color-action-primary-text);
+  --bs-btn-active-bg: var(--color-action-primary-bg);
+  --bs-btn-active-border-color: var(--color-action-primary-bg);
+  --bs-btn-active-color: var(--color-action-primary-text);
+  --bs-btn-disabled-color: var(--color-text-muted);
+  --bs-btn-disabled-border-color: var(--color-action-secondary-border);
+}
+
+.btn-danger {
+  --bs-btn-bg: var(--color-action-danger-bg);
+  --bs-btn-border-color: var(--color-action-danger-bg);
+  --bs-btn-color: var(--color-action-danger-text);
+  --bs-btn-hover-bg: var(--color-action-danger-bg);
+  --bs-btn-hover-border-color: var(--color-action-danger-bg);
+  --bs-btn-hover-color: var(--color-action-danger-text);
+}
+
+.btn-success {
+  --bs-btn-bg: var(--color-action-success-bg);
+  --bs-btn-border-color: var(--color-action-success-bg);
+  --bs-btn-color: var(--color-action-success-text);
+  --bs-btn-hover-bg: var(--color-action-success-bg);
+  --bs-btn-hover-border-color: var(--color-action-success-bg);
+  --bs-btn-hover-color: var(--color-action-success-text);
+}
+
+/* --------------------------------------------------------------------------
+ * Página
+ * ----------------------------------------------------------------------- */
+body {
+  background-color: var(--color-background-page);
+  color: var(--color-text-body);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --------------------------------------------------------------------------
+ * §6.2 Roles tipográficos. Los titulares usan la familia de display y
+ * tracking negativo: la jerarquía la construye la tipografía, no el color.
+ * ----------------------------------------------------------------------- */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--color-text-heading);
+  font-family: var(--font-family-heading);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+h1 {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-tighter);
+}
+
+h2 {
+  font-size: var(--font-size-2xl);
+}
+
+h3 {
+  font-size: var(--font-size-xl);
+}
+
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-lg);
+}
+
+@media (min-width: 992px) {
+  h2 {
+    font-size: var(--font-size-3xl);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * §10.3 Foco visible en todo elemento interactivo, sin excepciones.
+ * Se usa `outline` y no `box-shadow` para que el anillo no quede recortado
+ * dentro de contenedores con `overflow` (los carriles de carrusel).
+ * ----------------------------------------------------------------------- */
+:focus-visible {
+  outline: var(--focus-ring-width) var(--border-style-default) var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+/*
+ * Bootstrap declara `.btn:focus-visible { outline: 0 }` y sustituye el anillo
+ * por un `box-shadow`. Su selector tiene más especificidad que el nuestro, así
+ * que gana: todo botón con clase `.btn` perdía el anillo del sistema.
+ *
+ * Se restituye el `outline` porque §10.3 lo exige por una razón concreta: un
+ * `box-shadow` queda recortado dentro de los contenedores con `overflow`, que
+ * es justo donde viven los carriles de la portada.
+ */
+.btn:focus-visible {
+  outline: var(--focus-ring-width) var(--border-style-default) var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  box-shadow: none;
+}
+
+/* --------------------------------------------------------------------------
+ * §10 y §14: áreas táctiles no inferiores a 44x44px, y los inputs no bajan de
+ * 16px para evitar el zoom automático de iOS.
+ * ----------------------------------------------------------------------- */
+button,
+[role='button'],
+a.btn,
+input[type='checkbox'],
+input[type='radio'] {
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
+}
+
+input,
+select,
+textarea {
+  font-size: var(--font-size-md);
+}
+
+/* --------------------------------------------------------------------------
+ * §14: ninguna pantalla genera scroll horizontal involuntario.
+ * ----------------------------------------------------------------------- */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* --------------------------------------------------------------------------
+ * §10.5: se respeta prefers-reduced-motion.
+ * ----------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: var(--duration-instant) !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: var(--duration-instant) !important;
+    scroll-behavior: auto !important;
+  }
+}

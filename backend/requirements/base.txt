@@ -1,0 +1,23 @@
+# Runtime dependencies (00_VISION_PROYECTO.md §9)
+Flask==3.1.0
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.7
+SQLAlchemy==2.0.36
+alembic==1.14.0
+psycopg2-binary==2.9.10
+gunicorn==23.0.0
+python-dotenv==1.0.1
+
+# Panel administrativo (Fase 6)
+# AD-37 + 10_BACKEND.md §6: sesión de servidor, no testigo autocontenido.
+Flask-Session==0.8.0
+# 03_SEGURIDAD.md §8: token CSRF en toda escritura del panel.
+Flask-WTF==1.2.2
+# 03_SEGURIDAD.md §14: límites por endpoint (RNF-11).
+Flask-Limiter==3.9.2
+# 03_SEGURIDAD.md §5.5: bcrypt con coste >= 12.
+bcrypt==4.2.1
+# 03_SEGURIDAD.md §11.1: validación de dimensiones y comprobación de que el
+# archivo es una imagen real (§11.2). También genera los derivados de
+# 02_ARQUITECTURA.md §15.5.
+Pillow==11.0.0

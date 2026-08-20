@@ -1,0 +1,99 @@
+# -----------------------------------------------------------------------------
+# Pablito Sports — Nginx de PRODUCCIÓN (referencia, NO usado por docker-compose)
+# -----------------------------------------------------------------------------
+# Este archivo NO se monta en el entorno local. Es la plantilla endurecida para
+# el despliegue con TLS y, más adelante, Cloudflare delante. Documenta lo que la
+# configuración de desarrollo (conf.d/default.conf) deja deliberadamente fuera:
+# terminación TLS, HSTS y una Content-Security-Policy estricta.
+#
+# Topología objetivo:
+#   Internet → Cloudflare (proxy naranja, WAF, TLS) → Nginx (este archivo) → Flask
+#
+# Ajustes obligatorios antes de usar:
+#   - server_name con el dominio real.
+#   - rutas de certificado TLS (o "SSL Full (strict)" en Cloudflare + cert de origen).
+#   - TRUSTED_PROXY_COUNT=2 en el backend (Cloudflare añade un salto sobre Nginx).
+#   - revisar la CSP contra el build real del frontend antes de activarla.
+
+map $http_user_agent $pablito_crawler {
+    default 0;
+    "~*facebookexternalhit" 1;
+    "~*facebookcatalog"     1;
+    "~*WhatsApp"            1;
+    "~*Twitterbot"         1;
+    "~*Discordbot"         1;
+    "~*TelegramBot"        1;
+    "~*LinkedInBot"        1;
+    "~*Slackbot"           1;
+    "~*Googlebot"          1;
+    "~*bingbot"            1;
+    "~*DuckDuckBot"        1;
+    "~*Applebot"           1;
+}
+
+# Redirección a HTTPS. Si Cloudflare ya fuerza HTTPS, este bloque es redundante
+# pero inofensivo (defensa en profundidad para accesos directos al origen).
+server {
+    listen 80;
+    server_name TU_DOMINIO;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name TU_DOMINIO;
+
+    ssl_certificate     /etc/nginx/tls/fullchain.pem;
+    ssl_certificate_key /etc/nginx/tls/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    client_max_body_size 16m;
+
+    # --- Cabeceras de seguridad (03_SEGURIDAD.md §12) -----------------------
+    # HSTS: SOLO válido bajo HTTPS. Empezar con un max-age corto y subirlo tras
+    # verificar que todo el dominio y subdominios sirven TLS.
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+
+    # Content-Security-Policy. Punto de partida ESTRICTO para el SPA compilado
+    # (sin Vite/HMR en producción). Verificar contra el bundle real y relajar
+    # solo lo imprescindible:
+    #   - 'self' para script y estilo del propio build.
+    #   - img: 'self' data: para las imágenes servidas desde /uploads y los
+    #     data-URI del favicon.
+    #   - connect-src 'self' para las llamadas a /api/v1 del mismo origen.
+    #   - frame-ancestors 'none' reemplaza a X-Frame-Options en navegadores
+    #     modernos.
+    # Si el build inyecta estilos en línea, preferir un hash/nonce antes que
+    # 'unsafe-inline'. NUNCA usar 'unsafe-eval'.
+    add_header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'" always;
+
+    # --- API, salud, SEO, sitemap, robots (idénticos a desarrollo) ----------
+    location /api/v1/ { proxy_pass http://backend; include /etc/nginx/proxy_params; }
+    location /health/ { proxy_pass http://backend; include /etc/nginx/proxy_params; }
+    location /_seo/   { proxy_pass http://backend; include /etc/nginx/proxy_params; }
+    location = /robots.txt  { proxy_pass http://backend; include /etc/nginx/proxy_params; }
+    location = /sitemap.xml { proxy_pass http://backend; include /etc/nginx/proxy_params; }
+
+    # --- Imágenes: solo la rama de derivados (AD-38) ------------------------
+    location /uploads/ {
+        alias /var/lib/pablito/uploads/derivatives/;
+        access_log off;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # --- SPA compilado ------------------------------------------------------
+    # En producción el frontend es un build estático, no el dev server de Vite.
+    # Servirlo desde disco con fallback a index.html (SPA routing).
+    location / {
+        root /var/www/pablito;
+        try_files $uri /index.html;
+    }
+}

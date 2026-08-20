@@ -1,0 +1,30 @@
+.frame {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 21 / 9;
+  background-color: var(--color-ink-900);
+  border-radius: var(--radius-md);
+  touch-action: none;
+  cursor: grab;
+}
+
+.frame:active {
+  cursor: grabbing;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-inverse-muted, #ced4da);
+}
+
+.image {
+  position: absolute;
+  max-width: none;
+  /* El arrastre lo maneja `.frame` con Pointer Events: la imagen no debe
+     interceptarlos ni ofrecer su propio drag-and-drop nativo. */
+  pointer-events: none;
+  user-select: none;
+}

@@ -1,0 +1,136 @@
+/**
+ * Carril horizontal con `scroll-snap` nativo (08_UI_SYSTEM.md §7.6, UDS-08).
+ *
+ * El gesto táctil, la inercia y la accesibilidad del desplazamiento los aporta
+ * el navegador. El componente solo aporta la métrica y los controles.
+ */
+
+.wrapper {
+  position: relative;
+}
+
+/* --------------------------------------------------------------------------
+ * §7.6 Métrica: el ancho de cada pieza se deduce de cuántas se ven a la vez.
+ * El valor fraccionario deja media pieza asomando, que es la única señal
+ * fiable de que el contenido continúa.
+ * ----------------------------------------------------------------------- */
+.track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc(
+    (100% - (var(--carousel-visible) - 1) * var(--carousel-gap)) / var(--carousel-visible)
+  );
+  gap: var(--carousel-gap);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline-start: var(--carousel-scroll-padding);
+  scroll-behavior: smooth;
+  /* Aire para que el anillo de foco de la última fila no quede recortado. */
+  padding-block-end: var(--spacing-2);
+}
+
+.item {
+  scroll-snap-align: start;
+  /* Sin esto, un hijo ancho estira la columna del grid y rompe la métrica. */
+  min-width: 0;
+}
+
+/*
+ * La barra nativa se oculta solo donde los controles la reemplazan de verdad.
+ * Los controles existen desde `md` (ver más abajo): por debajo de ese ancho la
+ * barra sigue siendo el único indicador de recorrido y se conserva.
+ */
+@media (min-width: 768px) {
+  .trackWithControls {
+    scrollbar-width: none;
+  }
+
+  .trackWithControls::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * §7.6 Métricas declaradas como token. Ningún componente escribe el número.
+ * ----------------------------------------------------------------------- */
+.metricProducts {
+  --carousel-visible: var(--carousel-visible-products);
+}
+
+.metricBrands {
+  --carousel-visible: var(--carousel-visible-brands);
+}
+
+.metricCategories {
+  --carousel-visible: var(--carousel-visible-categories);
+}
+
+.metricSingle {
+  --carousel-visible: 1;
+  --carousel-gap: var(--spacing-0);
+}
+
+/* --------------------------------------------------------------------------
+ * §14.2: en pantallas angostas el carril llega hasta el borde, con el mismo
+ * margen interior que la sección, de modo que la primera pieza queda alineada
+ * con el título.
+ * ----------------------------------------------------------------------- */
+.bleed {
+  margin-inline: calc(var(--section-inset-x) * -1);
+  padding-inline: var(--section-inset-x);
+}
+
+@media (min-width: 992px) {
+  .bleed {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Controles. §14.1: aparecen desde tablet; en móvil manda el gesto.
+ * ----------------------------------------------------------------------- */
+.control {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .control {
+    position: absolute;
+    top: calc(50% - var(--carousel-control-size) / 2);
+    z-index: var(--z-index-dropdown);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--carousel-control-size);
+    height: var(--carousel-control-size);
+    padding: var(--spacing-0);
+    border: var(--border-width-thin) var(--border-style-default) var(--color-border);
+    border-radius: var(--radius-pill);
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    transition: var(--transition-fast);
+  }
+
+  .control:hover:not(:disabled) {
+    background-color: var(--color-action-primary-bg);
+    border-color: var(--color-action-primary-bg);
+    color: var(--color-action-primary-text);
+  }
+
+  .control:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .controlPrevious {
+    left: calc(var(--carousel-control-size) / -2);
+  }
+
+  .controlNext {
+    right: calc(var(--carousel-control-size) / -2);
+  }
+}

@@ -1,0 +1,6 @@
+/* La vista previa es texto libre del administrador: sin esto, una línea larga
+   desbordaría la tarjeta en vez de ajustarse (§14.8). */
+.preview {
+  white-space: pre-wrap;
+  word-break: break-word;
+}

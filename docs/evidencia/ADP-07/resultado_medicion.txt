@@ -1,0 +1,151 @@
+Autotest encodeURIComponent: 13/13 OK
+
+==============================================================================
+ENTORNO Y ENTRADAS
+==============================================================================
+Plantillas          : 01_ANALISIS_NEGOCIO.md 12.3 (copia literal)
+Numero WhatsApp     : 595981123456  (12 digitos)
+Prefijo wa.me       : 'https://wa.me/595981123456?text='  -> 32 caracteres
+Codigo de consulta  : PS-48213
+Unicode             : 15.1.0
+
+==============================================================================
+COSTE FIJO DE LA ENVOLTURA (sin items)
+==============================================================================
+caracteres            : 174
+bytes UTF-8           : 178
+codificado (URI)      : 242
+
+==============================================================================
+COSTE MARGINAL POR ITEM  (medido como delta N -> N+1)
+==============================================================================
+escenario      caracteres    bytes UTF-8       codificado  expansion
+------------------------------------------------------------------------------
+corto                 110            110              172      1.56x
+tipico                142            143              231      1.63x
+extenso               239            242              360      1.51x
+
+==============================================================================
+ESCENARIO 'CORTO'
+==============================================================================
+Item minimo: producto sin variante (13.9 omite Talle y Color), nombre y marca breves.
+
+   N    caracteres   bytes UTF-8     codificado      URL total
+------------------------------------------------------------------------------
+   1           287           291            413            445
+   2           396           400            584            616
+   3           507           511            757            789
+   4           616           620            928            960
+   5           725           729           1099           1131
+   6           834           838           1270           1302
+   7           943           947           1441           1473
+   8          1052          1056           1612           1644
+   9          1161          1165           1783           1815
+  10          1271          1275           1955           1987
+  15          1821          1825           2815           2847
+  20          2371          2375           3675           3707
+  25          2921          2925           4535           4567
+  30          3472          3476           5396           5428
+  35          4022          4026           6256           6288
+  40          4572          4576           7116           7148
+
+==============================================================================
+ESCENARIO 'TIPICO'
+==============================================================================
+Item tipico: producto con variante completa, nombre y marca de longitud habitual en el catalogo.
+
+   N    caracteres   bytes UTF-8     codificado      URL total
+------------------------------------------------------------------------------
+   1           319           324            472            504
+   2           462           468            704            736
+   3           603           610            934            966
+   4           744           752           1164           1196
+   5           885           894           1394           1426
+   6          1026          1036           1624           1656
+   7          1167          1178           1854           1886
+   8          1308          1320           2084           2116
+   9          1449          1462           2314           2346
+  10          1591          1605           2545           2577
+  15          2302          2321           3701           3733
+  20          3012          3036           4856           4888
+  25          3722          3751           6011           6043
+  30          4432          4466           7166           7198
+  35          5142          5181           8321           8353
+  40          5852          5896           9476           9508
+
+==============================================================================
+ESCENARIO 'EXTENSO'
+==============================================================================
+Peor caso razonable: nombre de producto largo, marca larga, color compuesto, cantidad de dos digitos, estado largo.
+
+   N    caracteres   bytes UTF-8     codificado      URL total
+------------------------------------------------------------------------------
+   1           419           426            604            636
+   2           657           667            963            995
+   3           895           908           1322           1354
+   4          1133          1149           1681           1713
+   5          1371          1390           2040           2072
+   6          1609          1631           2399           2431
+   7          1848          1873           2759           2791
+   8          2086          2114           3118           3150
+   9          2324          2355           3477           3509
+  10          2563          2597           3837           3869
+  15          3758          3807           5637           5669
+  20          4953          5017           7437           7469
+  25          6148          6227           9237           9269
+  30          7343          7437          11037          11069
+  35          8538          8647          12837          12869
+  40          9733          9857          14637          14669
+
+==============================================================================
+MUESTRA RENDERIZADA — escenario 'tipico', N = 3
+==============================================================================
+Hola Pablito Sports! 👋
+Quiero consultar por estos productos:
+
+1) Botín Nike Mercurial Vapor 16
+   Marca: Nike | Talle: 42 | Color: Negro
+   Cantidad: 1 x Gs. 850.000 = Gs. 850.000
+   Estado: Disponible
+
+2) Botín Nike Mercurial Vapor 16
+   Marca: Nike | Talle: 42 | Color: Negro
+   Cantidad: 1 x Gs. 850.000 = Gs. 850.000
+   Estado: Disponible
+
+3) Botín Nike Mercurial Vapor 16
+   Marca: Nike | Talle: 42 | Color: Negro
+   Cantidad: 1 x Gs. 850.000 = Gs. 850.000
+   Estado: Disponible
+--------------------------------
+Total estimado: Gs. 2.550.000
+(Precios sujetos a confirmacion)
+
+Consulta N.º: PS-48213
+
+-- longitudes de la muestra --
+caracteres      : 603
+bytes UTF-8     : 610
+codificado      : 934
+URL wa.me total : 966
+
+==============================================================================
+URL COMPLETA DE LA MUESTRA (verificable a mano)
+==============================================================================
+https://wa.me/595981123456?text=Hola%20Pablito%20Sports!%20%F0%9F%91%8B%0AQuiero%20consultar%20por%20estos%20productos%3A%0A%0A1)%20Bot%C3%ADn%20Nike%20Mercurial%20Vapor%2016%0A%20%20%20Marca%3A%20Nike%20%7C%20Talle%3A%2042%20%7C%20Color%3A%20Negro%0A%20%20%20Cantidad%3A%201%20x%20Gs.%20850.000%20%3D%20Gs.%20850.000%0A%20%20%20Estado%3A%20Disponible%0A%0A2)%20Bot%C3%ADn%20Nike%20Mercurial%20Vapor%2016%0A%20%20%20Marca%3A%20Nike%20%7C%20Talle%3A%2042%20%7C%20Color%3A%20Negro%0A%20%20%20Cantidad%3A%201%20x%20Gs.%20850.000%20%3D%20Gs.%20850.000%0A%20%20%20Estado%3A%20Disponible%0A%0A3)%20Bot%C3%ADn%20Nike%20Mercurial%20Vapor%2016%0A%20%20%20Marca%3A%20Nike%20%7C%20Talle%3A%2042%20%7C%20Color%3A%20Negro%0A%20%20%20Cantidad%3A%201%20x%20Gs.%20850.000%20%3D%20Gs.%20850.000%0A%20%20%20Estado%3A%20Disponible%0A--------------------------------%0ATotal%20estimado%3A%20Gs.%202.550.000%0A(Precios%20sujetos%20a%20confirmacion)%0A%0AConsulta%20N.%C2%BA%3A%20PS-48213
+
+==============================================================================
+ITEMS QUE CABEN BAJO UN TECHO DE URL DADO
+==============================================================================
+El techo NO lo decide este script. Se tabulan varios valores para que
+la decision de ADP-07 se tome sobre numeros medidos.
+
+ techo URL        corto       tipico      extenso
+------------------------------------------------------------------------------
+      2000           10            7            4
+      4096           22           16           10
+      8192           46           34           22
+     16384           93           69           44
+     32768          188          140           90
+     65536          377          281          181
+

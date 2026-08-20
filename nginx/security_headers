@@ -1,0 +1,16 @@
+# Cabeceras de seguridad para respuestas servidas al navegador
+# (03_SEGURIDAD.md §12). Se incluye en las localizaciones que devuelven el SPA,
+# el HTML de rastreadores y los archivos estáticos.
+#
+# NO se incluye en las localizaciones de la API (`/api/v1/`): allí las emite el
+# middleware de Flask (core/security/headers.py), y duplicarlas produciría
+# encabezados repetidos. `always` las envía también en respuestas de error.
+#
+# La Content-Security-Policy y HSTS NO viven aquí: la CSP estricta rompería el
+# hot-reload de Vite en desarrollo, y HSTS solo es válido bajo TLS. Ambas están
+# escritas y listas en `nginx/production.conf.example` para el despliegue.
+
+add_header X-Frame-Options "DENY" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;

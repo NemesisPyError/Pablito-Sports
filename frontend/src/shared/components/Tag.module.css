@@ -1,0 +1,32 @@
+/**
+ * Distintivo corto (08_UI_SYSTEM.md §6.1 «Colores comerciales»).
+ *
+ * Reemplaza a las utilidades `badge bg-*` de Bootstrap en el catálogo. El
+ * motivo no es estético: `bg-warning text-dark` daba 3.49:1 sobre el ámbar de
+ * la paleta y `bg-info text-dark` todavía menos, porque esos colores están
+ * calculados para llevar texto blanco encima, no tinta.
+ */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  line-height: var(--line-height-normal);
+  text-transform: uppercase;
+}
+
+/* Tinta con texto blanco: 18.4:1. */
+.ink {
+  background-color: var(--color-badge-new-bg);
+  color: var(--color-badge-new-text);
+}
+
+/* Acento con texto tinta: 15.6:1 (`UDS-11`). */
+.accent {
+  background-color: var(--color-badge-sale-bg);
+  color: var(--color-badge-sale-text);
+}

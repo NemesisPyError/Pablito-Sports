@@ -1,0 +1,126 @@
+/**
+ * Bloque de marca de la portada (09_COMPONENTES.md §9.8).
+ *
+ * Tinta a sangre, con el logotipo y la frase a un lado y el collage al otro.
+ * Un filete de acento arriba lo distingue de los demás bloques oscuros de la
+ * Home (Novedades, Promociones, Ofertas): es el único con marca propia.
+ */
+
+.showcase {
+  background-color: var(--color-surface-inverse);
+  border-block-start: 3px solid var(--color-volt-500);
+  color: var(--color-text-inverse);
+}
+
+.inner {
+  display: grid;
+  gap: var(--spacing-5);
+  width: 100%;
+  max-width: var(--container-max-width-store);
+  margin-inline: auto;
+  padding: var(--section-gap-y) var(--section-inset-x);
+}
+
+@media (min-width: 992px) {
+  .inner {
+    grid-template-columns: minmax(14rem, 1fr) 2fr;
+    align-items: center;
+    gap: var(--spacing-8);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Identidad de la marca
+ * ----------------------------------------------------------------------- */
+.identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+}
+
+.logo {
+  max-width: 12rem;
+  max-height: 5rem;
+  object-fit: contain;
+}
+
+/* Sin logotipo cargado, el nombre sostiene el bloque (`UDS-09`). */
+.wordmark {
+  margin-block-end: var(--spacing-0);
+  color: var(--color-text-inverse);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-tighter);
+  line-height: var(--line-height-none);
+  text-transform: uppercase;
+}
+
+.tagline {
+  max-width: 32ch;
+  margin-block-end: var(--spacing-0);
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-md);
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-3) var(--spacing-5);
+  border-radius: var(--radius-md);
+  background-color: var(--color-action-accent-bg);
+  color: var(--color-action-accent-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: var(--transition-fast);
+}
+
+.action:hover {
+  background-color: var(--color-action-accent-bg-hover);
+  color: var(--color-action-accent-text);
+}
+
+/* --------------------------------------------------------------------------
+ * Collage. La primera pieza manda: ocupa el doble en pantallas anchas, que es
+ * lo que evita que el conjunto se lea como una grilla de miniaturas iguales.
+ * ----------------------------------------------------------------------- */
+.collage {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-3);
+}
+
+.piece {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-media);
+  object-fit: cover;
+}
+
+@media (min-width: 768px) {
+  .collage {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  /* Con dos piezas, cada una toma la mitad; con tres o cuatro, la primera
+     ocupa el doble y el resto se acomoda al lado. */
+  .collage > :first-child {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+
+  .collage > :first-child .piece {
+    aspect-ratio: 1 / 1;
+    height: 100%;
+  }
+}
+
+.focusRing:focus-visible {
+  outline-color: var(--focus-ring-color-inverse);
+}

@@ -1,0 +1,95 @@
+# CI mínima de la Fase 0: lint + build (11_TESTING.md §20.1).
+# Los pasos de tests unitarios, integración, contrato y cobertura se incorporan
+# en las fases que los producen.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  backend-lint-test:
+    name: Backend · lint + unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      FLASK_ENV: testing
+      SECRET_KEY: ci-secret-not-used-in-any-environment
+      DATABASE_URL: postgresql://pablito:pablito@localhost:5432/pablito
+      TEST_DATABASE_URL: postgresql://pablito:pablito@localhost:5432/pablito_test
+      UPLOAD_FOLDER: /tmp/pablito-uploads
+      LOG_LEVEL: WARNING
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pablito
+          POSTGRES_PASSWORD: pablito
+          POSTGRES_DB: pablito_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pablito"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements/*.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements/dev.txt
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Black
+        run: black --check .
+
+      - name: Pytest
+        run: pytest
+
+  frontend-lint-build:
+    name: Frontend · lint + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier
+        run: npm run format:check
+
+      - name: Vite build
+        run: npm run build
+
+  backend-build:
+    name: Backend · docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t pablito-backend:ci ./backend

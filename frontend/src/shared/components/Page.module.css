@@ -1,0 +1,58 @@
+/**
+ * Envoltura de las pantallas internas (08_UI_SYSTEM.md §7.1, §6.3).
+ *
+ * La portada compone secciones a sangre; el catálogo, la ficha y el carrito
+ * son pantallas de contenido y comparten contenedor, ritmo vertical y
+ * encabezado. Antes cada una repetía `container py-4`, que además usaba el
+ * contenedor de 1140 px en lugar del de tienda.
+ */
+
+.page {
+  width: 100%;
+  max-width: var(--container-max-width-store);
+  margin-inline: auto;
+  padding: var(--section-gap-y) var(--section-inset-x);
+}
+
+/* Contenido de lectura: una columna de texto no debe cruzar la pantalla. */
+.narrow {
+  max-width: var(--container-max-width-xl);
+}
+
+.header {
+  margin-block-end: var(--section-header-gap);
+}
+
+.eyebrow {
+  display: block;
+  margin-block-end: var(--spacing-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.title {
+  margin-block-end: var(--spacing-0);
+  font-size: var(--font-size-2xl);
+}
+
+@media (min-width: 992px) {
+  .title {
+    font-size: var(--font-size-3xl);
+  }
+}
+
+.lead {
+  max-width: 62ch;
+  margin-block: var(--spacing-3) var(--spacing-0);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-relaxed);
+  white-space: pre-line;
+}
+
+.breadcrumbs {
+  margin-block-end: var(--spacing-3);
+}

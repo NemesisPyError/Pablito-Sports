@@ -1,0 +1,7 @@
+/* UDS-01: los valores derivan de tokens, nunca de literales. */
+.thumbnail {
+  width: var(--spacing-9);
+  height: var(--spacing-9);
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+}

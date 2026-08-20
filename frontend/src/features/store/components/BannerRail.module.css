@@ -1,0 +1,129 @@
+/**
+ * Carril de piezas administrables (09_COMPONENTES.md §9.8).
+ *
+ * Cada pieza es una imagen con su título encima, no una tarjeta de producto:
+ * son campañas que el administrador arma desde el panel.
+ */
+
+.carouselFrame {
+  position: relative;
+  border-radius: var(--radius-md);
+  background-color: var(--color-ink-900);
+}
+
+/*
+ * Desenfoque en los bordes del carril, solo decorativo. `pointer-events:
+ * none` para que nunca capture el gesto de arrastre ni tape los controles del
+ * carrusel (`z-index: dropdown`, muy por encima de este `1`). El `mask-image`
+ * hace que el desenfoque se sienta como un borde, no como una franja pareja.
+ */
+.edgeBlur {
+  display: none;
+  pointer-events: none;
+}
+
+@media (min-width: 992px) {
+  .edgeBlur {
+    position: absolute;
+    inset-block: 0;
+    z-index: 1;
+    display: block;
+    width: 3.5rem;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  .edgeBlurStart {
+    inset-inline-start: 0;
+    mask-image: linear-gradient(to right, black, transparent);
+    -webkit-mask-image: linear-gradient(to right, black, transparent);
+  }
+
+  .edgeBlurEnd {
+    inset-inline-end: 0;
+    mask-image: linear-gradient(to left, black, transparent);
+    -webkit-mask-image: linear-gradient(to left, black, transparent);
+  }
+}
+
+.card {
+  position: relative;
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-md);
+  background-color: var(--color-ink-900);
+  color: var(--color-text-inverse);
+  overflow: hidden;
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.media {
+  aspect-ratio: var(--aspect-category);
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Sin imagen la pieza sigue siendo legible: tinta y tipografía. */
+.plain {
+  display: flex;
+  align-items: flex-end;
+  aspect-ratio: var(--aspect-category);
+}
+
+.veil {
+  position: absolute;
+  inset: 0;
+  background: var(--color-overlay-media);
+}
+
+.content {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  padding: var(--spacing-4);
+}
+
+.title {
+  margin-block-end: var(--spacing-0);
+  color: var(--color-text-inverse);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-tight);
+  line-height: var(--line-height-tight);
+  text-transform: uppercase;
+}
+
+.subtitle {
+  margin-block: var(--spacing-1) var(--spacing-0);
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-sm);
+}
+
+/*
+ * La llamada a la acción es texto con filete, no un botón: la pieza entera ya
+ * es el enlace, y un botón dentro de un enlace sería un interactivo anidado.
+ */
+.cue {
+  display: inline-block;
+  margin-block-start: var(--spacing-2);
+  border-block-end: var(--border-width-medium) var(--border-style-default) var(--color-volt-500);
+  color: var(--color-volt-500);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.card:focus-visible {
+  outline-color: var(--focus-ring-color);
+}

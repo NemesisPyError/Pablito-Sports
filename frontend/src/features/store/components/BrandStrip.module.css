@@ -1,0 +1,26 @@
+/**
+ * Franja de marcas bajo la navegación (08_UI_SYSTEM.md §14.1).
+ *
+ * Es una tira de acceso, no una sección: por eso lleva su propio filete
+ * inferior en lugar del ritmo vertical de `section-gap-y`.
+ */
+
+.strip {
+  border-block-end: var(--border-width-thin) var(--border-style-default) var(--color-border);
+  background-color: var(--color-background);
+}
+
+.inner {
+  width: 100%;
+  max-width: var(--container-max-width-store);
+  margin-inline: auto;
+  padding: var(--spacing-3) var(--section-inset-x);
+}
+
+/*
+ * La pieza es más baja que la de un bloque de marca: acá el logotipo solo
+ * tiene que ser reconocible al pasar, no protagonizar.
+ */
+.tile {
+  --aspect-brand: 5 / 2;
+}

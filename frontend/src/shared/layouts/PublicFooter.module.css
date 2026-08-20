@@ -1,0 +1,174 @@
+/**
+ * Pie del catálogo (09_COMPONENTES.md §9.8 `PublicFooter`).
+ *
+ * Tinta a sangre: cierra la página con el mismo peso con el que la abre el
+ * navbar. Es además donde viven «Nosotros» y «Contacto», que no ocupan lugar
+ * en la navegación superior.
+ */
+
+.footer {
+  margin-block-start: auto;
+  background-color: var(--color-surface-inverse);
+  color: var(--color-text-inverse);
+}
+
+.inner {
+  width: 100%;
+  max-width: var(--container-max-width-store);
+  margin-inline: auto;
+  padding: var(--section-gap-y) var(--section-inset-x);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-6);
+}
+
+@media (min-width: 576px) {
+  .columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 992px) {
+  .columns {
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    gap: var(--spacing-8);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Marca
+ * ----------------------------------------------------------------------- */
+.brand {
+  margin-block-end: var(--spacing-2);
+  color: var(--color-text-inverse);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-tighter);
+  text-transform: uppercase;
+}
+
+.claim {
+  max-width: 34ch;
+  margin-block-end: var(--spacing-0);
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* --------------------------------------------------------------------------
+ * Columnas de enlaces
+ * ----------------------------------------------------------------------- */
+.heading {
+  margin-block-end: var(--spacing-3);
+  color: var(--color-text-inverse);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wider);
+  text-transform: uppercase;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  /* El aire lo aporta el área táctil de cada enlace, no la separación: sumar
+     las dos dejaría la columna el doble de alta. */
+  gap: var(--spacing-0);
+  margin: var(--spacing-0);
+  padding: var(--spacing-0);
+  list-style: none;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  /* §10.1: 44px de alto útil aunque el texto mida 19. */
+  min-height: var(--touch-target-min);
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+.link:hover,
+.link:focus-visible {
+  color: var(--color-text-inverse);
+}
+
+.data {
+  margin-block-end: var(--spacing-0);
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  /* Dirección y horarios se cargan con saltos de línea desde el panel. */
+  white-space: pre-line;
+}
+
+.dataLabel {
+  display: block;
+  color: var(--color-text-inverse);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.dataRow + .dataRow {
+  margin-block-start: var(--spacing-3);
+}
+
+/* --------------------------------------------------------------------------
+ * Redes. Sin biblioteca de íconos (§8), el nombre de la red **es** el enlace:
+ * más legible que un glifo improvisado y sin dependencia nueva.
+ * ----------------------------------------------------------------------- */
+.social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.socialLink {
+  padding: var(--spacing-2) var(--spacing-3);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border-inverse);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: var(--transition-fast);
+}
+
+.socialLink:hover,
+.socialLink:focus-visible {
+  border-color: var(--color-volt-500);
+  color: var(--color-volt-500);
+}
+
+/* --------------------------------------------------------------------------
+ * Cierre
+ * ----------------------------------------------------------------------- */
+.bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  margin-block-start: var(--spacing-7);
+  padding-block-start: var(--spacing-5);
+  border-block-start: var(--border-width-thin) var(--border-style-default)
+    var(--color-border-inverse);
+}
+
+.copy {
+  margin-block-end: var(--spacing-0);
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-xs);
+}
+
+.footer :focus-visible {
+  outline-color: var(--focus-ring-color-inverse);
+}

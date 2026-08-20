@@ -1,0 +1,120 @@
+/**
+ * Sección «Nuestra historia» (08_UI_SYSTEM.md §14.1).
+ *
+ * Foto a un lado y texto al otro. Es el único bloque de la portada donde el
+ * texto largo tiene protagonismo, así que la medida de línea se acota: una
+ * columna de 70 caracteres se lee, una de 120 se abandona.
+ */
+
+.story {
+  background-color: var(--color-surface-alt);
+}
+
+.inner {
+  display: grid;
+  gap: var(--spacing-5);
+  width: 100%;
+  max-width: var(--container-max-width-store);
+  margin-inline: auto;
+  padding: var(--section-gap-y) var(--section-inset-x);
+}
+
+@media (min-width: 992px) {
+  .inner {
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: var(--spacing-8);
+  }
+}
+
+.media {
+  aspect-ratio: var(--aspect-category);
+  border-radius: var(--radius-media);
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .media {
+    aspect-ratio: 16 / 9;
+  }
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.eyebrow {
+  display: block;
+  margin-block-end: var(--spacing-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.title {
+  max-width: 20ch;
+  margin-block-end: var(--spacing-4);
+  font-size: var(--font-size-2xl);
+}
+
+@media (min-width: 992px) {
+  .title {
+    font-size: var(--font-size-3xl);
+  }
+}
+
+.text {
+  max-width: 62ch;
+  margin-block-end: var(--spacing-5);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-relaxed);
+  /* El administrador redacta con saltos de línea; conservarlos es respetar su
+     redacción sin obligarlo a escribir marcado. */
+  white-space: pre-line;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-3) var(--spacing-5);
+  border: var(--border-width-thin) var(--border-style-default) transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: var(--transition-fast);
+}
+
+.actionPrimary {
+  background-color: var(--color-action-primary-bg);
+  color: var(--color-action-primary-text);
+}
+
+.actionPrimary:hover {
+  background-color: var(--color-action-primary-bg-hover);
+  color: var(--color-action-primary-text);
+}
+
+.actionWhatsApp {
+  border-color: var(--color-action-success-bg);
+  color: var(--color-action-success-bg);
+}
+
+.actionWhatsApp:hover {
+  background-color: var(--color-action-success-bg);
+  color: var(--color-action-success-text);
+}

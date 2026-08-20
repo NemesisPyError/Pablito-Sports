@@ -1,0 +1,26 @@
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+# Alembic scaffolding is tool-generated (00.3_NOMENCLATURA.md §16.2).
+extend-exclude = "migrations"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# `extend-exclude` y no `exclude`: este último **reemplaza** la lista por
+# defecto de Ruff, que ya trae `.venv`, `__pycache__` y demás. Al reemplazarla,
+# un entorno virtual creado en `backend/.venv` —que el contenedor monta— pasaba
+# a analizarse entero: decenas de miles de avisos de dependencias de terceros
+# que tapaban los del proyecto.
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "C4", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q"

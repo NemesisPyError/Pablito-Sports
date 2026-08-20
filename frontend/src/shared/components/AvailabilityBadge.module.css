@@ -1,0 +1,42 @@
+/**
+ * Disponibilidad (08_UI_SYSTEM.md §6.1 «Colores de estado»).
+ *
+ * Superficie suave con texto del color de estado: el color comunica sin
+ * gritar, que es lo que corresponde a un dato informativo dentro de una
+ * tarjeta donde la protagonista es la foto.
+ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-wide);
+  line-height: var(--line-height-normal);
+  text-transform: uppercase;
+}
+
+.dot {
+  width: var(--spacing-2);
+  height: var(--spacing-2);
+  border-radius: var(--radius-circle);
+  background-color: currentColor;
+}
+
+.available {
+  background-color: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.lowStock {
+  background-color: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.outOfStock {
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+}

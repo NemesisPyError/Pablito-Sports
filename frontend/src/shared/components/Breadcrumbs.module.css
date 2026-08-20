@@ -1,0 +1,53 @@
+/**
+ * Migas de pan como píldoras (08_UI_SYSTEM.md §6.4 `radius-pill`).
+ *
+ * Cada tramo es un recuadro independiente, sin separador: la propia
+ * separación entre píldoras ya marca el orden, y evita repetir un "/" que
+ * no aporta nada que el espacio no diga.
+ */
+
+.list {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-block-end: var(--spacing-0);
+  padding-inline-start: var(--spacing-0);
+  list-style: none;
+}
+
+.item {
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-alt);
+}
+
+.link {
+  display: inline-block;
+  padding: var(--spacing-1) var(--spacing-3);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  text-decoration: none;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.link:hover,
+.link:focus-visible {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-primary);
+}
+
+/* Tramo actual: mismo recuadro, más presencia que un enlace normal. */
+.current {
+  display: inline-block;
+  padding: var(--spacing-1) var(--spacing-3);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.itemCurrent {
+  background-color: var(--color-surface);
+}

@@ -1,0 +1,32 @@
+/**
+ * Grilla de productos (08_UI_SYSTEM.md §14.1).
+ *
+ * Dos por fila en móvil y hasta cinco en pantallas anchas. El catálogo
+ * convive con el panel de filtros, así que la grilla mide su propio
+ * contenedor y no la ventana.
+ */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--grid-gutter-sm);
+}
+
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--grid-gutter);
+  }
+}
+
+@media (min-width: 992px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1400px) {
+  .grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
