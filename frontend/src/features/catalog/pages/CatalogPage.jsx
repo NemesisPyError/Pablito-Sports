@@ -4,6 +4,7 @@ import { LoadingState } from '../../../shared/components/LoadingState.jsx';
 import { Page } from '../../../shared/components/Page.jsx';
 import { catalogMeta } from '../../../shared/seo/pageMeta.js';
 import { useDocumentMeta } from '../../../shared/seo/useDocumentMeta.js';
+import { visibleCategories } from '../../../shared/utils/categoryGenders.js';
 import { ActiveFilters } from '../components/ActiveFilters.jsx';
 import { FiltersPanel } from '../components/FiltersPanel.jsx';
 import { Pagination } from '../../../shared/components/Pagination.jsx';
@@ -17,7 +18,7 @@ import { useProducts } from '../hooks/useProducts.js';
  * Página de catálogo con listado, filtros y paginación.
  */
 export function CatalogPage({ storeSettings }) {
-  const { filters, sortOptions, updateFilter, resetFilters } = useCatalogFilters();
+  const { filters, sortOptions, genderSections, updateFilter, resetFilters } = useCatalogFilters();
   const productsQuery = useProducts(filters);
   const categoriesQuery = useCategories();
   const brandsQuery = useBrands();
@@ -45,7 +46,7 @@ export function CatalogPage({ storeSettings }) {
   if (isError) {
     return (
       <Page title="Catálogo" breadcrumbs={migas}>
-        <ErrorState onRetry={productsQuery.refetch} />
+        <ErrorState error={productsQuery.error} onRetry={productsQuery.refetch} />
       </Page>
     );
   }
@@ -58,7 +59,8 @@ export function CatalogPage({ storeSettings }) {
             filters={filters}
             facets={meta.facets}
             sortOptions={sortOptions}
-            categories={categoriesQuery.data ?? []}
+            genderSections={genderSections}
+            categories={visibleCategories(categoriesQuery.data, filters.gender, filters.category)}
             brands={brandsQuery.data ?? []}
             onChange={updateFilter}
             onReset={resetFilters}

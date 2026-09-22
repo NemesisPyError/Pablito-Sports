@@ -21,7 +21,12 @@ ENV PIP_CERT=/etc/ssl/certs/ca-certificates.crt \
 
 ARG REQUIREMENTS=requirements/dev.txt
 COPY requirements/ requirements/
-RUN pip install --no-cache-dir -r ${REQUIREMENTS}
+# `pip` al día antes de instalar (post-S13). El `pip` que trae `python:3.12-slim`
+# arrastraba 7 avisos de `pip-audit`. No son alcanzables —en ejecución el
+# contenedor corre gunicorn y nunca invoca pip— pero dejar la auditoría de la
+# imagen de producción en cero tiene valor operativo: una auditoría con ruido
+# fijo es una auditoría que se deja de mirar.
+RUN pip install --no-cache-dir --upgrade pip     && pip install --no-cache-dir -r ${REQUIREMENTS}
 
 COPY . .
 

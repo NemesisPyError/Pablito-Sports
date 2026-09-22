@@ -18,7 +18,7 @@ from ..core.audit import (
     ACTION_UPDATE,
     AuditService,
 )
-from ..core.decorators import transactional
+from ..core.decorators import schedule_file_deletion, transactional
 from ..core.exceptions import (
     BadRequestError,
     BusinessRuleError,
@@ -33,10 +33,13 @@ from ..extensions import db
 from ..models import Image, Product, Variant
 from ..repositories.admin_product_repository import AdminProductRepository
 from ..repositories.category_repository import CategoryRepository
+from ..repositories.gender_repository import GenderRepository
 from ..repositories.price_history_repository import PriceHistoryRepository
+from ..repositories.product_repository import ProductRepository
 from ..repositories.sale_repository import SaleRepository
 from ..repositories.size_repository import SizeRepository
 from ..repositories.sport_repository import SportRepository
+from ..schemas.sale_schemas import MAX_INTEGER
 
 # 04 §9.2.1: `products.slug` es `VARCHAR(255)`. La reserva deja lugar al
 # sufijo de unicidad (`-2`, `-3`...) sin superar la columna.
@@ -57,9 +60,9 @@ PRODUCT_AUDIT_FIELDS = (
     "is_active",
     "is_featured",
     "is_new",
+    "home_new_position",
     "primary_category_id",
     "brand_id",
-    "gender_id",
     "size_type_id",
     "deleted_at",
 )
@@ -79,7 +82,6 @@ class AdminProductService:
             "category_slugs": query.category_slugs,
             "availability": query.availability,
             "is_active": query.is_active,
-            "deleted": query.deleted,
         }
         total = AdminProductRepository.count_all(**criteria)
         items = AdminProductRepository.list_all(
@@ -170,28 +172,6 @@ class AdminProductService:
 
     @classmethod
     @transactional
-    def restore(cls, product_id: int, *, administrator_id: int):
-        product = AdminProductRepository.find_by_id(product_id)
-        if product is None or product.deleted_at is None:
-            raise NotFoundError("product not found", resource="product")
-        old_values = AuditService.snapshot(product, PRODUCT_AUDIT_FIELDS)
-        product.is_active = True
-        product.deleted_at = None
-        db.session.flush()
-        # Ver nota en AdminClassificationService.restore: el conjunto de `action`
-        # es cerrado y `activate` es lo que la restauración hace con la entidad.
-        AuditService.record(
-            administrator_id=administrator_id,
-            action=ACTION_ACTIVATE,
-            entity_type="product",
-            entity_id=product.id,
-            old_values=old_values,
-            new_values=AuditService.snapshot(product, PRODUCT_AUDIT_FIELDS),
-        )
-        return cls._to_admin_list_dto(product)
-
-    @classmethod
-    @transactional
     def set_active(cls, product_id: int, is_active: bool, *, administrator_id: int):
         product = AdminProductRepository.find_by_id(product_id)
         if product is None:
@@ -202,6 +182,37 @@ class AdminProductService:
         AuditService.record(
             administrator_id=administrator_id,
             action=ACTION_ACTIVATE if is_active else ACTION_DEACTIVATE,
+            entity_type="product",
+            entity_id=product.id,
+            old_values=old_values,
+            new_values=AuditService.snapshot(product, PRODUCT_AUDIT_FIELDS),
+        )
+        return cls._to_admin_list_dto(product)
+
+    @classmethod
+    @transactional
+    def set_home_new(cls, product_id: int, selected: bool, *, administrator_id: int):
+        """Alta/baja en Novedades (§9.8 panel), no un campo del formulario.
+
+        `home_new_position` es a la vez la marca de selección y el orden
+        (mismo patrón que `Brand.home_position`): agregar manda siempre al
+        final de la fila, quitar lo deja en `NULL`. No hay reordenamiento
+        manual porque no está entre los requisitos actuales — el orden es el
+        de selección.
+        """
+        product = AdminProductRepository.find_by_id(product_id)
+        if product is None:
+            raise NotFoundError("product not found", resource="product")
+        old_values = AuditService.snapshot(product, PRODUCT_AUDIT_FIELDS)
+        if selected:
+            if product.home_new_position is None:
+                product.home_new_position = AdminProductRepository.next_home_new_position()
+        else:
+            product.home_new_position = None
+        db.session.flush()
+        AuditService.record(
+            administrator_id=administrator_id,
+            action=ACTION_UPDATE,
             entity_type="product",
             entity_id=product.id,
             old_values=old_values,
@@ -251,8 +262,46 @@ class AdminProductService:
         ponerlo en cualquier valor válido, esto es una operación de dominio
         con una precondición real. El registro (`sales`) es inmutable, mismo
         patrón que `price_history` (RN-70): no se edita ni se borra.
+
+        **Concurrencia.** La fila se lee con `FOR UPDATE`, dentro de la
+        transacción que abre `@transactional`. Leer, comprobar y descontar es
+        una secuencia de tres pasos sobre el mismo número: sin el bloqueo, dos
+        ventas simultáneas del mismo talle leían ambas el stock viejo, ambas
+        pasaban la comprobación y la segunda escritura pisaba a la primera —se
+        vendían más unidades de las que había y el descuento perdido no dejaba
+        rastro—. Con el bloqueo, la segunda venta espera al `commit` de la
+        primera y vuelve a leer el stock ya descontado, así que su comprobación
+        se hace contra el número real.
         """
-        variant = AdminProductRepository.find_variant_by_id(product_id, variant_id)
+        variant = cls._sell_locked_variant(
+            product_id, variant_id, quantity, administrator_id=administrator_id
+        )
+        return cls._variant_dto(variant)
+
+    @classmethod
+    def _sell_locked_variant(
+        cls,
+        product_id: int,
+        variant_id: int,
+        quantity: int,
+        *,
+        administrator_id: int,
+        sale_order_id: int | None = None,
+        unit_price: int | None = None,
+    ) -> Variant:
+        """Bloquea, comprueba, descuenta y registra **una** línea de venta.
+
+        Es el único lugar donde se descuenta stock por venta. La venta de una
+        sola variante y la venta manual multilínea entran las dos por acá, de
+        modo que el bloqueo de fila, la comprobación de stock, la fila de
+        `sales`, la disponibilidad derivada y la auditoría no pueden divergir
+        entre ambos caminos.
+
+        **Debe llamarse dentro de una transacción ya abierta.** No lleva
+        `@transactional` a propósito: en una venta multilínea el `commit` tiene
+        que ser uno solo para todas las líneas, no uno por línea.
+        """
+        variant = AdminProductRepository.find_variant_for_update(product_id, variant_id)
         if variant is None:
             raise NotFoundError("variant not found", resource="variant")
 
@@ -267,7 +316,11 @@ class AdminProductService:
         variant.quantity -= quantity
         db.session.flush()
         SaleRepository.record(
-            variant_id=variant.id, quantity=quantity, administrator_id=administrator_id
+            variant_id=variant.id,
+            quantity=quantity,
+            administrator_id=administrator_id,
+            sale_order_id=sale_order_id,
+            unit_price=unit_price,
         )
         cls._recompute_availability(variant.product)
         db.session.flush()
@@ -279,7 +332,116 @@ class AdminProductService:
             old_values=old_values,
             new_values=AuditService.snapshot(variant, VARIANT_AUDIT_FIELDS),
         )
-        return cls._variant_dto(variant)
+        return variant
+
+    @classmethod
+    @transactional
+    def register_manual_sale(cls, lineas, *, administrator_id: int) -> dict:
+        """Registra una venta de una o varias líneas y descuenta el stock (RN-82).
+
+        Una sola transacción para toda la venta: la abre `@transactional` y la
+        cierra al volver. Si una línea no tiene stock, la excepción propaga, el
+        decorador hace `rollback` y **no queda nada** — ni cabecera, ni líneas,
+        ni descuentos de las líneas anteriores. No hay venta a medias.
+
+        **Orden de bloqueo.** Las líneas se procesan ordenadas por `variant_id`,
+        no en el orden en que las mandó el panel. Sin eso, dos ventas
+        simultáneas que tocaran las mismas dos variantes en orden inverso se
+        bloquearían mutuamente —cada una esperando la fila que la otra ya
+        tiene— y PostgreSQL tendría que matar una por deadlock. Con un orden
+        total y único, la segunda venta espera a la primera y sigue.
+
+        **Precio.** Si la línea no trae `unit_price`, se toma el precio vigente
+        del producto (`effective_price_for`, que ya concilia oferta y promoción)
+        en el momento de registrar. Sea propio o heredado, ese número se guarda
+        en la línea: cambiar mañana el precio del producto no toca esta venta.
+        """
+        if not lineas:
+            raise RequestValidationError(
+                [{"field": "items", "detail": "items must contain at least one line"}]
+            )
+
+        momento = datetime.now(UTC)
+
+        # Se resuelven producto y precio antes de tomar ningún bloqueo: son
+        # lecturas que no compiten, y así el tramo bloqueado es el más corto
+        # posible.
+        preparadas = []
+        for indice, linea in enumerate(lineas):
+            producto = AdminProductRepository.find_by_id(linea.product_id)
+            if producto is None or producto.deleted_at is not None:
+                raise NotFoundError("product not found", resource="product")
+
+            if linea.unit_price is None:
+                precio = ProductRepository.effective_price_for(producto.id, momento)
+            else:
+                precio = linea.unit_price
+
+            preparadas.append(
+                {
+                    "indice": indice,
+                    "product_id": producto.id,
+                    "product_name": producto.name,
+                    "variant_id": linea.variant_id,
+                    "quantity": linea.quantity,
+                    "unit_price": precio,
+                    "subtotal": precio * linea.quantity,
+                }
+            )
+
+        total = sum(linea["subtotal"] for linea in preparadas)
+        # `sale_orders.total_amount` es INTEGER. El schema ya acota cada linea,
+        # pero cincuenta lineas caras siguen pudiendo sumar mas de lo que entra
+        # en la columna, y eso reventaria al insertar la cabecera: un 500 en
+        # lugar de un error entendible. Se comprueba la suma, no solo las partes.
+        if total > MAX_INTEGER:
+            raise RequestValidationError(
+                [{"field": "items", "detail": "the sale total is too large to record"}]
+            )
+
+        orden = SaleRepository.create_order(administrator_id=administrator_id, total_amount=total)
+
+        vendidas = {}
+        for linea in sorted(preparadas, key=lambda item: item["variant_id"]):
+            variante = cls._sell_locked_variant(
+                linea["product_id"],
+                linea["variant_id"],
+                linea["quantity"],
+                administrator_id=administrator_id,
+                sale_order_id=orden.id,
+                unit_price=linea["unit_price"],
+            )
+            vendidas[linea["variant_id"]] = variante
+
+        db.session.flush()
+        return {
+            "id": orden.id,
+            "total_amount": orden.total_amount,
+            "created_at": orden.created_at.isoformat() if orden.created_at else None,
+            "administrator_id": orden.administrator_id,
+            # Se devuelven en el orden en que las mandó el panel, no en el de
+            # bloqueo: el resumen que ve el administrador es el suyo.
+            "items": [
+                {
+                    "product_id": linea["product_id"],
+                    "product_name": linea["product_name"],
+                    "variant_id": linea["variant_id"],
+                    "size": (
+                        {
+                            "id": vendidas[linea["variant_id"]].size_id,
+                            "name": vendidas[linea["variant_id"]].size.name,
+                        }
+                        if vendidas[linea["variant_id"]].size
+                        else None
+                    ),
+                    "quantity": linea["quantity"],
+                    "unit_price": linea["unit_price"],
+                    "subtotal": linea["subtotal"],
+                    "remaining_quantity": vendidas[linea["variant_id"]].quantity,
+                }
+                for linea in preparadas
+            ],
+        }
 
     @classmethod
     @transactional
@@ -373,9 +535,16 @@ class AdminProductService:
         if image is None:
             raise NotFoundError("image not found", resource="image")
         old_values = AuditService.snapshot(image, IMAGE_AUDIT_FIELDS)
+        ruta = image.file_path
         image.is_active = False
         image.deleted_at = datetime.now(UTC)
         db.session.flush()
+
+        # S-13: el borrado lógico dejaba el archivo descargable por su URL para
+        # siempre. Se retira del disco, pero **sólo** si ninguna otra fila viva
+        # lo referencia, y **sólo** cuando la transacción confirme.
+        if AdminProductRepository.count_live_images_with_path(ruta, excluding_id=image.id) == 0:
+            schedule_file_deletion(ruta)
         AuditService.record(
             administrator_id=administrator_id,
             action=ACTION_DELETE,
@@ -497,12 +666,17 @@ class AdminProductService:
             "list_price",
             "primary_category_id",
             "brand_id",
-            "gender_id",
             "size_type_id",
         ]
         for field in required:
             if not payload.get(field):
                 raise BadRequestError(f"El campo {field} es obligatorio")
+        # RN-09 (v2.9.0): `genders` es una lista, no un entero — no encaja en
+        # el chequeo genérico de arriba (`not []` también es `True`, así que
+        # en los hechos sí lo cubre, pero el mensaje sería el de un campo que
+        # ya no existe).
+        if not payload.get("gender_ids"):
+            raise BadRequestError("El campo gender_ids es obligatorio")
 
         return {
             "name": payload["name"].strip(),
@@ -521,7 +695,6 @@ class AdminProductService:
             "is_new": payload.get("is_new", False),
             "primary_category_id": int(payload["primary_category_id"]),
             "brand_id": int(payload["brand_id"]),
-            "gender_id": int(payload["gender_id"]),
             "size_type_id": int(payload["size_type_id"]),
         }
 
@@ -532,6 +705,9 @@ class AdminProductService:
         ]
         product.sports = [
             SportRepository.find_by_id(sid) for sid in (payload.get("sport_ids") or []) if sid
+        ]
+        product.genders = [
+            GenderRepository.find_by_id(gid) for gid in (payload.get("gender_ids") or []) if gid
         ]
         sizes = [SizeRepository.find_by_id(sid) for sid in (payload.get("size_ids") or []) if sid]
         cls._validate_sizes_match_type(product, sizes)
@@ -564,6 +740,24 @@ class AdminProductService:
 
     @classmethod
     def _sync_variants(cls, product: Product):
+        """Genera las variantes que faltan (`AD-15`).
+
+        La variante nueva se agrega vía `product.variants.append(...)` y no
+        con `db.session.add(Variant(product_id=product.id, ...))`: la línea
+        de `existing`, justo arriba, ya carga `product.variants` en memoria
+        (queda cacheada en la sesión). Crear la variante suelta con
+        `db.session.add` la persiste igual, pero no la agrega a esa
+        colección ya cacheada — cualquier lectura posterior de
+        `product.variants` **en la misma request** (acá, en
+        `_recompute_availability`, y en la respuesta que arma
+        `_to_admin_detail_dto`) seguía viendo la lista vieja, sin la
+        variante recién creada. Confirmado con un caso real: `POST
+        /admin/products` con talles asignados devolvía `variants: []` en el
+        mismo cuerpo de la respuesta, aunque la fila sí se hubiera grabado.
+        `.append()` en la colección ya cargada evita el desfasaje sin tocar
+        el modelo ni el contrato — el `product_id` lo completa la relación
+        al volcar los cambios.
+        """
         if not product.sizes:
             return
 
@@ -571,7 +765,7 @@ class AdminProductService:
 
         for size in product.sizes:
             if size.id not in existing:
-                db.session.add(Variant(product_id=product.id, size_id=size.id))
+                product.variants.append(Variant(size_id=size.id))
 
     @classmethod
     def _recompute_availability(cls, product: Product) -> None:
@@ -614,6 +808,7 @@ class AdminProductService:
             "is_active": product.is_active,
             "is_featured": product.is_featured,
             "is_new": product.is_new,
+            "home_new_position": product.home_new_position,
             "has_image": bool(product.images),
             "deleted_at": product.deleted_at.isoformat() if product.deleted_at else None,
         }
@@ -625,6 +820,14 @@ class AdminProductService:
             {
                 "description": product.description,
                 "sale_price": product.sale_price,
+                # El precio que se cobra hoy, con oferta y promocion ya
+                # conciliadas (es la misma expresion que usa el catalogo
+                # publico). El panel lo necesita para proponer un precio al
+                # registrar una venta: sin esto tendria que reimplementar la
+                # regla en el cliente y las dos copias se irian separando.
+                "effective_price": ProductRepository.effective_price_for(
+                    product.id, datetime.now(UTC)
+                ),
                 "sale_starts_at": (
                     product.sale_starts_at.isoformat() if product.sale_starts_at else None
                 ),
@@ -632,11 +835,8 @@ class AdminProductService:
                 "categories": [{"id": c.id, "name": c.name} for c in product.categories],
                 "sports": [{"id": s.id, "name": s.name} for s in product.sports],
                 "sizes": [{"id": s.id, "name": s.name} for s in product.sizes],
-                "gender": {
-                    "id": product.gender_id,
-                    "name": product.gender.name if product.gender else None,
-                    "slug": product.gender.slug if product.gender else None,
-                },
+                # RN-09 (v2.9.0): lista, ya no un solo `gender_id`.
+                "genders": [{"id": g.id, "name": g.name, "slug": g.slug} for g in product.genders],
                 "size_type": {
                     "id": product.size_type_id,
                     "name": product.size_type.name if product.size_type else None,

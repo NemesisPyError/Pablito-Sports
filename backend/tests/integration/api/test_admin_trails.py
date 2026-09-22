@@ -38,6 +38,12 @@ def catalogo(schema_app, administrator_id):
                 "(SELECT id FROM products WHERE sku LIKE 'TRAIL-SKU%')"
             )
         )
+        db.session.execute(
+            text(
+                "DELETE FROM product_genders WHERE product_id IN "
+                "(SELECT id FROM products WHERE sku LIKE 'TRAIL-SKU%')"
+            )
+        )
         db.session.execute(text("DELETE FROM products WHERE sku LIKE 'TRAIL-SKU%'"))
         db.session.execute(text("DELETE FROM categories WHERE slug LIKE 'trail-%'"))
         db.session.execute(text("DELETE FROM brands WHERE slug LIKE 'trail-%'"))
@@ -83,7 +89,7 @@ def _payload(catalogo, **overrides) -> dict:
         "list_price": 100000,
         "primary_category_id": catalogo["category_id"],
         "brand_id": catalogo["brand_id"],
-        "gender_id": catalogo["gender_id"],
+        "gender_ids": [catalogo["gender_id"]],
         "size_type_id": catalogo["size_type_id"],
     }
     base.update(overrides)

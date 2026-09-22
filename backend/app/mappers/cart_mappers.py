@@ -36,6 +36,7 @@ def available_item(
     discount_percentage: int | None,
     availability: str,
     quantity: int,
+    available_quantity: int | None = None,
 ) -> CartItemStateDTO:
     return CartItemStateDTO(
         variant_id=variant_id,
@@ -46,4 +47,5 @@ def available_item(
         discount_percentage=discount_percentage,
         availability=availability,
         quantity=quantity,
+        available_quantity=available_quantity,
     )

@@ -3,6 +3,7 @@
  */
 export { AdminLoginPage } from './pages/AdminLoginPage.jsx';
 export { RequireAdminAuth } from './components/RequireAdminAuth.jsx';
+export { RequireSuperAdmin } from './components/RequireSuperAdmin.jsx';
 export {
   useAdminAuth,
   useAdminLogin,

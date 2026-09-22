@@ -10,9 +10,9 @@
 | **Sistema** | Plataforma de Catálogo Comercial |
 | **Documento** | Guía de Despliegue y Operación |
 | **Código** | 12 |
-| **Versión** | 1.0.0 |
-| **Estado** | ✅ APROBADO |
-| **Fecha** | 09/08/2026 |
+| **Versión** | 1.3.0 |
+| **Estado** | 🟡 EN REVISIÓN |
+| **Fecha** | 31/08/2026 |
 | **Documentos previos** | [00_VISION_PROYECTO.md](00_VISION_PROYECTO.md) ✅ · [00.2_GLOSARIO.md](00.2_GLOSARIO.md) ✅ · [00.3_NOMENCLATURA.md](00.3_NOMENCLATURA.md) ✅ · [01_ANALISIS_NEGOCIO.md](01_ANALISIS_NEGOCIO.md) ✅ · [02_ARQUITECTURA.md](02_ARQUITECTURA.md) ✅ · [02.1_DECISIONES_ARQUITECTONICAS.md](02.1_DECISIONES_ARQUITECTONICAS.md) ✅ · [03_SEGURIDAD.md](03_SEGURIDAD.md) ✅ · [04_BASE_DATOS.md](04_BASE_DATOS.md) ✅ · [05_API.md](05_API.md) ✅ · [06_FRONTEND.md](06_FRONTEND.md) ✅ · [07_PANEL_ADMIN.md](07_PANEL_ADMIN.md) ✅ · [08_UI_SYSTEM.md](08_UI_SYSTEM.md) ✅ · [09_COMPONENTES.md](09_COMPONENTES.md) ✅ · [10_BACKEND.md](10_BACKEND.md) ✅ · [11_TESTING.md](11_TESTING.md) ✅ · [12.0_DEPLOY_ANALISIS_PREVIO.md](12.0_DEPLOY_ANALISIS_PREVIO.md) ✅ |
 | **Documentos dependientes** | `99_AI_DEVELOPMENT_GUIDE.md`, `IMPLEMENTATION_ROADMAP.md`, `13_CHANGELOG.md` |
 
@@ -113,6 +113,16 @@ Este documento es la **autoridad única** sobre cómo se despliega, opera, monit
 - **Los datos de staging nunca contienen información personal real.**
 - **Una release solo pasa a producción si smoke tests y checks pasaron en staging.**
 
+### 5.2 Estado (Fase 0)
+
+- **local** y **testing**: operativos (`docker-compose.yml`).
+- **production**: los **artefactos** existen y se prueban en local
+  (`docker-compose.prod.yml`, `nginx/prod/`, `scripts/prod/`), pero **no hay VPS
+  ni dominio desplegado todavía**. El paso a un VPS real y a Cloudflare son fases
+  posteriores.
+- **staging** = una copia de `docker-compose.prod.yml` sin Cloudflare; se
+  levanta cuando exista el VPS.
+
 ---
 
 # 6. Topología de despliegue
@@ -121,41 +131,73 @@ Este documento es la **autoridad única** sobre cómo se despliega, opera, monit
 Internet
    │
    ▼
-[ Nginx :443 ]
+[ Cloudflare :443 ]  ── WAF · rate limiting · mitigación DDoS (03_SEGURIDAD.md §23)
+   │  (FASE POSTERIOR — no existe todavía; Fase 0 llega hasta Nginx)
+   ▼
+[ Nginx :443 ]  (docker-compose.prod.yml · nginx/prod/default.conf.template)
+   │   TLS · server_tokens off · client_max_body_size 6m · errores JSON AD-16
    │
-   ├──▶ React build estático ──▶ / (SPA routes)
+   ├──▶ SPA compilado (frontend/dist/) ──▶ /  ·  /assets/* (cache 1 año)
    │
-   ├──▶ Imágenes ──▶ /uploads/* ──▶ volumen persistente
+   ├──▶ Imágenes ──▶ /uploads/* ──▶ volumen uploads_data (RO)
    │
-   ├──▶ API ──▶ /api/v1/* ──▶ Gunicorn ──▶ Flask
+   ├──▶ API ──▶ /api/v1/* ──▶ Gunicorn (1 worker) ──▶ Flask (FLASK_ENV=production)
    │                              │
    │                              ▼
-   │                         [ PostgreSQL ]
+   │                         [ PostgreSQL 16 ]  volumen postgres_data · sin puertos publicados
    │
-   └──▶ SEO ──▶ /_seo/* ──▶ Gunicorn ──▶ Flask
+   └──▶ SEO ──▶ /_seo/*, robots.txt, sitemap.xml ──▶ Gunicorn ──▶ Flask
 ```
+
+**Fase 0** materializa desde `[ Nginx :443 ]` hacia abajo, con `docker-compose.prod.yml`.
+Cloudflare y la protección del origen son una fase posterior (`03_SEGURIDAD.md` §23).
 
 ## 6.1 Componentes
 
-| Componente | Tecnología | Rol |
-|---|---|---|
-| Proxy inverso / servidor estático | Nginx | Termina TLS, sirve estáticos e imágenes, enruta a API y SEO (`AD-04`). |
-| Frontend | React build estático | Catálogo comercial y panel de administración. |
-| Servidor WSGI | Gunicorn | Ejecuta Flask con múltiples workers. |
-| Backend | Flask | API JSON y endpoints SEO. |
-| Base de datos | PostgreSQL | Persistencia de datos. |
-| Almacenamiento de imágenes | Volumen persistente | Archivos originales y derivados (`AD-05`, `AD-38`, `AD-39`). |
-| Certificados TLS | Let's Encrypt u otro proveedor | HTTPS obligatorio (`RNF-12`). |
+| Componente | Tecnología | Rol | Artefacto (Fase 0) |
+|---|---|---|---|
+| Borde / CDN / WAF | Cloudflare | Primera barrera en producción: WAF, *rate limiting* de *edge*, mitigación DDoS, caché del estático (§6.3, `03_SEGURIDAD.md` §23). | *(fase posterior)* |
+| Proxy inverso / servidor estático | Nginx `1.27-alpine` | Termina TLS, sirve el SPA compilado y las imágenes, enruta a API y SEO (`AD-04`). | `nginx/prod/default.conf.template` (renderizado por `envsubst`) |
+| Frontend | React build estático (`npm run build` → `frontend/dist/`) | Catálogo comercial y panel. Servido por Nginx desde disco, **sin Vite dev server**. | `frontend/dist/` (bind-mount RO en Nginx) |
+| Servidor WSGI | Gunicorn | Ejecuta Flask. **1 worker** en el arranque (decisión Fase 0, `03_SEGURIDAD.md` §14.4), sin `--reload`. | imagen `pablito-backend:<tag>` (`requirements/prod.txt`) |
+| Backend | Flask | API JSON y endpoints SEO. `FLASK_ENV=production`. | idem |
+| Base de datos | PostgreSQL `16-alpine` | Persistencia. Sin `ports:` publicados. | volumen `postgres_data` |
+| Almacenamiento de imágenes | Volumen persistente | Originales y derivados (`AD-05`, `AD-38`, `AD-39`). | volumen `uploads_data` |
+| Certificados TLS | Let's Encrypt o *Origin Certificate* de Cloudflare | HTTPS obligatorio (`RNF-12`). En local: autofirmado (`nginx/certs/generate-selfsigned.sh`). | `nginx/certs/*.pem` (gitignoreados) |
+| Orquestación | Docker Compose | `docker-compose.prod.yml` (separado del de desarrollo). | — |
+
+Scripts de operación: `scripts/prod/` (`build`, `deploy`, `backup-db`, `restore-db`, `verify-backup`, `rollback`).
 
 ## 6.2 Comunicación entre componentes
 
 | Origen | Destino | Protocolo | Puerto |
 |---|---|---|---|
-| Cliente | Nginx | HTTPS | 443 |
+| Cliente | Cloudflare | HTTPS | 443 |
+| Cloudflare | Nginx (origen) | HTTPS | 443 |
 | Nginx | React estático | Sistema de archivos | — |
 | Nginx | Volumen de imágenes | Sistema de archivos | — |
 | Nginx | Gunicorn | HTTP | 8000 |
 | Gunicorn | PostgreSQL | TCP | 5432 |
+
+## 6.3 Cloudflare (capa de borde)
+
+En producción, Cloudflare se sitúa **delante** de Nginx como primera barrera:
+`Cliente → Cloudflare → Nginx → Gunicorn`. La especificación completa de reglas
+(WAF, *rate limiting*, *challenges*, restauración de IP) vive en
+`03_SEGURIDAD.md` §23; aquí se listan solo los puntos que tocan al despliegue.
+
+| Punto | Acción de despliegue |
+|---|---|
+| **IP de origen oculta** | El firewall del VPS acepta `:443` **solo** desde los rangos publicados de Cloudflare. Sin esto, un atacante que descubra la IP puentea toda la capa. |
+| **Modo SSL/TLS** | *Full (strict)*: Nginx sigue terminando TLS con su propio certificado (Let's Encrypt o *Origin Certificate* de Cloudflare). |
+| **IP real del visitante** | Cloudflare añade un salto de proxy. Se pone `TRUSTED_PROXY_COUNT=2` **en el mismo despliegue** que activa el modo *proxy*; si no, el *rate limiting* por IP del backend deja de discriminar (todo el tráfico parece venir de Cloudflare). Opcionalmente, el módulo `ngx_http_realip_module` de Nginx con los rangos de Cloudflare y `CF-Connecting-IP`. |
+| **Caché** | *Bypass* para `/api/v1/*`; el estático de React sí se cachea en el *edge*. |
+| **Sin dependencia de arranque** | Cloudflare es configuración externa: la aplicación arranca y funciona igual accedida directo por Nginx (staging sin Cloudflare, sondas internas). |
+| **Credenciales** | La cuenta de Cloudflare y cualquier token de API se tratan como secretos (`03_SEGURIDAD.md` §18) y se protegen con 2FA. |
+
+> **La configuración de Cloudflare no está versionada en este repositorio.** Se
+> aplica en el panel de Cloudflare y se registra en el runbook de operaciones.
+> Una iteración futura puede llevarla a Terraform.
 
 ---
 
@@ -256,6 +298,28 @@ ALTER TABLE products RENAME COLUMN list_price_v2 TO list_price;
 - **Toda migración que modifique datos debe incluir un `downgrade` probado.**
 - **Las migraciones irreversibles requieren aprobación explícita por escrito y backup verificado.**
 - **No se asume que una migración es reversible solo porque Alembic genera `downgrade()`.** El equipo debe probarla en staging.
+
+## 9.5 Ejecución en producción (Fase 0)
+
+- **Nunca automática.** El servicio `migrate` de `docker-compose.prod.yml` tiene
+  `profiles: ["tools"]` — no arranca con `up`. Lo invoca el operador (o
+  `scripts/prod/deploy.sh` como paso 2 del Recreate):
+
+  ```bash
+  docker compose -f docker-compose.prod.yml --env-file .env.production run --rm migrate
+  ```
+
+  Comando fijo del servicio: `flask db upgrade`. Nunca `flask db downgrade`
+  automático.
+
+- `/health/ready` incluye `check_schema_is_current()`: si el esquema aplicado en
+  la base **no** coincide con el `head` del código, devuelve `503` y el deploy no
+  habilita tráfico (§10.3).
+
+- **Estado actual del esquema** (verificar antes de cada release):
+  `flask db current` == `flask db heads` == `b99b11955f25`; `flask db check` →
+  *"No new upgrade operations detected"*. Cuando exista producción, la primera
+  `flask db upgrade` debe dejar la base **exactamente** en ese `head`.
 
 ---
 
@@ -423,18 +487,36 @@ Si la migración es irreversible o no hay backup verificado, **no se hace rollba
 | `FLASK_ENV` | Todos | `development`, `testing`, `production`. | `production` |
 | `TEST_DATABASE_URL` | Testing | Base de datos de pruebas. | `postgresql://.../pablito_test` |
 
+Notas:
+
+- `SESSION_COOKIE_SECURE` en producción lo **fuerza `ProductionConfig` a `True`**;
+  la variable se documenta pero no hace falta pasarla en `docker-compose.prod.yml`.
+- `TEST_DATABASE_URL` **no** se usa en producción.
+
 ## 14.2 Opcionales
 
 | Variable | Entornos | Descripción | Ejemplo |
 |---|---|---|---|
-| `CORS_ORIGINS` | Producción | Orígenes permitidos. | `https://pablito.example.com` |
-| `SENTRY_DSN` | Producción | Trazabilidad de errores. | — |
+| `TRUSTED_PROXY_COUNT` | Todos | Saltos de proxy de confianza delante de Flask (`03_SEGURIDAD.md` §14.2). **`1` = Nginx → Flask — valor de producción en Fase 0.** Pasa a `2` **solo** en la fase Cloudflare (§6.3, `03_SEGURIDAD.md` §23 C7), después de cerrar el firewall del origen. `0` desactiva ProxyFix. | `1` |
+| `SITE_BASE_URL` | Producción | Origen público (`https://<dominio>`) para URLs absolutas de Open Graph y sitemap. | `https://ejemplo.com` |
+| `NGINX_SERVER_NAME` | Producción | `server_name` de Nginx (envsubst en `nginx/prod/default.conf.template`). | `ejemplo.com` |
+| `GUNICORN_WORKERS` | Producción | Workers de Gunicorn. Se queda en `1` por capacidad, no por seguridad: el contador de rate limiting ya es compartido (`03_SEGURIDAD.md` §14.4), así que subirlo ya no multiplica el límite efectivo. | `1` |
+| `RATELIMIT_STORAGE_URI` | Todos | Almacén compartido del contador de rate limiting (`03_SEGURIDAD.md` §14.4). **Obligatoria en producción**: la aplicación no arranca si falta o si apunta a `memory://`. | `redis://redis:6379/0` |
+| `IMAGE_TAG` | Producción | Tag de las imágenes construidas (rollback). Los scripts usan el SHA corto de git. | `a9edcf8` |
+| `SENTRY_DSN` | Producción | Trazabilidad de errores. Vacío = desactivado. | — |
+| `CORS_ORIGINS` | — | **Ya no existe (S-11).** Estaba definida pero ningún código la leía. El backend no implementa CORS y todo es mismo-origen (`AD-04`); se retiró de `.env.example` y del compose para que no parezca un control que no es. |  |
 
 ## 14.3 Gestión de secretos
 
 - Los secretos nunca se guardan en el repositorio (`03_SEGURIDAD.md` §18).
-- En producción se usan variables de entorno inyectadas por el sistema de despliegue.
-- En local/testing se usan archivos `.env` fuera del control de versiones.
+- **Desarrollo:** `.env` (gitignoreado). Plantilla versionada: `.env.example`.
+- **Producción:** `.env.production` (gitignoreado vía `.env.*`). Plantilla
+  versionada: **`.env.production.example`** — documenta todas las variables.
+  `docker-compose.prod.yml` se invoca siempre con `--env-file .env.production`.
+- El `SECRET_KEY` de producción se genera único por entorno
+  (`python -c "import secrets; print(secrets.token_urlsafe(64))"`) y jamás se
+  reutiliza el de desarrollo. `ProductionConfig.validate()` rechaza placeholders
+  y claves de menos de 32 caracteres.
 
 ---
 
@@ -507,14 +589,62 @@ Se activa rollback automático si ocurre **cualquiera** de las siguientes condic
 | Control | Implementación |
 |---|---|
 | HTTPS obligatorio | Nginx termina TLS. Redirección 80 → 443. |
-| HSTS | `Strict-Transport-Security: max-age=31536000; includeSubDomains`. |
+| HSTS | `Strict-Transport-Security: max-age=86400` en el primer despliegue. Se sube por escalones (semana → mes → año) según el plan de `nginx/hsts`, tras comprobar que la renovación del certificado funciona. |
 | Secretos fuera del repositorio | Variables de entorno (`03_SEGURIDAD.md` §18). |
-| Usuario no root | Gunicorn y Nginx ejecutan con usuarios dedicados. |
-| Permisos mínimos del volumen | Backend escribe en `UPLOAD_FOLDER`; Nginx solo lee. |
-| Headers de seguridad | Configurados en Nginx (`03_SEGURIDAD.md` §12). |
+| Usuario no root | Ver §18.1: tabla por servicio, medida. |
+| Privilegios del contenedor | `no-new-privileges:true` y `cap_drop: [ALL]` en **todos** los servicios de los dos compose; las capabilities devueltas se midieron una por una (§18.1). |
+| Sistema de archivos de sólo lectura | `read_only: true` + `tmpfs /tmp` en `backend` y `migrate` de producción. |
+| Permisos mínimos del volumen | Backend escribe en `UPLOAD_FOLDER` como `appuser`; Nginx solo lee. |
+| Headers de seguridad | Configurados en Nginx (`03_SEGURIDAD.md` §12); se aplican también en las respuestas de error (`always` + `include security_headers` en los handlers de error). |
 | CSP | Política restrictiva (`03_SEGURIDAD.md` §12). |
+| Versión de Nginx oculta | `server_tokens off;` — el header `Server` queda en `nginx` sin versión, y las páginas de error por defecto no la muestran. Quitar el header por completo necesitaría el módulo `headers-more` (no incluido en la imagen oficial). |
+| Límite de subida | Nginx `client_max_body_size 6m;` alineado con `MAX_CONTENT_LENGTH = 5 MB` de Flask (§19.3): una subida de 5–6 MB llega a Flask y recibe su 413 JSON; por encima la corta Nginx con el **mismo contrato AD-16** (`@error_413`). |
+| Páginas de error de Nginx | 413, 502/503/504 y el 404 de `/uploads/*` responden JSON AD-16, no HTML genérico. Los 4xx/5xx JSON del backend pasan intactos (`proxy_intercept_errors` en `off`). |
+| Borde / WAF / DDoS | Cloudflare delante de Nginx: WAF gestionado, *rate limiting* de *edge*, mitigación DDoS L3/L4 (`03_SEGURIDAD.md` §23, §6.3). |
+| IP de origen | El firewall del VPS solo acepta `:443` desde los rangos de Cloudflare. |
+| `TRUSTED_PROXY_COUNT` | `2` en producción con Cloudflare, para que el *rate limiting* por IP del backend siga viendo la IP real. |
 | Actualización de dependencias | Revisión de vulnerabilidades antes de cada release. |
 | Acceso SSH | Solo por clave, usuario no root, acceso restringido. |
+
+## 18.1 Usuario y privilegios por contenedor (S-12)
+
+Medido con `id`, `ps` y `/proc/1/status` en los contenedores reales de desarrollo
+y de producción, no deducido de las imágenes.
+
+| Servicio | Usuario del proceso | UID:GID | ¿Root? | Capabilities efectivas | Justificación |
+|---|---|---|---|---|---|
+| `backend` | `appuser` | 1000:1000 | No | ninguna | Gunicorn no necesita nada; en producción además con raíz de sólo lectura |
+| `migrate` | `appuser` | 1000:1000 | No | ninguna | Alembic sólo escribe en la base |
+| `frontend` (dev) | `node` | 1000:1000 | No | ninguna | **Cambiado en S-12**: antes corría todo como root |
+| `frontend-build` | `node` | 1000:1000 | No | ninguna | **Cambiado en S-12**: ídem |
+| `nginx` | master `root`, workers `nginx` | 0 / 101 | Master sí | `CHOWN`, `SETGID`, `SETUID`, `NET_BIND_SERVICE` | Excepción: liga 80/443 y lee la clave TLS |
+| `postgres` | `postgres` | 70 | No (el daemon) | **ninguna** una vez arrancado | El entrypoint usa root un instante y baja de privilegios |
+| `redis` | `redis` | 999 | No (el daemon) | **ninguna** una vez arrancado | Ídem |
+
+**Las excepciones son tres y ninguna es por comodidad.** En `nginx`, `postgres` y
+`redis` el proceso que atiende la red **ya es no privilegiado**; lo que queda en
+root es el arranque de la imagen oficial. Forzar `nginx-unprivileged` obligaría a
+cambiar los `listen`, remapear puertos y rehacer el TLS, a cambio de nada que no
+dé ya el `cap_drop`.
+
+**Capabilities: se midieron quitándolas.** No se copiaron de la documentación.
+Nginx sin `CHOWN` falla con «chown(/var/cache/nginx/client_temp, 101) failed»;
+`DAC_OVERRIDE` se probó y **no** hace falta, así que no está. PostgreSQL y Redis
+con `cap_drop: ALL` a secas fallan en `chmod` y en `setresuid` con un volumen
+nuevo, pero una vez arrancados quedan en `CapEff=0000000000000000`.
+
+**`read_only` sólo donde se comprobó qué escribe cada cosa.** El backend de
+producción escribe en dos sitios y sólo dos: el volumen de `UPLOAD_FOLDER` y
+`/tmp` —ahí vuelca Werkzeug las subidas que superan el buffer en memoria y
+Gunicorn el latido de sus workers—, de modo que basta un `tmpfs`. En desarrollo
+**no** se aplica: `/app` es un bind mount donde pytest y ruff escriben sus cachés.
+
+**Nota de despliegue.** `frontend-build` escribe `frontend/dist` en el host por
+bind mount. Si el usuario que despliega no es uid 1000, hay que ajustar
+`FRONTEND_BUILD_UID`/`FRONTEND_BUILD_GID`. Y si el checkout arrastra un
+`node_modules` o un `dist` creados por la versión anterior —que corría como
+root—, hay que borrarlos una vez: un proceso no privilegiado no puede
+sobrescribirlos.
 
 ---
 
@@ -535,6 +665,18 @@ Se activa rollback automático si ocurre **cualquiera** de las siguientes condic
 | Volumen de imágenes | `appuser` / `www-data` | Lectura/escritura backend; lectura Nginx. |
 | Logs | `appuser` | Lectura/escritura. |
 | Configuración Nginx | `root` (lectura), `www-data` (uso) | Solo lectura para el servicio. |
+
+## 19.3 Límite de tamaño de subida
+
+| Capa | Valor | Rol |
+|---|---|---|
+| **Flask** (`MAX_CONTENT_LENGTH`, `core/config/base.py`) | **5 MB** | Límite real por archivo (`03_SEGURIDAD.md` §11.1). Corta la petición con `413` JSON antes de materializar nada. |
+| **Nginx** (`client_max_body_size`) | **6 MB** | Barrera exterior. El margen de 1 MB cubre el sobre multipart y el resto de campos del formulario, de modo que una subida de 5–6 MB **llega a Flask** y recibe su propio `413`; por encima de 6 MB la corta Nginx. |
+
+Ambas capas responden el mismo sobre `AD-16` con `code: "payload_too_large"`, así
+que el cliente no distingue quién cortó. Antes de esta alineación Nginx permitía
+16 MB, dejando que archivos de 5–16 MB ocuparan un *worker* solo para ser
+rechazados.
 
 ---
 
@@ -684,3 +826,6 @@ Esto cierra el pendiente operativo `ADP-13`.
 | Versión | Fecha | Estado | Descripción |
 |---|---|---|---|
 | **1.0.0** | 09/08/2026 | ✅ APROBADO | Guía formal de despliegue y operación: topología, estrategia Recreate, orden de despliegue, expand/contract, health checks, smoke tests, rollback, backups, variables de entorno, observabilidad, criterios de éxito/rollback, seguridad, storage, decisiones `DPL-01` a `DPL-07`, cierre de `AP-01` / `ADP-04` / `ADP-13`. |
+| **1.1.0** | 28/08/2026 | 🟡 EN REVISIÓN | Se añade §6.3 (Cloudflare como capa de borde: IP de origen oculta, SSL *full strict*, restauración de IP real, caché) y la variable opcional `TRUSTED_PROXY_COUNT` (`2` con Cloudflare). Se actualiza la topología (§6), la tabla de componentes (§6.1), la de comunicación (§6.2) y la de seguridad de despliegue (§18). La especificación de reglas WAF/*rate limiting* vive en `03_SEGURIDAD.md` §23. |
+| **1.2.0** | 28/08/2026 | 🟡 EN REVISIÓN | **Hardening de Nginx (auditoría E-4).** `server_tokens off;` en dev y en la plantilla de producción (oculta la versión en el header `Server` y en las páginas de error). `client_max_body_size` pasa de 16m a **6m**, alineado con `MAX_CONTENT_LENGTH` de Flask (nueva §19.3). Los errores que genera Nginx (413, 502/503/504, 404 de `/uploads/*`) responden JSON `AD-16` en lugar de HTML genérico, con las cabeceras de seguridad aplicadas; los 4xx/5xx JSON del backend siguen pasando intactos (`proxy_intercept_errors` en `off`). Sin cambios de código backend, frontend, base de datos ni APIs. Cloudflare sigue pendiente (§6.3, `03_SEGURIDAD.md` §23). |
+| **1.3.0** | 31/08/2026 | 🟡 EN REVISIÓN | **Fase 0 — preparación de producción.** Artefactos de despliegue: `docker-compose.prod.yml` (sin Vite dev server, sin `--reload`, 1 worker de Gunicorn, servicios `migrate`/`frontend-build` con `profiles`), `nginx/prod/default.conf.template` (config desplegable con TLS, `envsubst` de `server_name`, `upstream`, SPA + `/assets/`, todo lo de E-4), `.env.production.example`, `scripts/prod/*` (build, deploy Recreate, backup, restore, verify-backup, rollback), `nginx/certs/` + generador autofirmado para prueba local. Se actualiza §6/§6.1 (topología y componentes con artefactos), §9.5 (migraciones en prod), §14 (variables de producción, `.env.production`). `nginx/production.conf.example` queda como referencia anotada. **Sin cambios de código, base de datos, migraciones ni del compose de desarrollo.** Probado end-to-end en local con cert autofirmado. Cloudflare y protección del origen: pendientes (§6.3, `03_SEGURIDAD.md` §23). |

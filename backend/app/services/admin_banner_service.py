@@ -24,9 +24,10 @@ from ..core.audit import (
     ACTION_UPDATE,
     AuditService,
 )
-from ..core.decorators import transactional
+from ..core.decorators import schedule_file_deletion, transactional
 from ..core.exceptions import NotFoundError
 from ..core.utils.pagination import Page
+from ..extensions import db
 from ..mappers.admin_mappers import banner_to_admin_dto
 from ..models import BANNER_PLACEMENT_VALUES
 from ..repositories.admin_banner_repository import AdminBannerRepository
@@ -126,10 +127,21 @@ class AdminBannerService:
             "ends_at": entrada.ends_at,
             "is_active": entrada.is_active,
         }
+        anterior = banner.image_path
         if image_path is not None:
             campos["image_path"] = image_path
 
         banner = AdminBannerRepository.update(banner, **campos)
+
+        # post-S13: al reemplazar la imagen, la anterior quedaba en disco y
+        # seguía descargable por su URL para siempre. Se retira, pero sólo si
+        # ningún otro banner vivo la referencia —las rutas llevan huella del
+        # contenido, así que dos banners con la misma imagen comparten archivo—
+        # y sólo cuando la transacción confirme.
+        if image_path is not None and anterior and anterior != image_path:
+            db.session.flush()
+            if AdminBannerRepository.count_live_with_path(anterior, excluding_id=banner.id) == 0:
+                schedule_file_deletion(anterior)
         AuditService.record(
             administrator_id=administrator_id,
             action=cls._accion_de_actualizacion(old_values, banner),
@@ -145,13 +157,19 @@ class AdminBannerService:
     def delete(cls, banner_id: int, *, administrator_id: int):
         """§9.11 `DELETE /banners/{id}`. Borrado lógico (`AD-18`).
 
-        El archivo de imagen **no se toca**: `AD-39` acota la limpieza física a
-        los archivos sin fila, y esta fila sigue existiendo.
+        post-S13: la fila sobrevive —`AD-18`— pero el **archivo** sí se retira.
+        Un banner retirado que siga siendo descargable por su URL es una pieza
+        de campaña publicada que ya nadie decidió publicar, y con
+        `immutable, max-age=1y` una caché compartida podía servirla un año más.
         """
         banner = cls._require(banner_id)
         old_values = AuditService.snapshot(banner, AUDIT_FIELDS)
+        ruta = banner.image_path
 
         AdminBannerRepository.soft_delete(banner)
+        db.session.flush()
+        if ruta and AdminBannerRepository.count_live_with_path(ruta, excluding_id=banner.id) == 0:
+            schedule_file_deletion(ruta)
         dto = banner_to_admin_dto(banner)
 
         AuditService.record(

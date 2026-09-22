@@ -136,7 +136,7 @@ def catalogo_con_historial(base_aislada, administrator_id):
         "list_price": 100000,
         "primary_category_id": referencias["category_id"],
         "brand_id": referencias["brand_id"],
-        "gender_id": referencias["gender_id"],
+        "gender_ids": [referencias["gender_id"]],
         "size_type_id": referencias["size_type_id"],
     }
     creado = AdminProductService.create(payload, administrator_id=administrator_id)

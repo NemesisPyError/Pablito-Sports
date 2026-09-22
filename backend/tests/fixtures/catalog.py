@@ -34,6 +34,7 @@ BUSINESS_TABLES = (
     "product_sizes",
     "product_sports",
     "product_categories",
+    "product_genders",
     "sales",
     "variants",
     "images",
@@ -43,6 +44,8 @@ BUSINESS_TABLES = (
     "banners",
     "sizes",
     "sports",
+    # RN-83: `category_genders` apunta a `categories` con `RESTRICT`.
+    "category_genders",
     "categories",
     # `brand_images` apunta a `brands` con `RESTRICT` (04 §9.2.18).
     "brand_images",
@@ -150,6 +153,9 @@ def build_catalog(now: datetime | None = None):
             585000,
             True,
             [size_40, size_42],
+            # `size_42` en 0: el talle no debe aparecer entre los disponibles
+            # del listado (§10.4), aunque el producto en sí siga "available".
+            [10, 0],
             True,
             False,
             "available",
@@ -169,6 +175,7 @@ def build_catalog(now: datetime | None = None):
             None,
             False,
             [size_42, size_44],
+            [3, 6],
             False,
             True,
             "low_stock",
@@ -188,6 +195,7 @@ def build_catalog(now: datetime | None = None):
             None,
             False,
             [size_40],
+            [7],
             True,
             True,
             "available",
@@ -207,6 +215,9 @@ def build_catalog(now: datetime | None = None):
             None,
             False,
             [size_42],
+            # 0 a propósito: `test_cart_revalidate.py` depende de que este
+            # producto quede sin stock real, no solo con la etiqueta puesta.
+            [0],
             False,
             False,
             "out_of_stock",
@@ -226,6 +237,7 @@ def build_catalog(now: datetime | None = None):
             None,
             False,
             [size_m, size_l],
+            [3, 8],
             False,
             False,
             "available",
@@ -245,6 +257,7 @@ def build_catalog(now: datetime | None = None):
             None,
             False,
             [size_40],
+            [5],
             False,
             False,
             "available",
@@ -266,6 +279,7 @@ def build_catalog(now: datetime | None = None):
         sale_price,
         sale_in_force,
         sizes,
+        variant_quantities,
         featured,
         is_new,
         availability,
@@ -286,12 +300,12 @@ def build_catalog(now: datetime | None = None):
             is_active=active,
             brand_id=brand.id,
             primary_category_id=primary_category.id,
-            gender_id=gender.id,
             size_type_id=size_type.id,
         )
         product.categories = categories
         product.sports = sports
         product.sizes = sizes
+        product.genders = [gender]
         db.session.add(product)
         db.session.flush()
 
@@ -307,8 +321,8 @@ def build_catalog(now: datetime | None = None):
                 Image(product_id=product.id, file_path=f"products/{slug}-2.webp", position=1),
             ]
         )
-        for size in sizes:
-            db.session.add(Variant(product_id=product.id, size_id=size.id))
+        for size, quantity in zip(sizes, variant_quantities, strict=True):
+            db.session.add(Variant(product_id=product.id, size_id=size.id, quantity=quantity))
 
     # RN-36: brand-scoped promotion in force.
     db.session.add(

@@ -25,8 +25,14 @@
   /* Trama de puntos, casi imperceptible: hoy esta tonalidad la usa
      exclusivamente "Destacados" en la Home, el único respiro claro entre
      bloques de tinta. Si otro consumidor necesita blanco liso, esto pasa a
-     una variante propia en vez de tocarse acá. */
-  background-image: radial-gradient(var(--color-ink-200) 1px, transparent 1px);
+     una variante propia en vez de tocarse acá.
+     `--section-dot-color` (tokens.css, tema oscuro de la tienda) recolorea
+     el punto para que siga "casi imperceptible" también sobre fondo oscuro
+     — sin la variable, cae al mismo ink-200 de siempre. */
+  background-image: radial-gradient(
+    var(--section-dot-color, var(--color-ink-200)) 1px,
+    transparent 1px
+  );
   background-size: 20px 20px;
 }
 

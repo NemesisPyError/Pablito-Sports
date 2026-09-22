@@ -14,12 +14,14 @@ punta a punta.
 from flask import Blueprint, request
 
 from ....core.utils.responses import success_response
+from ....services.bank_service import BankService
 from ....services.banner_service import BannerService
 from ....services.catalog_service import CatalogService
 from ....services.store_setting_service import StoreSettingService
 
 store_bp = Blueprint("store", __name__)
 banners_bp = Blueprint("banners", __name__)
+banks_bp = Blueprint("banks", __name__)
 
 
 @store_bp.get("/store/settings")
@@ -74,3 +76,10 @@ def list_banners():
     placement = (request.args.get("placement") or "").strip() or None
     banners = BannerService.list_public(placement=placement)
     return success_response([banner.to_dict() for banner in banners])
+
+
+@banks_bp.get("/banks")
+def list_banks():
+    """Superdescuentos: bancos activos, ordenados por posición."""
+    banks = BankService.list_public()
+    return success_response([bank.to_dict() for bank in banks])

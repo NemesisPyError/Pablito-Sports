@@ -31,6 +31,22 @@
  * ----------------------------------------------------------------------- */
 .aspectBrand {
   aspect-ratio: var(--aspect-brand);
+  /* Superficie fija, no la del tema (`--color-background`): un logotipo de
+     marca es un activo de terceros con su propio color, en su mayoría
+     pensado para fondo claro (Adidas, Nike, Caterpillar, Kappa son marcas
+     negras). Invertirlo por tema sería un filtro arbitrario sobre un color
+     que no elegimos; mantener la tarjeta siempre clara es la solución que
+     ya contempla el sistema de tokens para este caso (`--color-logo-*`,
+     `tokens.css`) y funciona para cualquier logotipo sin adivinar su
+     paleta. `!important` no hace falta: esta regla ya cae después de
+     `.tile` en la hoja, así que gana por orden sin necesidad de forzarla. */
+  background-color: var(--color-logo-surface);
+  border-color: var(--color-logo-surface-border);
+  color: var(--color-logo-surface-text);
+}
+
+.aspectBrand:hover {
+  border-color: var(--color-logo-surface-accent);
 }
 
 .aspectCategory {

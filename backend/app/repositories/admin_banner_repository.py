@@ -9,13 +9,33 @@ inactivos, futuros y vencidos incluidos.
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from ..extensions import db
 from ..models import Banner
 
 
 class AdminBannerRepository:
+    @classmethod
+    def count_live_with_path(cls, image_path: str, *, excluding_id: int) -> int:
+        """Cuántos banners VIVOS distintos de `excluding_id` usan ese archivo.
+
+        Las rutas llevan la huella del contenido, así que subir dos veces la
+        misma imagen a dos banners produce **la misma ruta**. Borrar el archivo
+        al retirar uno dejaría al otro apuntando al vacío. El espacio `banners/`
+        es exclusivo de esta tabla, de modo que contar aquí es suficiente.
+        """
+        statement = (
+            select(func.count())
+            .select_from(Banner)
+            .where(
+                Banner.image_path == image_path,
+                Banner.id != excluding_id,
+                Banner.deleted_at.is_(None),
+            )
+        )
+        return db.session.execute(statement).scalar_one()
+
     @classmethod
     def list_all(
         cls, *, offset: int = 0, limit: int | None = None, placement: str | None = None

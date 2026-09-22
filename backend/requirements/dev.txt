@@ -5,3 +5,10 @@ pytest==8.3.4
 pytest-cov==6.0.0
 ruff==0.8.4
 black==24.10.0
+
+# Auditoría de CVE de las dependencias Python (post-S13). Queda en `dev` y no en
+# `base`: es una herramienta de desarrollo/CI, no la necesita el runtime, y
+# meterla en la imagen de producción sólo añadiría superficie. Se ejecuta con
+# `docker compose exec backend python -m pip_audit`, de modo que audita las
+# versiones REALMENTE instaladas en el contenedor, no un archivo de texto.
+pip-audit==2.10.1

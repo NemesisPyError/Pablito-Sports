@@ -20,13 +20,15 @@ from .classifications import (
     sports_bp,
 )
 from .products import products_bp
-from .store import banners_bp, store_bp
+from .store import banks_bp, banners_bp, store_bp
+from .turnstile import turnstile_bp
 
 public_bp = Blueprint("public", __name__, url_prefix="/api/v1")
 
 for blueprint in (
     store_bp,
     banners_bp,
+    banks_bp,
     categories_bp,
     brands_bp,
     sports_bp,
@@ -35,6 +37,7 @@ for blueprint in (
     size_types_bp,
     products_bp,
     cart_bp,
+    turnstile_bp,
 ):
     public_bp.register_blueprint(blueprint)
     # Flask-WTF's blueprint exemption keys off `request.blueprint`, which for a

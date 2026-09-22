@@ -22,6 +22,11 @@ class VariantDTO(BaseDTO):
     id: int
     size: SizeDTO | None
     availability: str
+    # Tope de unidades que el cliente puede pedir de este talle, cuando el stock
+    # es bajo. `None` = hay de sobra y no se publica el número exacto
+    # (`public_available_quantity`). No es una autorización: el límite real lo
+    # vuelve a comprobar el servidor al revalidar el carrito.
+    available_quantity: int | None = None
 
 
 @dataclass(frozen=True)
@@ -38,6 +43,7 @@ class ProductListItemDTO(BaseDTO):
     is_featured: bool
     thumbnail_url: str | None
     secondary_thumbnail_url: str | None
+    available_sizes: list[SizeDTO] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -49,7 +55,7 @@ class ProductDetailDTO(BaseDTO):
     primary_category: NamedEntityDTO
     categories: list[NamedEntityDTO]
     sports: list[NamedEntityDTO]
-    gender: NamedEntityDTO
+    genders: list[NamedEntityDTO]
     size_type: NamedEntityDTO
     sizes: list[SizeDTO]
     list_price: int

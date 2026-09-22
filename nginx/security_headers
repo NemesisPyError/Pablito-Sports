@@ -2,9 +2,17 @@
 # (03_SEGURIDAD.md §12). Se incluye en las localizaciones que devuelven el SPA,
 # el HTML de rastreadores y los archivos estáticos.
 #
-# NO se incluye en las localizaciones de la API (`/api/v1/`): allí las emite el
-# middleware de Flask (core/security/headers.py), y duplicarlas produciría
-# encabezados repetidos. `always` las envía también en respuestas de error.
+# SÍ se incluye también en las localizaciones proxyadas de la API (S-10). Antes
+# se omitía porque el middleware de Flask emitía las mismas tres cabeceras; pero
+# en producción el bloque `server` las añadía igualmente y la respuesta salía con
+# **dos** de cada una (medido: `n=2` en `/api/v1/*`). `add_header` de Nginx SUMA
+# a lo que envía el upstream, no reemplaza, así que el `setdefault` de Flask no
+# podía evitarlo. Se retiraron de Flask y Nginx quedó como fuente única.
+#
+# El criterio general: la cabecera **constante** la emite el borde —un solo
+# sitio, y cubre también lo que Flask nunca ve—; la que **depende de la ruta**
+# (`Cache-Control`) la emite la aplicación. `always` las envía también en
+# respuestas de error.
 #
 # La Content-Security-Policy y HSTS NO viven aquí: la CSP estricta rompería el
 # hot-reload de Vite en desarrollo, y HSTS solo es válido bajo TLS. Ambas están
@@ -13,4 +21,30 @@
 add_header X-Frame-Options "DENY" always;
 add_header X-Content-Type-Options "nosniff" always;
 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+# --- Permissions-Policy ------------------------------------------------------
+#
+# Se deniegan TODAS las capacidades potentes del navegador, porque Pablito
+# Sports no usa ninguna. Auditado en el código, no supuesto: sin `getUserMedia`,
+# `geolocation`, `requestFullscreen`, `PaymentRequest`, `navigator.usb`,
+# `navigator.bluetooth`, sensores, `navigator.clipboard`, `Notification` ni
+# `getDisplayMedia`; y sin `<video>`, `<audio>`, `<iframe>`, `<embed>` ni
+# `<object>` en todo el frontend.
+#
+# Dos coincidencias del código NO son estas features y conviene no confundirlas:
+#   · `AUTOPLAY_INTERVAL_MS` del carrusel es un `setInterval` de JavaScript, no
+#     la reproducción automática de un elemento multimedia.
+#   · `REVALIDATION_STATE.IDLE` es una etiqueta de máquina de estados, no la
+#     Idle Detection API.
+#
+# El cierre de venta sale por `window.open` a `wa.me` (RN-62): una navegación
+# corriente, así que `payment` tampoco hace falta.
+#
+# `()` = lista de orígenes vacía: ni el propio sitio ni ningún incrustado pueden
+# usar la capacidad. Si alguna vez se añade una función que la necesite —subir
+# foto con la cámara, pasarela de pago, passkeys en el panel (`payment`,
+# `publickey-credentials-get`)— hay que abrir SOLO esa, y solo para `self`.
+#
+# Un navegador ignora en silencio los nombres que no conoce, de modo que la
+# lista es segura aunque una feature no exista en su versión.
+
+add_header Permissions-Policy "accelerometer=(), autoplay=(), bluetooth=(), camera=(), clipboard-read=(), clipboard-write=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), hid=(), idle-detection=(), local-fonts=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()" always;

@@ -3,7 +3,7 @@
 Importing this package registers every table in the metadata, which is what
 Alembic autogenerate compares against the live database.
 
-16 entities plus 3 N:M relation tables.
+17 entities plus 3 N:M relation tables.
 """
 
 from .administration import (
@@ -13,9 +13,17 @@ from .administration import (
     AuditLog,
     PriceHistory,
     Sale,
+    SaleOrder,
     StoreSetting,
 )
-from .associations import product_categories, product_sizes, product_sports
+from .associations import (
+    category_genders,
+    product_categories,
+    product_genders,
+    product_sizes,
+    product_sports,
+)
+from .bank import Bank
 from .classification import Brand, BrandImage, Category, Gender, Size, SizeType, Sport
 from .product import AVAILABILITY_VALUES, Image, Product, Variant
 from .promotion import (
@@ -39,14 +47,18 @@ __all__ = [
     "SizeType",
     "Promotion",
     "Banner",
+    "Bank",
     # Panel
     "Administrator",
     "StoreSetting",
     "PriceHistory",
     "Sale",
+    "SaleOrder",
     "AuditLog",
     # N:M relation tables
+    "category_genders",
     "product_categories",
+    "product_genders",
     "product_sports",
     "product_sizes",
     # Closed value sets

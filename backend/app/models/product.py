@@ -15,7 +15,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..core.utils.stock import AVAILABLE, LOW_STOCK, OUT_OF_STOCK
 from ..extensions import db
-from .associations import product_categories, product_sizes, product_sports
+from .associations import product_categories, product_genders, product_sizes, product_sports
 from .base import ActiveMixin, IdentityMixin, SoftDeleteMixin, TimestampMixin
 
 # RN-38, RN-38b, 00.3_NOMENCLATURA.md §9.1. v1.2.0: se retira "coming_soon",
@@ -44,6 +44,11 @@ class Product(IdentityMixin, ActiveMixin, TimestampMixin, SoftDeleteMixin, db.Mo
     availability: Mapped[str] = mapped_column(String(20), nullable=False)
     is_featured: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     is_new: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    # NULL = no está en Novedades. Mismo patrón que `Brand.home_position`
+    # (04 §9.2.3): un entero marca la curaduría y el orden a la vez, y no se
+    # confunde con `is_new` (autotoggle del propio producto, sin curaduría ni
+    # orden) ni con `is_featured` (ya es la sección "Destacados").
+    home_new_position: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     primary_category_id: Mapped[int] = mapped_column(
         Integer,
@@ -58,20 +63,31 @@ class Product(IdentityMixin, ActiveMixin, TimestampMixin, SoftDeleteMixin, db.Mo
     brand_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("brands.id", ondelete="RESTRICT", onupdate="CASCADE"), nullable=False
     )
-    gender_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("genders.id", ondelete="RESTRICT", onupdate="CASCADE"), nullable=False
-    )
 
     brand = relationship("Brand")
-    gender = relationship("Gender")
     size_type = relationship("SizeType")
     primary_category = relationship("Category")
 
     categories = relationship("Category", secondary=product_categories)
     sports = relationship("Sport", secondary=product_sports)
     sizes = relationship("Size", secondary=product_sizes)
+    # RN-09 (v2.9.0): un producto puede pertenecer a varios sexos — antes era
+    # `gender_id`, una FK simple. Sin "primaria": a diferencia de
+    # `primary_category_id`, ningún sexo de la lista pesa más que otro para
+    # mostrar, mismo criterio que `sports` (RN-08). Al menos uno es
+    # obligatorio, pero eso no lo puede expresar una FK ni un `CHECK` sobre
+    # esta tabla — lo valida el servicio (`AdminProductService`).
+    genders = relationship("Gender", secondary=product_genders)
 
-    variants = relationship("Variant", back_populates="product")
+    # Orden estático por talle (mismo criterio que `available_sizes_for`,
+    # `ProductRepository`): sin esto, dos SELECT del mismo `variants` sin
+    # ORDER BY explícito pueden devolver filas en orden distinto entre sí —
+    # Postgres no garantiza ninguno —, y una edición de `quantity` (UPDATE)
+    # puede alterar el orden físico de la fila. El panel mostraba las
+    # variantes "saltando" de lugar al cargar cantidad, no por diseño.
+    variants = relationship(
+        "Variant", back_populates="product", order_by="Variant.size_id, Variant.id"
+    )
     images = relationship("Image", back_populates="product")
 
     __table_args__ = (
@@ -89,8 +105,10 @@ class Product(IdentityMixin, ActiveMixin, TimestampMixin, SoftDeleteMixin, db.Mo
             "availability IN ('available', 'low_stock', 'out_of_stock')",
             name="availability_allowed",
         ),
+        CheckConstraint(
+            "home_new_position IS NULL OR home_new_position >= 0", name="home_new_position_valid"
+        ),
         Index("idx_products_brand_id", "brand_id"),
-        Index("idx_products_gender_id", "gender_id"),
         Index("idx_products_size_type_id", "size_type_id"),
         Index("idx_products_primary_category_id", "primary_category_id"),
         Index("idx_products_availability", "availability"),

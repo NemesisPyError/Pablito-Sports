@@ -60,11 +60,11 @@ def _product(session, suffix="", **overrides):
         "availability": "available",
         "brand_id": brand.id,
         "primary_category_id": category.id,
-        "gender_id": gender.id,
         "size_type_id": size_type.id,
     }
     values.update(overrides)
     product = Product(**values)
+    product.genders = [gender]
     session.add(product)
     return product
 
@@ -185,7 +185,6 @@ def test_slug_is_not_reusable_after_soft_delete(session):
             availability="available",
             brand_id=product.brand_id,
             primary_category_id=product.primary_category_id,
-            gender_id=product.gender_id,
             size_type_id=product.size_type_id,
         )
     )
@@ -206,7 +205,6 @@ def test_sku_is_unique(session):
             availability="available",
             brand_id=product.brand_id,
             primary_category_id=product.primary_category_id,
-            gender_id=product.gender_id,
             size_type_id=product.size_type_id,
         )
     )
@@ -316,11 +314,11 @@ def test_image_position_cannot_be_negative(session):
 # --------------------------------------------------------------------------
 
 
-def test_promotion_scope_must_be_exactly_one(session):
-    # RN-36: no scope at all is rejected.
+def test_promotion_without_scope_means_all_products(session):
+    # RN-36 (v1.6.0): sin ninguno de los tres campos, la promoción aplica a
+    # todos los productos — ya no es un estado rechazado.
     session.add(Promotion(name="Sin alcance", discount_percentage=10, starts_at=NOW))
-    with pytest.raises(IntegrityError, match="scope_exclusive"):
-        session.flush()
+    session.flush()
 
 
 def test_promotion_cannot_have_two_scopes(session):

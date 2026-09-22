@@ -75,6 +75,18 @@ class BannerAdminDTO(BaseDTO):
 
 
 @dataclass(frozen=True)
+class BankAdminDTO(BaseDTO):
+    """DTO **exclusivo del panel** de Superdescuentos, mismo criterio que `BannerAdminDTO`."""
+
+    id: int
+    name: str
+    discount_percentage: int
+    image_url: str | None
+    position: int
+    is_active: bool
+
+
+@dataclass(frozen=True)
 class StoreSettingsAdminDTO(BaseDTO):
     """§10.x. Configuración completa, visible solo en el panel.
 
@@ -148,10 +160,15 @@ class WhatsAppTemplateDTO(BaseDTO):
 
 @dataclass(frozen=True)
 class PromotionScopeDTO(BaseDTO):
-    """§10.9 `scope`. Exactamente uno de producto, categoría o marca (`RN-36`)."""
+    """§10.9 `scope`. Como máximo uno de producto, categoría o marca (`RN-36`).
+
+    `type="all"` y `entity=None` significan que la promoción aplica a todos
+    los productos (v1.6.0, pedido explícito del usuario) — no hay una única
+    entidad que nombrar.
+    """
 
     type: str
-    entity: NamedEntityDTO
+    entity: NamedEntityDTO | None
 
 
 @dataclass(frozen=True)

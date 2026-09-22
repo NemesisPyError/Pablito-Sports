@@ -54,6 +54,7 @@ PRODUCTS_NAMESPACE = "products"
 BANNERS_NAMESPACE = "banners"
 BRANDS_NAMESPACE = "brands"
 STORE_NAMESPACE = "store"
+BANKS_NAMESPACE = "banks"
 
 # §17.1.2. Productos: tres anchos de §15.5, con su consumidor aprobado.
 PRODUCT_WIDTHS = {
@@ -86,6 +87,14 @@ STORE_WIDTHS = {
     "standard": 1600,  # sección de historia
 }
 
+# §17.1.2. Bancos: el mini banner es un logotipo chico mostrado en una
+# tarjeta del pie, mismo caso de uso que el logotipo de marca — se reutiliza
+# la escala de `BRAND_WIDTHS` en vez de inventar una cuarta.
+BANK_WIDTHS = {
+    "thumbnail": 400,  # listado del panel
+    "standard": 800,  # tarjeta pública de Superdescuentos
+}
+
 # §17.1.6: el canónico es el **intermedio** donde hay tres anchos y el mayor
 # donde hay dos. Es el que más se sirve; los otros se deducen del nombre
 # (§15.3 regla 3).
@@ -94,20 +103,27 @@ NAMESPACES = {
     BANNERS_NAMESPACE: {"widths": BANNER_WIDTHS, "canonical": "standard"},
     BRANDS_NAMESPACE: {"widths": BRAND_WIDTHS, "canonical": "standard"},
     STORE_NAMESPACE: {"widths": STORE_WIDTHS, "canonical": "standard"},
+    BANKS_NAMESPACE: {"widths": BANK_WIDTHS, "canonical": "standard"},
 }
 
-# Excepción de fiabilidad a §17.1.6: el logotipo y el collage de marca
-# publican el respaldo JPEG como canónico, no WebP. El WebP con alfa se
-# sigue generando (queda en disco por si hace falta), pero se encontró en
-# producción una franja real de navegadores (Brave con aceleración por GPU,
-# confirmado) que decodifican mal el canal alfa de WebP y muestran el logo
-# como un rectángulo negro sólido — el archivo es válido, es un problema del
-# decoder del cliente, no del dato (confirmado con Pillow y con otro motor).
-# El JPEG no tiene canal alfa: no hay nada que decodificar mal. Solo aplica a
-# `brands`: hoy es el único espacio cuyo contenido es casi siempre logotipos
-# con transparencia real mostrados sobre fondo claro, donde el respaldo
-# compuesto sobre blanco (§15.6) se ve idéntico al WebP.
-JPEG_CANONICAL_NAMESPACES = frozenset({BRANDS_NAMESPACE})
+# Excepción de fiabilidad a §17.1.6: el canónico de marca no es el WebP con
+# alfa. Se encontró en producción una franja real de navegadores (Brave con
+# aceleración por GPU, confirmado) que decodifica mal su canal alfa y
+# muestra el logo como un rectángulo negro sólido — el archivo es válido
+# (confirmado con Pillow y con otro motor), es un problema del decoder del
+# cliente, no del dato. El WebP con alfa se sigue generando igual (queda en
+# disco por si hace falta), pero deja de ser lo que se publica.
+#
+# El canónico pasa a depender de si la fuente tiene alfa real:
+#   - con alfa    -> PNG con alfa (`ALPHA_FALLBACK_FORMAT`). El PNG no tiene
+#     el bug del WebP y, a diferencia del JPEG, sí es transparencia real: el
+#     logo se integra con cualquier fondo, claro u oscuro (`MediaTile`,
+#     franja de marcas), en vez de traer su propio rectángulo blanco.
+#   - sin alfa    -> JPEG (`FALLBACK_FORMAT`), como antes: una foto del
+#     collage no tiene transparencia que perder.
+# Solo aplica a `brands`: es el único espacio cuyo contenido son logotipos
+# pensados para integrarse con cualquier fondo, no fotografía de catálogo.
+ALPHA_CANONICAL_NAMESPACES = frozenset({BRANDS_NAMESPACE})
 
 # Compatibilidad de nombre para el espacio de productos, que es el que existía
 # antes de §17.1.2 y al que apuntan el frontend y los tests.
@@ -117,6 +133,10 @@ CANONICAL_DERIVATIVE = "catalog"
 # §17.1.3, que materializa §15.6: WebP con respaldo tradicional en JPEG.
 DERIVATIVE_FORMAT = ("webp", "WEBP")
 FALLBACK_FORMAT = ("jpg", "JPEG")
+# Solo se genera cuando la fuente tiene alfa real (ver `_generate_derivatives`
+# y `ALPHA_CANONICAL_NAMESPACES`): es un tercer archivo, no un reemplazo de
+# los dos de arriba, que siguen existiendo igual.
+ALPHA_FALLBACK_FORMAT = ("png", "PNG")
 
 ORIGINALS_DIR = "originals"
 DERIVATIVES_DIR = "derivatives"
@@ -185,6 +205,14 @@ class LocalStorage(StorageInterface):
         """
         return self._store(file_storage, namespace=STORE_NAMESPACE, group=None)
 
+    def save_bank_image(self, file_storage) -> str:
+        """Guarda el mini banner de un banco (espacio `banks`).
+
+        Plano, como banners: un banco tiene una única pieza, sin galería que
+        la agrupe.
+        """
+        return self._store(file_storage, namespace=BANKS_NAMESPACE, group=None)
+
     def _store(self, file_storage, *, namespace: str, group: str | None) -> str:
         """Valida, guarda el original y genera los derivados (§15.4).
 
@@ -219,9 +247,10 @@ class LocalStorage(StorageInterface):
         try:
             # §15.4: generación sincrónica (IM-01). Si un derivado falla, falla
             # la carga completa: preferible a una fila cuyos derivados no existen.
-            written += self._generate_derivatives(
-                original_file, derivative_dir, fingerprint, widths
+            derivative_files, has_alpha = self._generate_derivatives(
+                original_file, derivative_dir, fingerprint, widths, namespace=namespace
             )
+            written += derivative_files
         except Exception:
             for path in written:
                 with contextlib.suppress(OSError):
@@ -233,14 +262,21 @@ class LocalStorage(StorageInterface):
 
         canonical_width = widths[configuracion["canonical"]]
         prefijo = namespace if group is None else f"{namespace}/{group}"
-        derivative_extension = (
-            FALLBACK_FORMAT[0] if namespace in JPEG_CANONICAL_NAMESPACES else DERIVATIVE_FORMAT[0]
-        )
+        if namespace in ALPHA_CANONICAL_NAMESPACES:
+            derivative_extension = ALPHA_FALLBACK_FORMAT[0] if has_alpha else FALLBACK_FORMAT[0]
+        else:
+            derivative_extension = DERIVATIVE_FORMAT[0]
         return f"{prefijo}/{fingerprint}-{canonical_width}.{derivative_extension}"
 
     def _generate_derivatives(
-        self, original_file: str, derivative_dir: str, fingerprint: str, widths: dict
-    ) -> list[str]:
+        self,
+        original_file: str,
+        derivative_dir: str,
+        fingerprint: str,
+        widths: dict,
+        *,
+        namespace: str,
+    ) -> tuple[list[str], bool]:
         """§17.1.2 y §17.1.3: los anchos del espacio, WebP con respaldo JPEG.
 
         La altura es proporcional: recortar sería decidir el encuadre por quien
@@ -259,6 +295,12 @@ class LocalStorage(StorageInterface):
         —el formato no admite alfa, es una limitación real, no una decisión
         de diseño— y se compone explícitamente sobre blanco con la máscara
         de alfa, en vez de descartarla.
+
+        Con alfa real y en un espacio de `ALPHA_CANONICAL_NAMESPACES`, se
+        suma un tercer derivado en PNG (transparencia real, sin el bug de
+        WebP en Brave) — ver el comentario de esa constante. Devuelve
+        también si la fuente tenía alfa, que es lo que `_store` necesita
+        para decidir el canónico.
         """
         written: list[str] = []
         with Image.open(original_file) as source:
@@ -295,7 +337,13 @@ class LocalStorage(StorageInterface):
                     save_kwargs = {"lossless": True} if is_alpha_webp else {"quality": 82}
                     saved.save(path, format=image_format, **save_kwargs)
                     written.append(path)
-        return written
+
+                if resized_rgba is not None and namespace in ALPHA_CANONICAL_NAMESPACES:
+                    extension, image_format = ALPHA_FALLBACK_FORMAT
+                    path = os.path.join(derivative_dir, f"{fingerprint}-{width}.{extension}")
+                    resized_rgba.save(path, format=image_format)
+                    written.append(path)
+        return written, has_alpha
 
     # ------------------------------------------------------------------
     # Validación (§11)
@@ -387,6 +435,49 @@ class LocalStorage(StorageInterface):
         finally:
             with contextlib.suppress(OSError):
                 os.remove(probe)
+
+    def delete_derivative_set(self, canonical_path: str) -> int:
+        """Retira del disco un archivo publicado y todo lo que se derivó de él.
+
+        `canonical_path` es lo que se guardó en la fila —lo que devolvió
+        `_store`—, de la forma `<espacio>[/<grupo>]/<huella>-<ancho>.<ext>`. A
+        partir de ahí se deducen los demás anchos y formatos (§15.3 regla 3) y el
+        original, que comparte la huella pero conserva su extensión de origen.
+
+        Devuelve cuántos archivos se borraron. **No lanza**: quien llama ya
+        confirmó la transacción, así que un fallo al desenlazar deja un archivo
+        huérfano —recuperable— y no debe deshacer una operación correcta.
+
+        S-13: sin esto, borrar una imagen sólo marcaba la fila; el archivo seguía
+        siendo descargable por su URL para siempre, y con `immutable, max-age=1y`
+        una caché compartida podía servirlo un año más.
+        """
+        carpeta, _, archivo = canonical_path.rpartition("/")
+        huella, _, _ = archivo.partition("-")
+        if not carpeta or not huella:
+            logger.warning("unexpected derivative path, nothing removed")
+            return 0
+
+        borrados = 0
+        # Derivados: todos los anchos y los dos formatos de esa huella.
+        directorio = os.path.join(self.derivatives_path, carpeta)
+        with contextlib.suppress(OSError):
+            for nombre in os.listdir(directorio):
+                if nombre.startswith(f"{huella}-"):
+                    with contextlib.suppress(OSError):
+                        os.remove(os.path.join(directorio, nombre))
+                        borrados += 1
+
+        # Original: misma huella, la extensión con la que se subió (AD-38).
+        directorio = os.path.join(self.originals_path, carpeta)
+        with contextlib.suppress(OSError):
+            for nombre in os.listdir(directorio):
+                if nombre.rpartition(".")[0] == huella:
+                    with contextlib.suppress(OSError):
+                        os.remove(os.path.join(directorio, nombre))
+                        borrados += 1
+
+        return borrados
 
     def purge_product(self, product_id: int) -> None:
         """Retira original y derivados de un producto. Solo para herramientas.

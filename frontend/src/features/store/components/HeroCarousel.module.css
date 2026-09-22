@@ -1,0 +1,100 @@
+/**
+ * Rotación de piezas de portada (09_COMPONENTES.md §9.8 `Hero`).
+ *
+ * Sin flechas: el hero es una pieza de contenido con título y botón propios,
+ * no un carril de piezas chicas — una flecha superpuesta compite con ese
+ * contenido. Los indicadores son la única navegación manual, siempre
+ * visibles (a diferencia de `Carousel`, acá no hay gesto de arrastre nativo
+ * que los reemplace en pantallas angostas).
+ */
+
+.wrapper {
+  position: relative;
+}
+
+/*
+ * Solo una pieza vive en el DOM a la vez (`key` la remonta en `HeroCarousel`):
+ * la animación es de entrada, no un cruce entre dos imágenes superpuestas.
+ * `prefers-reduced-motion` la neutraliza globalmente (`base.css`).
+ */
+.slide {
+  animation: heroFadeIn var(--duration-slow) var(--easing-default);
+}
+
+@keyframes heroFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * Centrados, en la franja inferior propia (v2.8.0, referencia visual del
+ * usuario): `Hero.module.css` reserva esa franja con `padding-block-end` en
+ * `.content`, así que el bloque de acciones —fijo, abajo a la izquierda—
+ * nunca la ocupa. El degradado de `Hero` es más denso ahí abajo
+ * (`--color-overlay-hero`), suficiente contraste sin necesitar un fondo
+ * propio para los puntos.
+ */
+.dots {
+  position: absolute;
+  z-index: var(--z-index-dropdown);
+  inset-inline: 0;
+  bottom: var(--spacing-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+}
+
+@media (min-width: 768px) {
+  .dots {
+    bottom: var(--spacing-4);
+  }
+}
+
+/*
+ * `button` fuerza 44×44 mínimo en toda la app (`base.css` §10, área táctil):
+ * el punto chico no puede ser el botón, tiene que ser un `::after` propio
+ * dentro de un botón de 44×44 invisible, o el botón real terminaría siendo
+ * un círculo de 44px — exactamente lo que rompía la referencia visual.
+ */
+.dot {
+  position: relative;
+  width: var(--touch-target-min);
+  height: var(--touch-target-min);
+  padding: var(--spacing-0);
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.dot::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--spacing-3);
+  height: var(--spacing-3);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-text-inverse);
+  border-radius: var(--radius-pill);
+  background-color: transparent;
+  transform: translate(-50%, -50%);
+  transition: var(--transition-fast);
+}
+
+.dot:hover::after {
+  background-color: rgb(255 255 255 / 60%);
+}
+
+.dotActive::after {
+  background-color: var(--color-text-inverse);
+}
+
+.dot:focus-visible {
+  outline: var(--focus-ring-width) var(--border-style-default) var(--focus-ring-color-inverse);
+  outline-offset: var(--focus-ring-offset);
+}

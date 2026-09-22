@@ -27,6 +27,45 @@ product_categories = Table(
     ),
 )
 
+# RN-09 (v2.9.0): un producto puede pertenecer a varios sexos.
+product_genders = Table(
+    "product_genders",
+    db.metadata,
+    Column(
+        "product_id",
+        Integer,
+        ForeignKey("products.id", ondelete="RESTRICT", onupdate="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "gender_id",
+        Integer,
+        ForeignKey("genders.id", ondelete="RESTRICT", onupdate="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+# RN-83 (v2.10.0): la categoría declara a qué sexos aplica, para que el menú de
+# la tienda no tenga que ofrecer el árbol completo bajo Hombres, Mujeres e
+# Infantil a la vez. Sin filas, la categoría no tiene restricción y aparece en
+# todos los ejes (`AD-41`): es como se comportaba antes de existir esta tabla.
+category_genders = Table(
+    "category_genders",
+    db.metadata,
+    Column(
+        "category_id",
+        Integer,
+        ForeignKey("categories.id", ondelete="RESTRICT", onupdate="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "gender_id",
+        Integer,
+        ForeignKey("genders.id", ondelete="RESTRICT", onupdate="CASCADE"),
+        primary_key=True,
+    ),
+)
+
 # RN-08
 product_sports = Table(
     "product_sports",

@@ -33,6 +33,14 @@ export const storeService = {
   },
 
   /**
+   * GET /api/v1/banks. Superdescuentos: bancos activos, ordenados por posición.
+   */
+  async getBanks() {
+    const { data } = await get('/banks');
+    return data ?? [];
+  },
+
+  /**
    * GET /api/v1/store/about (05_API.md §7.2b).
    *
    * Recurso propio y no un campo de `/store/settings`: `AD-12` congela ese DTO
@@ -67,6 +75,19 @@ export const storeService = {
    */
   async getFeaturedProducts() {
     const { data } = await get('/products', { params: { is_featured: true } });
+    return data ?? [];
+  },
+
+  /**
+   * GET /api/v1/products/home-new (05_API.md §7.2d).
+   *
+   * Novedades: productos que el administrador sumó a mano desde el panel, en
+   * el orden en que los fue seleccionando. No es `is_new` — ese campo sigue
+   * siendo el autotoggle por producto que alimenta la insignia "Nuevo" y el
+   * filtro del catálogo, sin curaduría ni orden propios.
+   */
+  async getHomeNewProducts() {
+    const { data } = await get('/products/home-new');
     return data ?? [];
   },
 };

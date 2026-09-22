@@ -1,0 +1,38 @@
+# Content-Security-Policy (03_SEGURIDAD.md §12.2).
+#
+# SOLO PRODUCCIÓN, igual que `hsts`: la política estricta rompe el hot-reload
+# del servidor de Vite, así que en desarrollo no se monta.
+#
+# --- Por qué es un include y no una línea suelta (S-13) ----------------------
+#
+# Mismo motivo que `hsts`: en Nginx `add_header` NO se acumula entre niveles.
+# Una `location` que declare aunque sea una cabecera propia **descarta todas
+# las heredadas del `server`**. Cuatro localizaciones declaran su propio
+# `Cache-Control` o incluyen `security_headers`, y por eso perdían la CSP en
+# silencio. Medido antes de corregirlo:
+#
+#     documento HTML   /                        CSP: SI
+#     bundle JS        /assets/index-*.js       CSP: NO   <-
+#     imagen           /uploads/<derivado>      CSP: NO   <-
+#     404 de assets    /assets/nada.js          CSP: NO   <-
+#     404 de uploads   /uploads/nada.webp       CSP: NO   <-
+#
+# **La política no cambia**: la directiva es exactamente la misma cadena que
+# estaba en línea en el bloque `server`. Lo único que cambia es que ahora vive
+# en un solo archivo y cada sitio que rompe la herencia la vuelve a incluir, en
+# vez de haber cinco copias que se desincronicen.
+#
+# --- Sobre su efecto en un asset --------------------------------------------
+#
+# Una CSP gobierna un *browsing context*, así que sobre un .js o un .webp
+# servido como subrecurso es inerte. Se emite igualmente por defensa en
+# profundidad: si alguien navega directamente a esa URL, o si un fallo de
+# sniffing hiciera que el navegador la tratara como documento, `default-src
+# 'none'` y `frame-ancestors 'none'` siguen aplicando. Junto con `nosniff`, es
+# cinturón y tirantes. No cuesta nada y cierra el hueco que dejaba la herencia.
+
+# `script-src`/`frame-src` suman `challenges.cloudflare.com`: el widget de
+# Cloudflare Turnstile (verificación humana en el acceso a la tienda) carga
+# su script desde ahí y se renderiza en un iframe propio. Sin `frame-src`,
+# `default-src 'none'` bloqueaba CUALQUIER iframe — no había ninguno antes.
+add_header Content-Security-Policy "default-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src https://challenges.cloudflare.com; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'" always;

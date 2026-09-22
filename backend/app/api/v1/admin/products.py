@@ -6,6 +6,7 @@ from ....core.exceptions import BadRequestError, RequestValidationError
 from ....core.utils.responses import success_response
 from ....infrastructure.storage.local_storage import LocalStorage
 from ....schemas.product_schemas import parse_admin_product_list_query
+from ....schemas.shared import json_body
 from ....services.admin_auth_service import AdminAuthService
 from ....services.admin_product_service import AdminProductService
 
@@ -42,9 +43,7 @@ def list_products():
 @products_bp.post("/products")
 def create_product():
     administrator_id = _admin_required()
-    item = AdminProductService.create(
-        request.get_json(silent=True) or {}, administrator_id=administrator_id
-    )
+    item = AdminProductService.create(json_body(), administrator_id=administrator_id)
     return success_response(item, status_code=201)
 
 
@@ -58,9 +57,7 @@ def get_product(product_id: int):
 def update_product(product_id: int):
     administrator_id = _admin_required()
     return success_response(
-        AdminProductService.update(
-            product_id, request.get_json(silent=True) or {}, administrator_id=administrator_id
-        )
+        AdminProductService.update(product_id, json_body(), administrator_id=administrator_id)
     )
 
 
@@ -73,23 +70,28 @@ def delete_product(product_id: int):
     return "", 204
 
 
-@products_bp.post("/products/<int:product_id>/restore")
-def restore_product(product_id: int):
-    administrator_id = _admin_required()
-    return success_response(
-        AdminProductService.restore(product_id, administrator_id=administrator_id)
-    )
-
-
 @products_bp.post("/products/<int:product_id>/set-active")
 def set_active(product_id: int):
     administrator_id = _admin_required()
-    payload = request.get_json(silent=True) or {}
+    payload = json_body()
     if "is_active" not in payload:
         raise BadRequestError("is_active es obligatorio")
     return success_response(
         AdminProductService.set_active(
             product_id, bool(payload["is_active"]), administrator_id=administrator_id
+        )
+    )
+
+
+@products_bp.post("/products/<int:product_id>/set-home-new")
+def set_home_new(product_id: int):
+    administrator_id = _admin_required()
+    payload = json_body()
+    if "selected" not in payload:
+        raise BadRequestError("selected es obligatorio")
+    return success_response(
+        AdminProductService.set_home_new(
+            product_id, bool(payload["selected"]), administrator_id=administrator_id
         )
     )
 
@@ -107,7 +109,7 @@ def list_variants(product_id: int):
 @products_bp.put("/products/<int:product_id>/variants/<int:variant_id>")
 def update_variant_quantity(product_id: int, variant_id: int):
     administrator_id = _admin_required()
-    payload = request.get_json(silent=True) or {}
+    payload = json_body()
     quantity = payload.get("quantity")
     if not isinstance(quantity, int) or isinstance(quantity, bool) or quantity < 0:
         raise RequestValidationError(
@@ -124,7 +126,7 @@ def update_variant_quantity(product_id: int, variant_id: int):
 def register_sale(product_id: int, variant_id: int):
     """RN-82: registra una venta, que descuenta la cantidad automáticamente."""
     administrator_id = _admin_required()
-    payload = request.get_json(silent=True) or {}
+    payload = json_body()
     quantity = payload.get("quantity")
     if not isinstance(quantity, int) or isinstance(quantity, bool) or quantity <= 0:
         raise RequestValidationError(
@@ -183,7 +185,7 @@ def update_image(product_id: int, image_id: int):
         AdminProductService.update_image(
             product_id,
             image_id,
-            request.get_json(silent=True) or {},
+            json_body(),
             administrator_id=administrator_id,
         )
     )
@@ -200,7 +202,7 @@ def delete_image(product_id: int, image_id: int):
 @products_bp.post("/products/<int:product_id>/images/reorder")
 def reorder_images(product_id: int):
     administrator_id = _admin_required()
-    payload = request.get_json(silent=True) or {}
+    payload = json_body()
     image_ids = payload.get("image_ids", [])
     if not isinstance(image_ids, list):
         raise BadRequestError("image_ids debe ser una lista")

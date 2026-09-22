@@ -27,7 +27,7 @@ const POR_PAGINA = 20;
  */
 export function PromotionsPage() {
   const navigate = useNavigate();
-  const { data, isLoading, isError, refetch } = usePromotions();
+  const { data, isLoading, isError, error, refetch } = usePromotions();
   const eliminar = useDeletePromotion();
 
   const [filtros, setFiltros] = useState({ status: '', scope: '' });
@@ -59,6 +59,7 @@ export function PromotionsPage() {
       <ErrorState
         title="No pudimos cargar las promociones"
         message="Revisá tu conexión e intentá de nuevo."
+        error={error}
         onRetry={refetch}
       />
     );

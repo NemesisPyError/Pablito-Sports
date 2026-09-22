@@ -10,9 +10,9 @@
 | **Sistema** | Plataforma de Catálogo Comercial |
 | **Documento** | Contrato de la API |
 | **Código** | 05 |
-| **Versión** | 1.5.0 |
+| **Versión** | 1.12.0 |
 | **Estado** | 🟡 EN REVISIÓN |
-| **Fecha** | 18/08/2026 |
+| **Fecha** | 22/09/2026 |
 | **Documentos previos** | [00_VISION_PROYECTO.md](00_VISION_PROYECTO.md) ✅ · [00.2_GLOSARIO.md](00.2_GLOSARIO.md) ✅ · [00.3_NOMENCLATURA.md](00.3_NOMENCLATURA.md) ✅ · [01_ANALISIS_NEGOCIO.md](01_ANALISIS_NEGOCIO.md) ✅ · [02_ARQUITECTURA.md](02_ARQUITECTURA.md) ✅ · [02.1_DECISIONES_ARQUITECTONICAS.md](02.1_DECISIONES_ARQUITECTONICAS.md) ✅ · [04_BASE_DATOS.md](04_BASE_DATOS.md) ✅ |
 | **Documentos dependientes** | `06_FRONTEND.md`, `07_PANEL_ADMIN.md`, `11_TESTING.md`, `99_AI_DEVELOPMENT_GUIDE.md` |
 
@@ -286,6 +286,12 @@ Sin `placement` el endpoint devuelve **todos** los banners vigentes, exactamente
 
 **Respuesta:** array de `BannerDTO`
 
+### `GET /api/v1/banks` (nuevo, v1.5.0)
+
+Superdescuentos: bancos activos, ordenados por `position` ascendente. Sin parámetros de consulta.
+
+**Respuesta:** array de `BankDTO` — `{ name, discount_percentage, image_url }`, sin `id` ni `is_active` (`AD-12`).
+
 | DTO | Origen |
 |---|---|
 | `BannerDTO` | `RN-73`, `RN-74` |
@@ -383,7 +389,11 @@ Lista paginada de productos activos y no eliminados.
       "availability": "available",
       "is_new": false,
       "is_featured": true,
-      "thumbnail_url": "https://.../thumb.jpg"
+      "thumbnail_url": "https://.../thumb.jpg",
+      "secondary_thumbnail_url": "https://.../thumb-2.jpg",
+      "available_sizes": [
+        { "slug": "40", "name": "40", "size_type": { "slug": "footwear_numeric", "name": "Numérico calzado" } }
+      ]
     }
   ],
   "errors": [],
@@ -407,6 +417,26 @@ Lista paginada de productos activos y no eliminados.
 ```
 
 **Rendimiento:** la respuesta debe resolverse en < 300 ms (p95) conforme a `RNF-02`, incluyendo el cálculo de facetas.
+
+**Códigos:** `200`
+
+---
+
+## 7.3b Novedades (v1.7.0)
+
+### `GET /api/v1/products/home-new`
+
+Selección editorial de productos para la Home: los que el administrador
+sumó a mano con "Agregar a novedades" (§9.3 de `07_PANEL_ADMIN.md`),
+ordenados por `products.home_new_position`. No es un filtro — es el mismo
+criterio de `GET /store/brand-showcases` (§7.2c) aplicado a productos en
+vez de a marcas.
+
+Sin paginar: es un conjunto curado por el administrador, no un listado del
+catálogo. Sin selección, responde `data: []`.
+
+**Respuesta:** array de `ProductListItemDTO` (§10.4) — mismo DTO que §7.3,
+incluido `available_sizes`.
 
 **Códigos:** `200`
 
@@ -438,7 +468,7 @@ Devuelve el árbol de categorías activas de hasta dos niveles (`AD-24`).
 
 | DTO | Origen |
 |---|---|
-| `CategoryTreeDTO` | `RN-03`, `RN-04`, `AD-24` |
+| `CategoryTreeDTO` | `RN-03`, `RN-04`, `AD-24`, `RN-83` |
 
 **Códigos:** `200`
 
@@ -769,7 +799,7 @@ Devuelve un DTO agregado para el dashboard del panel. **No representa una entida
 
 ### `GET /api/v1/admin/products`
 
-Listado paginado de productos. Incluye activos, inactivos y eliminados lógicamente (distinguidos por campos de estado).
+Listado paginado de productos. Incluye activos e inactivos. Los eliminados lógicamente (`deleted_at`) **nunca** se listan (`AD-18`).
 
 **Parámetros:**
 
@@ -780,7 +810,6 @@ Listado paginado de productos. Incluye activos, inactivos y eliminados lógicame
 | `category` | `slug` o lista | Filtra por categoría. |
 | `availability` | `string` o lista | Filtra por estado de disponibilidad. |
 | `is_active` | `boolean` | Filtra por activo/inactivo. |
-| `deleted` | `boolean` | `true` solo eliminados; `false` solo no eliminados. |
 | `sort` | `string` | `name_asc`, `name_desc`, `created_desc`, `updated_desc`, `price_asc`, `price_desc`. |
 | `page`, `per_page` | `integer` | Paginación. |
 
@@ -804,23 +833,29 @@ Listado paginado de productos. Incluye activos, inactivos y eliminados lógicame
 
 ### `DELETE /api/v1/admin/products/{id}`
 
-Soft delete (`AD-18`).
+Soft delete (`AD-18`): marca `deleted_at` y `is_active = false`. La fila
+permanece por integridad referencial (`price_history`, `sales`, `audit_logs`,
+slugs no reutilizables), pero el panel no ofrece forma de revertirlo.
 
 **Códigos:** `204`
-
-### `POST /api/v1/admin/products/{id}/restore`
-
-Restaura un producto eliminado lógicamente.
-
-**Salida:** `ProductAdminDTO`
-
-**Códigos:** `200`
 
 ### `POST /api/v1/admin/products/{id}/set-active`
 
 Activa o desactiva un producto.
 
 **Entrada:** `{ "is_active": true }`
+
+**Salida:** `ProductAdminDTO`
+
+### `POST /api/v1/admin/products/{id}/set-home-new` (v1.7.0)
+
+Agrega o quita el producto de Novedades (§7.3b). `selected: true` asigna
+`home_new_position` al siguiente lugar libre de la fila —agregar siempre va
+al final, no hay reordenamiento manual—; `selected: false` lo deja en
+`NULL`. Repetir `selected: true` sobre un producto ya seleccionado es un
+no-op: no le cambia la posición ni le roba el lugar al siguiente.
+
+**Entrada:** `{ "selected": true }`
 
 **Salida:** `ProductAdminDTO`
 
@@ -915,6 +950,13 @@ hay cargado. Recalcula `products.availability` igual que el `PUT`
 ### `GET /api/v1/admin/categories/{id}`
 
 **Salida:** `CategoryAdminDTO`
+
+> **Sexos de la categoría (v1.10.0, `RN-83`).** `CategoryCreateDTO` y
+> `CategoryUpdateDTO` aceptan `gender_ids`, y `CategoryAdminDTO` lo devuelve.
+> Decide en qué secciones de la navegación aparece la categoría y qué se lista
+> en el filtro del catálogo. **Omitirlo o mandarlo vacío es válido** y significa
+> «sin restricción» (`AD-41`), que es como se comportaban todas las categorías
+> antes de que el campo existiera.
 
 ### `POST /api/v1/admin/categories`
 
@@ -1042,7 +1084,7 @@ CRUD completo bajo `/api/v1/admin/promotions`.
 | `PUT` | `/api/v1/admin/promotions/{id}` | Editar. |
 | `DELETE` | `/api/v1/admin/promotions/{id}` | Soft delete. |
 
-La promoción aplica a exactamente uno de `product`, `category` o `brand` (`RN-36`).
+La promoción aplica a como máximo uno de `product`, `category` o `brand`; sin ninguno de los tres, aplica a todos los productos (`RN-36`, v1.12.0).
 
 ---
 
@@ -1066,6 +1108,24 @@ La entrada viaja como `multipart/form-data` porque `image` es un archivo
 sin `id`, sin fechas y sin estado, conforme a `AD-12`.
 
 ### Zona y botón (v1.1.0)
+
+---
+
+## 9.11b Bancos (Superdescuentos, nuevo v1.5.0)
+
+CRUD completo bajo `/api/v1/admin/banks`. Mismo criterio de guarda que Banners/Promociones: cualquier administrador autenticado (`PA-06`), sin permiso fino adicional.
+
+| Método | Ruta | Descripción | Entrada | Salida |
+|---|---|---|---|---|
+| `GET` | `/api/v1/admin/banks` | Listado paginado. | — | array de `BankAdminDTO` |
+| `GET` | `/api/v1/admin/banks/{id}` | Detalle. | — | `BankAdminDTO` |
+| `POST` | `/api/v1/admin/banks` | Crear. | `BankCreateDTO` (`multipart/form-data`) | `BankAdminDTO` (201) |
+| `PUT` | `/api/v1/admin/banks/{id}` | Editar. | `BankUpdateDTO` (`multipart/form-data`) | `BankAdminDTO` |
+| `DELETE` | `/api/v1/admin/banks/{id}` | Soft delete. | — | `BankAdminDTO` |
+
+`BankCreateDTO`/`BankUpdateDTO`: `name` (string, obligatorio), `discount_percentage` (integer 1-99, obligatorio), `position` (integer ≥ 0), `is_active` (boolean), `image` (archivo, obligatorio al crear, omitible al editar para conservar la actual — mismo criterio que Banners §10.13). El almacenamiento sigue `99_AI_DEVELOPMENT_GUIDE.md` §17.1, espacio de nombres propio `banks`.
+
+No existe ningún endpoint público de escritura: la única puerta pública es `GET /api/v1/banks` (§7.2).
 
 `BannerCreateDTO` y `BannerUpdateDTO` (§10.13) suman dos campos de formulario:
 
@@ -1233,7 +1293,7 @@ Listado inmutable de cambios de precio.
 
 **Solo lectura.** `S-06` los declara datos semilla **no administrables**: no existe alta, edición ni baja, ni la habrá.
 
-Existe como recurso administrativo por una razón concreta: `ProductCreateDTO` exige `gender_id`, y §7.10 publica los sexos sin identificador porque `AD-12` prohíbe exponer identificadores internos en la API pública. Sin este endpoint el panel no tiene forma de construir el payload de alta de producto. §4.8 admite identificadores en la API privada, que es donde vive este recurso.
+Existe como recurso administrativo por una razón concreta: `ProductCreateDTO` exige `gender_ids`, y §7.10 publica los sexos sin identificador porque `AD-12` prohíbe exponer identificadores internos en la API pública. Sin este endpoint el panel no tiene forma de construir el payload de alta de producto. §4.8 admite identificadores en la API privada, que es donde vive este recurso.
 
 | Método | Ruta | Descripción |
 |---|---|---|
@@ -1258,6 +1318,61 @@ Lo necesitan dos altas: `ProductCreateDTO` exige `size_type_id`, y §9.9 exige `
 **Salida:** array de `SizeTypeAdminDTO`
 
 **Códigos:** `200`, `401`
+
+---
+
+## 9.19 Registro manual de ventas (admin)
+
+Registra una venta de una o varias líneas y descuenta el stock de cada variante. Es la operación que el panel expone como **"Registrar venta"** en el listado de Productos (07_PANEL_ADMIN.md §14.2).
+
+No existe versión pública: el recurso vive solo bajo `/api/v1/admin` y exige `require_administrator`.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/v1/admin/sales` | Registra la venta completa y descuenta stock. |
+
+**Entrada:**
+
+```json
+{
+  "items": [
+    { "product_id": 7, "variant_id": 21, "quantity": 2, "unit_price": 150000 },
+    { "product_id": 7, "variant_id": 22, "quantity": 1 }
+  ]
+}
+```
+
+- `unit_price` es **opcional**. Omitido, se usa el precio vigente del producto —el mismo que ve el catálogo público, con oferta y promoción ya conciliadas—. Sea propio o heredado, el precio se guarda en la línea como *snapshot*: un cambio posterior en el precio del producto no altera ventas ya registradas.
+- Cada `variant_id` puede aparecer **una sola vez**. Dos líneas de la misma variante serían dos descuentos sobre el mismo stock; se responde `422` en lugar de adivinar cuál vale. El panel las fusiona antes de enviar.
+- Cotas: hasta 50 líneas; `quantity` entre 1 y 10.000; `unit_price` de 0 a 2.147.483.647. Existen porque los importes son `INTEGER` en PostgreSQL y un valor absurdo debe fallar como validación, no como desborde.
+- Tipos estrictos (S-13): `"2"` no se acepta como `2`, ni `2.0`, ni `true`.
+
+**Salida:** la venta registrada, con su total, sus líneas y el stock que quedó en cada variante.
+
+```json
+{
+  "id": 3,
+  "total_amount": 450000,
+  "created_at": "2026-09-09T10:00:00+00:00",
+  "administrator_id": 9,
+  "items": [
+    {
+      "product_id": 7, "product_name": "Remera Nike",
+      "variant_id": 21, "size": { "id": 3, "name": "M" },
+      "quantity": 2, "unit_price": 150000, "subtotal": 300000,
+      "remaining_quantity": 3
+    }
+  ]
+}
+```
+
+**Atomicidad.** Toda la venta —cabecera, líneas y descuentos— ocurre en **una sola transacción**. Si una línea no tiene stock suficiente, la operación falla entera: no se descuenta ninguna otra y no queda cabecera. No existe la venta a medias.
+
+**Concurrencia (`RN-82`, S-04).** Cada variante se lee con `SELECT ... FOR UPDATE` dentro de la transacción, antes de comprobar y descontar. Las líneas se bloquean **ordenadas por `variant_id`**, no en el orden en que llegan: dos ventas simultáneas sobre las mismas variantes en orden inverso se interbloquearían. El stock que el panel mostró no se considera: el backend vuelve a leerlo con la fila bloqueada.
+
+**Códigos:** `201`, `400` (cuerpo que no es objeto), `401`, `404` (producto o variante inexistente, o variante que no pertenece al producto), `409` (`RN-82`, stock insuficiente), `422`, `429`
+
+**Límite:** 60 por minuto y por sesión.
 
 ---
 
@@ -1366,6 +1481,31 @@ que los necesita para direccionar las operaciones de escritura de §9.11.
 | `ends_at` | `string \| null` | No | `banners.ends_at` |
 | `is_active` | `boolean` | Sí | `banners.is_active` |
 
+## 10.3b Bancos (Superdescuentos, nuevo v1.5.0)
+
+### `BankDTO` (público)
+
+| Campo | Tipo | Obligatorio | Origen |
+|---|---|---|---|
+| `name` | `string` | Sí | `banks.name` |
+| `discount_percentage` | `integer` | Sí | `banks.discount_percentage` |
+| `image_url` | `string \| null` | No | URL pública de `banks.image_path` |
+
+> No expone `id` ni `is_active`, conforme a `AD-12`.
+
+### `BankAdminDTO`
+
+DTO exclusivo del panel, mismo criterio que `BannerAdminDTO`.
+
+| Campo | Tipo | Obligatorio | Origen |
+|---|---|---|---|
+| `id` | `integer` | Sí | `banks.id` |
+| `name` | `string` | Sí | `banks.name` |
+| `discount_percentage` | `integer` | Sí | `banks.discount_percentage` |
+| `image_url` | `string \| null` | No | URL pública de `banks.image_path` |
+| `position` | `integer` | Sí | `banks.position` |
+| `is_active` | `boolean` | Sí | `banks.is_active` |
+
 > **Nota:** no expone `created_at`, `updated_at` ni `deleted_at`, en línea con
 > `PromotionDTO` (§10.9) y `AdministratorProfileDTO` (§10.10). El panel opera
 > sobre el estado del recurso, no sobre su historia. `CategoryAdminDTO` sí los
@@ -1388,6 +1528,8 @@ que los necesita para direccionar las operaciones de escritura de §9.11.
 | `is_new` | `boolean` | Sí | `products.is_new` |
 | `is_featured` | `boolean` | Sí | `products.is_featured` |
 | `thumbnail_url` | `string \| null` | No | Imagen principal del producto |
+| `secondary_thumbnail_url` | `string \| null` | No | Segunda imagen activa, para el hover de la tarjeta (`ProductCard`). `null` si el producto solo tiene una imagen. |
+| `available_sizes` | `SizeDTO[]` | Sí | **v1.7.0.** Talles con `quantity > 0` de alguna variante viva, en el mismo orden que `ProductDetailDTO.sizes`. No es la lista completa de talles del producto — un talle sin stock no aparece. Lista vacía si ninguna variante tiene stock. |
 
 ### `ProductDetailDTO`
 
@@ -1400,7 +1542,7 @@ que los necesita para direccionar las operaciones de escritura de §9.11.
 | `primary_category` | `NamedEntityDTO` | Sí | `categories` |
 | `categories` | `NamedEntityDTO[]` | Sí | `product_categories` |
 | `sports` | `NamedEntityDTO[]` | Sí | `product_sports` |
-| `gender` | `NamedEntityDTO` | Sí | `genders` |
+| `genders` | `NamedEntityDTO[]` | Sí | **v2.9.0.** `product_genders` — era `gender: NamedEntityDTO` (uno solo); `RN-09` revisada admite varios. |
 | `size_type` | `NamedEntityDTO` | Sí | `size_types` |
 | `sizes` | `SizeDTO[]` | Sí | `product_sizes` |
 | `list_price` | `integer` | Sí | `products.list_price` |
@@ -1445,7 +1587,7 @@ DTO completo para administración de productos. Incluye todos los campos públic
 | `primary_category` | `NamedEntityDTO` | Sí | `categories` |
 | `categories` | `NamedEntityDTO[]` | Sí | `product_categories` |
 | `sports` | `NamedEntityDTO[]` | Sí | `product_sports` |
-| `gender` | `NamedEntityDTO` + `slug` (v1.4.0) | Sí | `genders` |
+| `genders` | `(NamedEntityDTO + slug)[]` | Sí | **v2.9.0.** `product_genders` — era `gender` singular. |
 | `size_type` | `NamedEntityDTO` + `slug` (v1.4.0) | Sí | `size_types` |
 | `sizes` | `SizeDTO[]` | Sí | `product_sizes` |
 | `list_price` | `integer` | Sí | `products.list_price` |
@@ -1457,13 +1599,14 @@ DTO completo para administración de productos. Incluye todos los campos públic
 | `is_active` | `boolean` | Sí | `products.is_active` |
 | `is_new` | `boolean` | Sí | `products.is_new` |
 | `is_featured` | `boolean` | Sí | `products.is_featured` |
+| `home_new_position` | `integer \| null` | Sí | **v1.7.0.** `products.home_new_position` — `null` si el producto no está en Novedades. |
 | `images` | `ImageDTO[]` | Sí | `images` |
 | `variants` | `VariantDTO[]` | Sí | `variants` |
 | `created_at` | `string` | Sí | `products.created_at` |
 | `updated_at` | `string` | Sí | `products.updated_at` |
 | `deleted_at` | `string \| null` | No | `products.deleted_at` |
 
-> **Nota (v1.4.0):** `gender.slug` y `size_type.slug` se agregan solo a
+> **Nota (v1.4.0):** `genders[].slug` y `size_type.slug` se agregan solo a
 > `ProductAdminDTO` (no al `ProductDetailDTO` público) para que el panel
 > traduzca la presentación (`Hombre`/`Mujer`/…, `Calzado`/`Indumentaria`/…)
 > sin adivinar a partir de `name`, que en estos dos casos es el mismo valor
@@ -1487,7 +1630,7 @@ DTO completo para administración de productos. Incluye todos los campos públic
 | `sport_ids` | `integer[]` | No | — |
 | `size_type_id` | `integer` | Sí | FK a `size_types` |
 | `brand_id` | `integer` | Sí | FK a `brands` |
-| `gender_id` | `integer` | Sí | FK a `genders` |
+| `gender_ids` | `integer[]` | Sí | **v2.9.0.** Al menos uno — era `gender_id` (uno solo, obligatorio). |
 | `size_ids` | `integer[]` | No | — |
 
 ### `ProductUpdateDTO`
@@ -1556,7 +1699,21 @@ Igual que `ProductCreateDTO`, pero todos los campos obligatorios son requeridos 
 |---|---|---|---|
 | `slug` | `string` | Sí | `categories.slug` |
 | `name` | `string` | Sí | `categories.name` |
-| `children` | `NamedEntityDTO[]` | Sí | Subcategorías (`AD-24`) |
+| `children` | `CategoryNodeDTO[]` | Sí | Subcategorías (`AD-24`) |
+| `genders` | `string[]` | Sí | Slugs de `category_genders` (`RN-83`). Array vacío = **sin restricción** (`AD-41`), no «ningún sexo». Solo los sexos activos. |
+
+### `CategoryNodeDTO` (v1.10.0)
+
+Subcategoría del árbol. Es `NamedEntityDTO` más `genders`: una hija puede
+restringirse por su cuenta sin que la madre lo esté (`RN-83`). No se reutiliza
+`NamedEntityDTO` porque marcas, deportes y talles comparten ese DTO y no tienen
+sexo propio.
+
+| Campo | Tipo | Obligatorio | Origen |
+|---|---|---|---|
+| `slug` | `string` | Sí | `categories.slug` |
+| `name` | `string` | Sí | `categories.name` |
+| `genders` | `string[]` | Sí | Slugs de `category_genders` (`RN-83`) |
 
 ### `CategoryAdminDTO`
 
@@ -1566,6 +1723,7 @@ Igual que `ProductCreateDTO`, pero todos los campos obligatorios son requeridos 
 | `slug` | `string` | Sí | `categories.slug` |
 | `name` | `string` | Sí | `categories.name` |
 | `parent_id` | `integer \| null` | No | `categories.parent_id` |
+| `gender_ids` | `integer[]` | Sí | `category_genders` (`RN-83`). Array vacío = sin restricción (`AD-41`). §4.8 admite identificadores en la API privada. |
 | `is_active` | `boolean` | Sí | `categories.is_active` |
 | `created_at` | `string` | Sí | `categories.created_at` |
 | `updated_at` | `string` | Sí | `categories.updated_at` |
@@ -1686,9 +1844,9 @@ Salida de §9.18. Mismo criterio.
 | `starts_at` | `string` | Sí | `promotions.starts_at` |
 | `ends_at` | `string \| null` | No | `promotions.ends_at` |
 | `is_active` | `boolean` | Sí | `promotions.is_active` |
-| `scope` | `object` | Sí | Exactamente uno de `product`, `category` o `brand`. |
-| `scope.type` | `string` | Sí | `product`, `category` o `brand`. |
-| `scope.entity` | `NamedEntityDTO` | Sí | Entidad a la que aplica. |
+| `scope` | `object` | Sí | Como máximo uno de `product`, `category` o `brand`; `all` si ninguno (v1.12.0). |
+| `scope.type` | `string` | Sí | `product`, `category`, `brand` o `all`. |
+| `scope.entity` | `NamedEntityDTO \| null` | No | Entidad a la que aplica; `null` cuando `type` es `all` (v1.12.0). |
 
 ### `PromotionCreateDTO` / `PromotionUpdateDTO`
 
@@ -1703,6 +1861,8 @@ Salida de §9.18. Mismo criterio.
 | `product_id` | `integer \| null` | No | Mutuamente exclusivo con `category_id` y `brand_id` |
 | `category_id` | `integer \| null` | No | Mutuamente exclusivo |
 | `brand_id` | `integer \| null` | No | Mutuamente exclusivo |
+
+> **v1.12.0:** los tres campos pueden omitirse a la vez — la promoción aplica entonces a todos los productos. Ya no es obligatorio que exactamente uno esté poblado, solo que no lo estén dos o los tres a la vez.
 
 ## 10.10 Administradores
 
@@ -1814,6 +1974,7 @@ Igual que `StoreSettingsAdminDTO` sin campos de solo lectura (`updated_at` no ap
 | `name` | `string` | Sí | ≤ 100 |
 | `slug` | `string` | Sí | Único, ≤ 100 |
 | `parent_id` | `integer \| null` | No | FK a `categories`; máx. 2 niveles |
+| `gender_ids` | `integer[]` | No | FK a `genders`. Ausente o vacío = sin restricción (`AD-41`). Un id inexistente responde `422`. El `PUT` **reemplaza la lista completa**, no hace merge. |
 | `is_active` | `boolean` | No | default `true` |
 
 ### `BrandCreateDTO` / `BrandUpdateDTO`
@@ -2100,6 +2261,12 @@ Esto se implementa en §8.2 y §8.3.
 
 | Versión | Fecha | Estado | Cambios |
 |---|---|---|---|
+| **1.12.0** | 22/09/2026 | 🟡 EN REVISIÓN | **Promoción "todos los productos" (`01_ANALISIS_NEGOCIO.md` v2.9.0, `04_BASE_DATOS.md` v1.9.0, `07_PANEL_ADMIN.md` §14.5, pedido explícito del usuario).** §9.10/§10.9: `product_id`/`category_id`/`brand_id` de `PromotionCreateDTO`/`PromotionUpdateDTO` pasan a poder omitirse los tres a la vez — la promoción aplica entonces a todos los productos. `PromotionDTO.scope.type` suma el valor `all`, y `scope.entity` pasa a ser `NamedEntityDTO | null` (antes obligatorio), `null` cuando `type` es `all`. Sin cambios en `GET /api/v1/admin/promotions` ni en el resto del contrato. |
+| **1.11.0** | 22/09/2026 | 🟡 EN REVISIÓN | **Bancos de Superdescuentos (`04_BASE_DATOS.md` v1.8.0, `07_PANEL_ADMIN.md` v1.16.0, pedido explícito del usuario).** Nuevo `GET /api/v1/banks` público (§7.2) y CRUD completo bajo `/api/v1/admin/banks` (§9.11b): `BankDTO` (público, sin `id` ni estado) y `BankAdminDTO` (§10.3b). Reemplaza el array `BANK_PROMOTIONS` que vivía hardcodeado en el frontend. Sin endpoints públicos de escritura. |
+| **1.10.0** | 10/09/2026 | 🟡 EN REVISIÓN | **Sexos por categoría (`RN-83`).** Panel: `CategoryCreateDTO`/`CategoryUpdateDTO` (§10.13) aceptan `gender_ids` y `CategoryAdminDTO` (§10.5) lo devuelve; el `PUT` reemplaza la lista completa y un id inexistente responde `422`. Público: `CategoryTreeDTO` (§10.5) suma `genders` como array de **slugs** —`AD-12` prohíbe publicar identificadores— y sus `children` pasan de `NamedEntityDTO` a **`CategoryNodeDTO`**, nuevo, que es el mismo par slug/nombre más `genders`: una subcategoría puede restringirse sin que la madre lo esté. **Todo aditivo**: ningún campo existente cambia de tipo ni desaparece, y `gender_ids` es opcional, de modo que un cliente que no lo mande sigue funcionando igual (`AD-41`). |
+| **1.9.0** | 02/09/2026 | 🟡 EN REVISIÓN | **Se retira la vista y la restauración de productos eliminados** (`07_PANEL_ADMIN.md` `PADP-02` revertida, pedido explícito del usuario: *"elimina esa opcion"*). Se elimina `POST /api/v1/admin/products/{id}/restore` (§9.3). `GET /api/v1/admin/products` (§9.3) pierde el parámetro `deleted`: el listado del panel ya nunca incluye productos con `deleted_at` no nulo. `DELETE /api/v1/admin/products/{id}` sigue siendo soft delete (`AD-18`) pero deja de ser reversible desde el panel. El CRUD de marcas, categorías, deportes y talles conserva su `/restore` sin cambios. |
+| **1.8.0** | 24/08/2026 | 🟡 EN REVISIÓN | **Sexo pasa de N:1 a N:M (`RN-09` revisada, `04_BASE_DATOS.md` v1.6.0, pedido explícito del usuario).** `ProductDetailDTO.gender` (§10.4) pasa a `genders: NamedEntityDTO[]`. `ProductAdminDTO.gender` (§10.5) pasa a `genders: (NamedEntityDTO + slug)[]`. `ProductCreateDTO`/`ProductUpdateDTO.gender_id` (§10.5) pasan a `gender_ids: integer[]`, obligatorio al menos uno. El filtro público `?gender=` (§7.3) no cambia de forma — sigue siendo slug o lista separada por comas — pero pasa a resolverse contra `product_genders` en vez de la columna directa. |
+| **1.7.0** | 24/08/2026 | 🟡 EN REVISIÓN | **Novedades como selección editorial de productos, talles en el listado** (`04_BASE_DATOS.md` v1.5.0, pedido explícito del usuario). Nuevo `GET /api/v1/products/home-new` (§7.3b): productos con `home_new_position` no nulo, sin paginar, mismo criterio que `GET /store/brand-showcases`. Nuevo `POST /api/v1/admin/products/{id}/set-home-new` (§9.3): agrega/quita de Novedades, asignando siempre el siguiente lugar libre. `ProductListItemDTO` (§10.4) suma `secondary_thumbnail_url` (documentaba de menos: el campo ya existía en el código) y `available_sizes` — talles con `quantity > 0` de alguna variante, no la lista completa de talles del producto. `ProductAdminDTO` (§10.5) suma `home_new_position`. |
 | **1.6.0** | 19/08/2026 | 🟡 EN REVISIÓN | **Eliminación de "color" del catálogo** (`01_ANALISIS_NEGOCIO.md` 2.7.0, `04_BASE_DATOS.md` v1.4.0, pedido del administrador). Se retiran `GET /api/v1/colors` (§7.8) y el CRUD `/api/v1/admin/colors` (§9.8) — ambos números de sección quedan vacíos, sin contenido, para no correr la numeración de las secciones siguientes. `ColorDTO`, `ColorCreateDTO`/`ColorUpdateDTO` (§10.3) eliminados. `ProductDetailDTO.colors`, `ProductAdminDTO.colors`, `ProductCreateDTO.color_ids` y `VariantDTO.color` (§10.4, §10.5) eliminados de sus DTOs. |
 | **1.5.0** | 18/08/2026 | 🟡 EN REVISIÓN | **Registro de ventas (`RN-82`, `04_BASE_DATOS.md` v1.3.0).** Nuevo `POST /api/v1/admin/products/{id}/variants/{variant_id}/sales` (§9.4): registra una venta, descuenta `quantity` de la variante y recalcula `products.availability` (`RN-39`) en la misma transacción; `409` si la cantidad supera el stock cargado. Devuelve `VariantAdminDTO`, mismo DTO que el `PUT` existente. Pedido explícito del usuario: *"agregar opcion de registrar ventas para que de esta manera reduzca en el stock desded el panel admin"* (18/08/2026). |
 | **1.4.0** | 17/08/2026 | 🟡 EN REVISIÓN | **Stock real por variante (`RN-38b`, `04_BASE_DATOS.md` v1.2.0).** Nuevo `PUT /api/v1/admin/products/{id}/variants/{variant_id}` (§9.4) para cargar `quantity`; el `GET` de variantes del panel pasa a `VariantAdminDTO` (`VariantDTO` + `quantity`). `availability` sale de `ProductCreateDTO`/`ProductUpdateDTO` (§10.4): ya no es un campo que el administrador escriba, se deriva de `variants.quantity`. `VariantDTO.availability` (§10.5) deja de reflejar al producto padre y pasa a derivarse de la cantidad propia de cada variante. `DashboardDTO.totals` (§10.8) pierde `coming_soon` (estado retirado, sin datos que lo usaran). Pedido explícito del usuario en la tanda funcional del 17/08/2026. |

@@ -576,6 +576,13 @@ AppException (base, abstracta)
 | `CSRFMiddleware` | 6 | Validar token CSRF en métodos de escritura del panel. | `03_SEGURIDAD.md` §8 |
 | `ErrorWrapperMiddleware` | 7 (último) | Capturar excepciones, invocar manejador global, devolver envoltura `AD-16`. | `AD-16` |
 
+> **Tipos de la entrada (S-13).** El cuerpo JSON se lee con
+> `schemas.shared.json_body()` —que exige un objeto y responde 400 si no lo es— y
+> los campos de texto con `schemas.shared.texto()`, que **rechaza el tipo en vez
+> de convertirlo**. Antes, un barrido de 304 peticiones malformadas producía 90
+> respuestas 500 por `AttributeError` al llamar `.strip()` sobre un no-string.
+> `123` no se acepta como `"123"`: se responde 422 señalando el campo.
+
 > **Headers estáticos.** `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` y `Permissions-Policy` se configuran preferentemente en Nginx. El middleware solo complementa lo que dependa del request.
 
 ---

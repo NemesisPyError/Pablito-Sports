@@ -1,15 +1,11 @@
 import { Link } from 'react-router-dom';
 
+import { Image } from '../../../shared/components/Image.jsx';
+import { simpleWhatsAppHref } from '../../../shared/utils/whatsapp.js';
 import { useStoreAbout } from '../hooks/useStoreAbout.js';
 import styles from './StoryBlock.module.css';
 
 const TITLE_ID = 'portada-historia';
-
-/** Enlace de consulta directa, con el número tal como lo guardó el panel. */
-function whatsappHref(numero) {
-  const digitos = String(numero ?? '').replace(/\D/g, '');
-  return digitos ? `https://wa.me/${digitos}` : null;
-}
 
 /**
  * Sección «Nuestra historia» (05_API.md §7.2b).
@@ -20,27 +16,29 @@ function whatsappHref(numero) {
  *
  * La foto es opcional: sin ella la sección se compone a una columna, que sigue
  * siendo una presentación válida y no un hueco (`UDS-09`).
+ *
+ * La foto se muestra con el componente compartido `Image` (`<picture>` + srcset
+ * WebP/JPEG del pipeline del namespace `store`, §17.1.2) y `object-fit: contain`
+ * a proporción 4:3: se ve **completa**, sin recorte destructivo ni deformación.
  */
 export function StoryBlock({ storeSettings }) {
   const { data: historia } = useStoreAbout();
 
   if (!historia?.about_title) return null;
 
-  const whatsapp = whatsappHref(storeSettings?.whatsapp_number);
+  const whatsapp = simpleWhatsAppHref(storeSettings?.whatsapp_number);
 
   return (
     <section className={styles.story} aria-labelledby={TITLE_ID}>
       <div className={styles.inner}>
         {historia.about_image_url && (
-          <div className={styles.media}>
-            <img
-              src={historia.about_image_url}
-              alt=""
-              className={styles.image}
-              loading="lazy"
-              decoding="async"
-            />
-          </div>
+          <Image
+            src={historia.about_image_url}
+            alt=""
+            aspectRatio="4 / 3"
+            objectFit="contain"
+            sizes="(min-width: 992px) 46vw, 100vw"
+          />
         )}
 
         <div>

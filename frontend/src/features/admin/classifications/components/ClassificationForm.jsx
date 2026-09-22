@@ -1,11 +1,13 @@
 import { useState } from 'react';
 
-import { translateSizeType } from '../../../../shared/config/labels.js';
+import { translateGender, translateSizeType } from '../../../../shared/config/labels.js';
+import { RATE_LIMIT_MESSAGE } from '../../../../shared/services/errorMessages.js';
 import {
   parentOptions,
   sizeNameHint,
   slugify,
   toFormValues,
+  toggleGender,
   toPayload,
   validate,
 } from '../utils/classificationForm.js';
@@ -21,12 +23,13 @@ export function ClassificationForm({
   config,
   categorias,
   tiposDeTalle,
+  sexos,
   onSubmit,
   onCancel,
   saving,
   submitError,
 }) {
-  const [values, setValues] = useState(() => toFormValues(entidad));
+  const [values, setValues] = useState(() => toFormValues(entidad, sexos));
   const [errors, setErrors] = useState({});
   const [tocado, setTocado] = useState(false);
   // El slug se deriva del nombre mientras el usuario no lo escriba a mano.
@@ -59,10 +62,9 @@ export function ClassificationForm({
     onSubmit(toPayload(values, config));
   }
 
-  // v1.4.0 (`RN-15b`): ejemplo y ayuda del "Nombre" según el tipo de talle
-  // elegido, solo en el recurso "Talles".
-  const tipoElegido = (tiposDeTalle ?? []).find((t) => String(t.id) === String(values.size_type_id));
-  const pista = config.campoExtra === 'sizeType' ? sizeNameHint(tipoElegido?.slug) : null;
+  // v1.5.0 (`RN-15b`): ejemplo y ayuda del "Nombre", solo en el recurso
+  // "Talles" — el talle es texto libre, sin restricción de formato.
+  const pista = config.campoExtra === 'sizeType' ? sizeNameHint() : null;
 
   return (
     <form onSubmit={enviar} noValidate>
@@ -156,6 +158,26 @@ export function ClassificationForm({
                 <p className="text-danger small mt-1 mb-0">{errors.home_position}</p>
               )}
             </div>
+
+            <div className="col-12">
+              <div className="form-check">
+                <input
+                  id="show_in_strip"
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={values.show_in_strip}
+                  onChange={(evento) => aplicar({ show_in_strip: evento.target.checked })}
+                  disabled={saving}
+                />
+                <label htmlFor="show_in_strip" className="form-check-label">
+                  Mostrar en la franja de marcas
+                </label>
+              </div>
+              <p className="form-text">
+                La tira deslizante de logos que va debajo del menú. Aparece en todas las páginas de
+                la tienda, no solo en la portada. Es independiente del bloque propio de arriba.
+              </p>
+            </div>
           </>
         )}
 
@@ -180,6 +202,38 @@ export function ClassificationForm({
             </select>
             {/* `AD-24`: la jerarquía admite dos niveles, no más. */}
             <p className="form-text mb-0">Sólo se admiten dos niveles: raíz y subcategoría.</p>
+          </div>
+        )}
+
+        {/* `RN-83`: los sexos deciden en qué menús aparece la categoría. */}
+        {config.tieneSexos && (
+          <div className="col-12">
+            <p className="form-label mb-2">Sexos de esta categoría</p>
+            <div className="d-flex flex-wrap gap-3">
+              {(sexos ?? []).map((sexo) => (
+                <div className="form-check" key={sexo.id}>
+                  <input
+                    id={`gender-${sexo.id}`}
+                    type="checkbox"
+                    className="form-check-input"
+                    checked={values.gender_ids.includes(String(sexo.id))}
+                    onChange={() =>
+                      aplicar({ gender_ids: toggleGender(values.gender_ids, sexo.id) })
+                    }
+                    disabled={saving}
+                  />
+                  <label htmlFor={`gender-${sexo.id}`} className="form-check-label">
+                    {translateGender(sexo.slug)}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <p className="form-text mb-0">
+              Decide en qué menús de la tienda aparece esta categoría: Hombres muestra las de
+              Hombre o Unisex, Mujeres las de Mujer o Unisex, e Infantil las de Niño o Niña.
+              También ordena el filtro de categorías del catálogo.{' '}
+              <strong>Si no tildás ninguno, la categoría aparece en todos los menús.</strong>
+            </p>
           </div>
         )}
 
@@ -251,6 +305,7 @@ export function ClassificationForm({
 
 /** Traduce el código del contrato, nunca el mensaje del servidor (`ERR-04`). */
 function mensajeDeGuardado(error, config) {
+  if (error?.status === 429) return RATE_LIMIT_MESSAGE;
   if (error?.status === 409) {
     // `RN-79`: el slug no se reutiliza.
     return 'Ese slug ya está en uso. Probá con otro.';

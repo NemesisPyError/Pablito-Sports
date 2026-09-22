@@ -11,6 +11,7 @@ export function FiltersPanel({
   filters,
   facets,
   sortOptions,
+  genderSections,
   categories,
   brands,
   onChange,
@@ -53,6 +54,35 @@ export function FiltersPanel({
       </div>
 
       <div className="mb-3">
+        <p className="small fw-semibold mb-2">Género</p>
+        <select
+          className="form-select form-select-sm"
+          value={filters.gender}
+          onChange={handleSelectChange('gender')}
+          aria-label="Filtrar por género"
+        >
+          <option value="">Todos</option>
+          {genderSections.map((section) =>
+            section.label ? (
+              <optgroup key={section.label} label={section.label}>
+                {section.options.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </optgroup>
+            ) : (
+              section.options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))
+            ),
+          )}
+        </select>
+      </div>
+
+      <div className="mb-3">
         <p className="small fw-semibold mb-2">Categoría</p>
         <select
           className="form-select form-select-sm"
@@ -81,6 +111,23 @@ export function FiltersPanel({
           {(facetOptions.brand ?? brands).map((brand) => (
             <option key={brand.slug} value={brand.slug}>
               {brand.name} {brand.count != null ? `(${brand.count})` : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mb-3">
+        <p className="small fw-semibold mb-2">Talle</p>
+        <select
+          className="form-select form-select-sm"
+          value={filters.size}
+          onChange={handleSelectChange('size')}
+          aria-label="Filtrar por talle"
+        >
+          <option value="">Todos</option>
+          {(facetOptions.size ?? []).map((size) => (
+            <option key={size.slug} value={size.slug}>
+              {size.name} {size.count != null ? `(${size.count})` : ''}
             </option>
           ))}
         </select>

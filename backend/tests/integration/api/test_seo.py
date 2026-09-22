@@ -174,6 +174,44 @@ def test_documento_de_categoria(catalog_client):
     assert _meta(html, "og:url").endswith("/catalogo?category=botines")
 
 
+@pytest.mark.parametrize("ruta", ["/_seo/catalog", "/_seo/categories/botines"])
+def test_catalogo_y_categoria_llevan_la_imagen_de_marca(catalog_client, ruta):
+    """Sin foto propia, el enlace no debe desplegarse como texto plano."""
+    html = _html(catalog_client.get(ruta))
+
+    imagen = _meta(html, "og:image")
+    assert imagen is not None and imagen.startswith(("http://", "https://"))
+    assert imagen.endswith("/og-default.png")
+    assert _meta(html, "twitter:image", atributo="name") == imagen
+    assert _meta(html, "twitter:card", atributo="name") == "summary_large_image"
+
+
+def test_el_producto_conserva_su_foto_y_no_la_de_marca(catalog_client):
+    html = _html(catalog_client.get(f"/_seo/products/{SLUG}"))
+
+    assert not _meta(html, "og:image").endswith("/og-default.png")
+
+
+def test_el_catalogo_publica_los_datos_de_la_tienda(catalog_client):
+    """La portada llega a los rastreadores por este documento (Nginx, `location = /`)."""
+    datos = _json_ld(_html(catalog_client.get("/_seo/catalog")))
+
+    assert datos["@type"] == "SportingGoodsStore"
+    assert datos["name"] == "Pablito Sports"
+    assert datos["telephone"] == "+595981123456"
+    assert datos["address"]["streetAddress"] == "Av. Mariscal López 1234, Asunción"
+    assert datos["address"]["addressCountry"] == "PY"
+    assert datos["sameAs"] == ["https://instagram.com/pablitosports"]
+    assert datos["image"].endswith("/og-default.png")
+
+
+def test_los_datos_de_la_tienda_no_inventan_el_horario(catalog_client):
+    """`business_hours` es texto libre: `openingHours` mal formado es peor que omitirlo."""
+    datos = _json_ld(_html(catalog_client.get("/_seo/catalog")))
+
+    assert "openingHours" not in datos
+
+
 def test_categoria_inexistente_es_404(catalog_client):
     assert catalog_client.get("/_seo/categories/no-existe").status_code == 404
 

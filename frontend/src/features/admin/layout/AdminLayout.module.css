@@ -2,24 +2,34 @@
  * Layout del panel (07_PANEL_ADMIN.md §5.3).
  *
  * Mobile-first (`RNF-06`): el estilo base es el de móvil —la sidebar es un
- * drawer fuera de pantalla— y a partir de `lg` pasa a estar fija. Bootstrap
- * resuelve el resto; aquí solo va lo que sus utilidades no cubren.
+ * drawer fuera de pantalla— y a partir de `lg` pasa a estar fija.
+ *
+ * v2.9.11 (rediseño visual, pedido explícito del usuario, sobre referencia):
+ * sidebar oscura con los tokens que ya usa el catálogo público
+ * (`--color-surface-inverse`, `--color-volt-500`), área de contenido clara,
+ * tarjetas con borde suave y sombra sutil. Ninguna ruta, permiso ni
+ * funcionalidad cambia — es exclusivamente CSS/composición.
  */
 
 .shell {
   min-height: 100vh;
+  background-color: var(--color-surface-alt);
 }
 
-/* Móvil: drawer deslizable sobre el contenido. */
+/* --------------------------------------------------------------------------
+ * Sidebar
+ * ----------------------------------------------------------------------- */
 .sidebar {
   position: fixed;
   inset-block: 0;
   inset-inline-start: 0;
-  width: 15rem;
+  width: 16rem;
   z-index: 1045; /* Por encima del contenido, por debajo de un modal. */
   transform: translateX(-100%);
-  transition: transform 0.2s ease-in-out;
+  transition: transform var(--duration-normal) var(--easing-default);
   overflow-y: auto;
+  background-color: var(--color-surface-inverse);
+  color: var(--color-text-inverse);
 }
 
 .sidebarOpen {
@@ -30,13 +40,169 @@
   position: fixed;
   inset: 0;
   z-index: 1040;
-  background-color: rgb(0 0 0 / 50%);
+  background-color: var(--color-overlay);
 }
 
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  padding: var(--spacing-5) var(--spacing-4) var(--spacing-4);
+  border-block-end: var(--border-width-thin) var(--border-style-default) var(--color-border-inverse);
+}
+
+.brandName {
+  color: var(--color-text-inverse);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-tighter);
+  line-height: 1;
+}
+
+.brandRest {
+  margin-inline-start: var(--spacing-1);
+  color: var(--color-text-inverse-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.brandTag {
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-xs);
+}
+
+.navList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin: var(--spacing-0);
+  padding: var(--spacing-3);
+  list-style: none;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  min-height: var(--touch-target-min);
+  padding-inline: var(--spacing-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+.navLink:hover,
+.navLink:focus-visible {
+  background-color: var(--color-ink-800);
+  color: var(--color-text-inverse);
+}
+
+/* Ítem activo: el acento azul del proyecto (`--color-volt-500`), no un color
+   nuevo — mismo token que ya destaca la oferta y el foco en el catálogo
+   público. */
+.navLinkActive,
+.navLinkActive:hover,
+.navLinkActive:focus-visible {
+  background-color: var(--color-volt-500);
+  color: var(--color-volt-on);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* --------------------------------------------------------------------------
+ * Topbar
+ * ----------------------------------------------------------------------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-index-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: var(--color-background);
+  border-block-end: var(--border-width-thin) var(--border-style-default) var(--color-border);
+}
+
+.pageTitle {
+  flex-grow: 1;
+  margin-block-end: var(--spacing-0);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-tight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target-min);
+  height: var(--touch-target-min);
+  flex-shrink: 0;
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-background);
+  color: var(--color-text-secondary);
+}
+
+.iconButton:hover {
+  background-color: var(--color-surface);
+}
+
+.userBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.userBadge:hover {
+  color: var(--color-text-primary);
+}
+
+.logoutButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-shrink: 0;
+  padding: var(--spacing-2) var(--spacing-4);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  transition: var(--transition-fast);
+}
+
+.logoutButton:hover:not(:disabled) {
+  border-color: var(--color-text-primary);
+  background-color: var(--color-surface);
+}
+
+.logoutButton:disabled {
+  opacity: 0.6;
+}
+
+/* --------------------------------------------------------------------------
+ * Contenido
+ * ----------------------------------------------------------------------- */
 /* El contenido se desplaza por su cuenta para que la barra superior y la
-   sidebar permanezcan visibles. */
+   sidebar permanezcan visibles. Fondo apenas más oscuro que las tarjetas
+   (`--color-surface-alt`), para que las tarjetas blancas se distingan sin
+   necesitar más sombra. */
 .content {
   overflow-y: auto;
+  background-color: var(--color-surface-alt);
 }
 
 @media (min-width: 992px) {

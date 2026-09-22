@@ -152,6 +152,26 @@ def test_la_lectura_de_usuarios_no_exige_token_csrf(app_con_csrf):
     assert client.get("/api/v1/admin/users").status_code == 200
 
 
+def test_el_403_de_csrf_conserva_el_request_id(app_con_csrf):
+    """El handler de CSRF corre antes que el middleware de correlación (OA-09).
+
+    Sin la red de seguridad de `_ensure_request_id`, `meta.request_id` salía
+    `null` en este 403 concreto —el único error que aborta en un `before_request`
+    previo al de `request_context`— y el evento quedaba sin correlacionar.
+    """
+    aplicacion, identificador = app_con_csrf
+    client = aplicacion.test_client()
+    _sesion(client, identificador)
+
+    respuesta = client.post("/api/v1/admin/promotions", json={})
+    cuerpo = respuesta.get_json()
+
+    assert respuesta.status_code == 403
+    assert cuerpo["errors"][0]["code"] == "csrf_token_invalid"
+    assert cuerpo["meta"]["request_id"] is not None
+    assert respuesta.headers.get("X-Request-Id") == cuerpo["meta"]["request_id"]
+
+
 # Rate limiting (§14.1)
 
 

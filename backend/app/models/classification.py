@@ -6,7 +6,16 @@ name, slug, activity flag, timestamps and logical deletion.
 Slug uniqueness spans deleted rows so a slug is never reused (AD-19, RN-79).
 """
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..extensions import db
@@ -28,6 +37,15 @@ class Brand(IdentityMixin, ActiveMixin, TimestampMixin, SoftDeleteMixin, db.Mode
     # NULL = la marca existe en el catálogo pero no protagoniza un bloque de
     # portada. Es la diferencia entre «marca del catálogo» y «marca destacada».
     home_position: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Franja deslizante de marcas bajo la navegación (`BrandStrip`), pedido
+    # explícito del usuario. Es independiente de `home_position`: una marca
+    # puede estar en la franja sin tener bloque propio en la portada, y al
+    # revés. El defecto es `TRUE` porque hasta ahora la franja mostraba todas
+    # las marcas activas — así el comportamiento no cambia al desplegar y el
+    # administrador va quitando las que no quiera.
+    show_in_strip: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
 
     images = relationship("BrandImage", back_populates="brand")
 
@@ -76,6 +94,11 @@ class Category(IdentityMixin, ActiveMixin, TimestampMixin, SoftDeleteMixin, db.M
 
     parent = relationship("Category", remote_side="Category.id", back_populates="children")
     children = relationship("Category", back_populates="parent")
+
+    # RN-83, AD-41: sexos a los que aplica la categoría. Lista vacía = sin
+    # restricción, no «ningún sexo»: la categoría aparece en todos los ejes de
+    # la navegación. El orden no importa, así que no hay columna de posición.
+    genders = relationship("Gender", secondary="category_genders", lazy="selectin")
 
     __table_args__ = (
         CheckConstraint("parent_id IS NULL OR parent_id != id", name="parent_not_self"),

@@ -1,0 +1,88 @@
+/**
+ * Tarjeta de métrica del dashboard (07_PANEL_ADMIN.md §14.1, rediseño
+ * v2.9.11, pedido explícito del usuario sobre referencia visual).
+ *
+ * El color de cada tono es apoyo visual, nunca el único portador del
+ * significado (08_UI_SYSTEM.md UDS-05): la etiqueta de texto siempre
+ * acompaña al color.
+ */
+
+.card {
+  position: relative;
+  height: 100%;
+  padding: var(--spacing-4);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-background);
+  box-shadow: var(--shadow-sm);
+}
+
+.cardEmphasis {
+  border-color: var(--tile-color);
+}
+
+.iconBox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-block-end: var(--spacing-3);
+  border-radius: var(--radius-md);
+  background-color: var(--tile-bg);
+  color: var(--tile-color);
+}
+
+.label {
+  margin-block-end: var(--spacing-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.value {
+  margin-block-end: var(--spacing-0);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-extrabold);
+  line-height: var(--line-height-none);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.valuePlaceholder {
+  display: block;
+  height: var(--font-size-3xl);
+}
+
+/* --------------------------------------------------------------------------
+ * Tonos — apoyo visual únicamente (08_UI_SYSTEM.md): disponible/activo en
+ * verde, stock bajo en ámbar, no disponible en rojo, "en oferta" con el
+ * acento de la marca, el resto neutro. Ninguno es un color inventado: los
+ * cuatro ya existen como tokens de estado o de acento.
+ * ----------------------------------------------------------------------- */
+.toneNeutral {
+  --tile-bg: var(--color-ink-100);
+  --tile-color: var(--color-ink-700);
+}
+
+.toneSuccess {
+  --tile-bg: var(--color-success-soft);
+  --tile-color: var(--color-success);
+}
+
+.toneWarning {
+  --tile-bg: var(--color-warning-soft);
+  --tile-color: var(--color-warning);
+}
+
+.toneDanger {
+  --tile-bg: var(--color-danger-soft);
+  --tile-color: var(--color-danger);
+}
+
+.toneAccent {
+  --tile-bg: color-mix(in srgb, var(--color-volt-500) 12%, var(--color-background));
+  --tile-color: var(--color-volt-500);
+}

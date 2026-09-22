@@ -15,6 +15,28 @@
   background-color: var(--color-background);
   overflow: hidden;
   transition: var(--transition-fast);
+  /* El gesto de la tarjeta en táctil es "mantener apretado" para ver la
+     segunda foto. Sin esto, el long-press dispara el menú nativo del enlace
+     (iOS: "Abrir / Copiar"; Android: menú contextual) y, una vez abierto, el
+     toque siguiente lo consume el cierre de ese menú en lugar de accionar
+     otra tarjeta — el usuario percibe que "no puede seleccionar las demás".
+     Va en `.card` y no en `.media`: la propiedad es heredada y el elemento
+     que el dedo toca es el overlay `.link::after`, que está fuera de
+     `.media`. En escritorio no tiene efecto. */
+  -webkit-touch-callout: none;
+}
+
+/*
+ * Misma razón, para el otro camino del long-press: seleccionar texto. En
+ * táctil el long-press sobre el nombre o el precio levanta los manijas de
+ * selección y deja la página en modo selección. Se restringe a dispositivos
+ * sin puntero fino para no romper el copiar/pegar del nombre en escritorio.
+ */
+@media (hover: none) {
+  .card {
+    user-select: none;
+    -webkit-user-select: none;
+  }
 }
 
 .card:hover {
@@ -37,25 +59,89 @@
  * ----------------------------------------------------------------------- */
 .media {
   position: relative;
+  overflow: hidden;
   background-color: var(--color-surface);
   border-radius: var(--radius-media);
+}
+
+/* Zoom suave de la imagen al pasar el cursor por la tarjeta, mismo gesto que
+   ya levanta el filete y la sombra de `.card:hover`. Se aplica al `<img>`,
+   no al contenedor de `Image`, así no interfiere con la transición de
+   opacidad del crossfade a la segunda foto (`.hoverImage`). */
+.media img {
+  transition: transform var(--transition-fast);
+  /* Tercer camino del long-press: arrastrar la imagen. Android ofrece
+     "Descargar imagen" y el arrastre nativo también corta el gesto. */
+  -webkit-user-drag: none;
 }
 
 /*
  * Segunda foto: superpuesta a la principal, oculta hasta el hover. La
  * transición es de opacidad (no un salto de `src`) para que el cambio se
  * sienta como parte de la tarjeta, no como una recarga de imagen.
+ *
+ * Fondo propio, igual al de `.media`: con `contain`, una segunda foto de
+ * proporción distinta a la primera deja franjas vacías dentro de su propio
+ * recuadro. `Image` no pinta fondo ahí (`Image.module.css` `.container` es
+ * transparente), así que sin este `background-color` esas franjas dejaban
+ * ver la imagen principal por debajo — la mitad de una y la mitad de la
+ * otra mezcladas, incluso ya terminada la transición.
  */
 .hoverImage {
   position: absolute;
   inset: 0;
   opacity: 0;
-  transition: opacity var(--transition-fast);
+  background-color: var(--color-surface);
+  /* No es solo un fundido: la segunda foto entra con un leve acercamiento
+     para que en táctil —donde no hay hover ni el zoom de `.card:hover .media
+     img`— el press-and-hold se sienta como un gesto con respuesta y no como
+     un cambio seco de `src`. `prefers-reduced-motion` neutraliza la
+     transición globalmente (`base.css`). */
+  transform: scale(1.06);
+  transition:
+    opacity var(--duration-normal) var(--easing-enter),
+    transform var(--duration-normal) var(--easing-enter);
   pointer-events: none;
 }
 
+/*
+ * El zoom por `:hover` es un gesto de mouse puro: en táctil, `:hover` y el
+ * `mouseenter` sintético pueden quedar "pegados" tras un tap. Se restringe a
+ * dispositivos que reportan hover real para que en mobile la tarjeta no
+ * quede con el zoom trabado. Sin `pointer: fine`: combinarlo con
+ * `hover: hover` excluía de más, en notebooks híbridas o navegadores que no
+ * exponen el tipo exacto de puntero — `hover: hover` solo ya alcanza para el
+ * criterio real (¿el dispositivo puede sostener un hover?) sin ese falso
+ * negativo.
+ */
+@media (hover: hover) {
+  .card:hover .media img {
+    transform: scale(1.04);
+  }
+
+  /*
+   * Cambio a la segunda foto en escritorio: puro CSS `:hover`, sin estado de
+   * React. Manejarlo con `onMouseEnter` hacía que en mobile el primer toque
+   * solo "revelara" la segunda imagen (heurístico de hover del navegador) y
+   * dejara la tarjeta trabada, bloqueando el toque en las demás.
+   */
+  .card:hover .hoverImage {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/*
+ * La segunda foto en táctil: al mantener el dedo apretado sobre la tarjeta
+ * (long-press de `TOUCH_HOLD_MS`), mismo criterio visual que el hover de
+ * escritorio. Lo controla el estado `touchHold` en `ProductCard.jsx`, que
+ * arranca en `onTouchStart` sobre el `<article>` y se limpia en
+ * `onTouchMove`/`onTouchEnd`/`onTouchCancel`, así que no queda "pegada".
+ * No depende de ningún evento sintético de mouse.
+ */
 .hoverImageVisible {
   opacity: 1;
+  transform: scale(1);
 }
 
 .badges {
@@ -155,6 +241,125 @@
   flex-direction: column;
   gap: var(--spacing-2);
   margin-block-start: auto;
+}
+
+/*
+ * Talles: filas de chips, no una lista vertical — es lo que mantiene la
+ * tarjeta compacta con una curva de talles completa. `flex-wrap` deja que
+ * ocupen varias filas en desktop sin fijar un alto propio.
+ */
+.sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+  margin-block: var(--spacing-0);
+  padding-inline-start: var(--spacing-0);
+  list-style: none;
+}
+
+.sizeChip {
+  padding: var(--spacing-0) var(--spacing-2);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-relaxed);
+  white-space: nowrap;
+}
+
+/*
+ * Compra rápida. Se posiciona por encima del enlace que cubre toda la
+ * tarjeta (`.link::after`, z-index automático): sin esto, cualquier toque
+ * sobre un talle o el botón de agregar navegaría al detalle en lugar de
+ * accionar el control, porque el overlay del enlace queda arriba de
+ * cualquier contenido sin apilamiento propio.
+ */
+.quickBuy {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.sizeButton {
+  cursor: pointer;
+  background-color: var(--color-background);
+  transition: var(--transition-fast);
+}
+
+.sizeButton:hover:not(:disabled) {
+  border-color: var(--color-action-primary-bg);
+}
+
+.sizeButton:focus-visible {
+  outline: var(--focus-ring-width) var(--border-style-default) var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.sizeButtonSelected {
+  border-color: var(--color-action-primary-bg);
+  background-color: var(--color-action-primary-bg);
+  color: var(--color-action-primary-text);
+}
+
+/* Talle elegido que el detalle, ya resuelto, descarta (sin stock real o
+   variante inexistente). No es el estado inicial: hasta que el fetch de
+   detalle resuelve, un talle recién elegido se ve simplemente seleccionado. */
+.sizeButtonUnavailable {
+  border-color: var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.quickBuyActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-1);
+}
+
+.addButton {
+  padding: var(--spacing-1) var(--spacing-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-action-accent-bg);
+  color: var(--color-action-accent-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.addButton:hover:not(:disabled) {
+  background-color: var(--color-action-accent-bg-hover);
+}
+
+.addButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.addButton:focus-visible {
+  outline: var(--focus-ring-width) var(--border-style-default) var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.viewCartLink {
+  color: var(--color-action-primary-bg);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+}
+
+.quickBuyError {
+  margin: var(--spacing-0);
+  color: var(--color-danger);
+  font-size: var(--font-size-2xs);
+  line-height: var(--line-height-relaxed);
 }
 
 /* --------------------------------------------------------------------------

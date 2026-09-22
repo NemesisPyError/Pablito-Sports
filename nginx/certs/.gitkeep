@@ -1,0 +1,8 @@
+# Carpeta para el certificado TLS de producción (montada RO en el contenedor nginx).
+#
+# Los .pem / .key NUNCA se versionan (ver .gitignore). Contenido esperado:
+#   fullchain.pem   cadena de certificados
+#   privkey.pem     clave privada
+#
+# - VPS real: Let's Encrypt, o el Origin Certificate de Cloudflare (fase posterior).
+# - Prueba local del compose de producción: ./generate-selfsigned.sh

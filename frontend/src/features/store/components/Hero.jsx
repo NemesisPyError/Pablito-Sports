@@ -1,26 +1,16 @@
 import { Link } from 'react-router-dom';
 
 import { Image } from '../../../shared/components/Image.jsx';
-import { catalogHref } from '../utils/navAxes.js';
+import { heroPrimaryAction, PROMOTIONS_HREF } from '../utils/heroActions.js';
 import styles from './Hero.module.css';
 
 /**
- * Texto del botón cuando el administrador cargó el enlace pero no la etiqueta.
+ * Una pieza de portada (09_COMPONENTES.md §9.8).
  *
- * `04 §9.2.12`: la ausencia de etiqueta no debe dejar el hero sin salida.
- */
-const DEFAULT_BUTTON_LABEL = 'Ver colección';
-
-/** Segunda llamada a la acción, fija: siempre lleva a las ofertas vigentes. */
-const PROMOTIONS_HREF = catalogHref({ onSale: true });
-
-/**
- * Pieza de portada (09_COMPONENTES.md §9.8).
- *
- * **Una sola imagen, no un carrusel.** La portada abre con una afirmación; una
- * rotación obliga a esperar para leerla entera y mueve el contenido bajo el
- * puntero. Si hay varias piezas en la zona `hero`, se publica la de menor
- * `position`, que es el orden que fija el administrador.
+ * Renderiza un único banner; no decide cuál. Con una sola pieza en la zona
+ * `hero`, `HomePage` la monta directo. Con varias, `HeroCarousel` la usa como
+ * la vista de "pieza actual" y agrega la rotación, los controles y el
+ * temporizador — este componente no sabe que existe un carrusel alrededor.
  *
  * No asume `description` ni identificador público: el contrato real es
  * `title`, `subtitle`, `image_url`, `link_url`, `button_label`, `placement` y
@@ -29,8 +19,10 @@ const PROMOTIONS_HREF = catalogHref({ onSale: true });
 export function Hero({ banner, titleId = 'hero-title' }) {
   if (!banner) return null;
 
-  const enlace = banner.link_url?.trim();
-  const etiqueta = banner.button_label?.trim() || DEFAULT_BUTTON_LABEL;
+  // Derivada del `banner` recibido por props: al rotar la pieza, el carrusel
+  // vuelve a renderizar con otro `banner` y la acción se recalcula sola. No hay
+  // estado propio que pueda quedarse con el enlace de la pieza anterior.
+  const principal = heroPrimaryAction(banner);
 
   const texto = (
     <div className={styles.inner}>
@@ -41,13 +33,13 @@ export function Hero({ banner, titleId = 'hero-title' }) {
       {banner.subtitle && <p className={styles.subtitle}>{banner.subtitle}</p>}
 
       <div className={styles.actions}>
-        {/* Sin enlace no hay botón principal: un botón que no lleva a ninguna
-            parte es peor que su ausencia. */}
-        {enlace && (
-          <Link to={enlace} className={`${styles.action} ${styles.actionPrimary}`}>
-            {etiqueta}
-          </Link>
-        )}
+        <Link
+          to={principal.href}
+          className={`${styles.action} ${styles.actionPrimary}`}
+          data-testid="hero-cta-primary"
+        >
+          {principal.label}
+        </Link>
 
         <Link to={PROMOTIONS_HREF} className={`${styles.action} ${styles.actionSecondary}`}>
           Promociones
@@ -73,7 +65,14 @@ export function Hero({ banner, titleId = 'hero-title' }) {
           // haría que el lector de pantalla lo anuncie dos veces.
           alt=""
           aspectRatio="hero"
-          objectFit="cover"
+          // `contain`, no `cover`: el administrador sube piezas gráficas con
+          // texto propio ya compuesto en la imagen (no solo fotos), y en el
+          // recuadro vertical de mobile (`--aspect-hero: 4/5`) un banner
+          // panorámico con `cover` deja ver apenas el tercio central del
+          // ancho — corta justo el texto de los bordes. `contain` nunca
+          // recorta contenido, a costa de dejar ver el fondo del hero a los
+          // lados cuando la proporción no coincide.
+          objectFit="contain"
           sizes="100vw"
           // Es el LCP de la portada: ni diferida ni en la cola del resto.
           lazy={false}

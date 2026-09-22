@@ -4,6 +4,7 @@ import {
   buildCanonical,
   buildRobots,
   catalogMeta,
+  DEFAULT_SHARE_IMAGE,
   homeMeta,
   isFilteredCatalog,
   isIndexable,
@@ -181,15 +182,22 @@ describe('resolveMeta', () => {
     expect(resuelto.og.image).toBe('https://cdn.test/x.webp');
   });
 
-  it('usa summary_large_image sólo si hay imagen', () => {
+  it('sin imagen propia cae a la de marca, así que la tarjeta nunca sale sin imagen', () => {
+    const sin = resolveMeta(base, { pathname: '/producto/x', search: '', origin: ORIGEN });
+
+    expect(sin.og.image).toBe(`${ORIGEN}${DEFAULT_SHARE_IMAGE}`);
+    expect(sin.twitter.image).toBe(`${ORIGEN}${DEFAULT_SHARE_IMAGE}`);
+    expect(sin.twitter.card).toBe('summary_large_image');
+  });
+
+  it('la imagen propia gana sobre la de marca', () => {
     const con = resolveMeta(
       { ...base, image: '/x-800.webp' },
       { pathname: '/producto/x', search: '', origin: ORIGEN },
     );
-    const sin = resolveMeta(base, { pathname: '/producto/x', search: '', origin: ORIGEN });
 
+    expect(con.og.image).toBe(`${ORIGEN}/x-800.webp`);
     expect(con.twitter.card).toBe('summary_large_image');
-    expect(sin.twitter.card).toBe('summary');
   });
 
   it('og:url usa la canónica cuando existe', () => {

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from ..core.exceptions import RequestValidationError
+from .shared import texto, texto_o_none
 
 # 04 §9.2.11: `CHECK (discount_percentage BETWEEN 1 AND 99)`.
 MIN_DISCOUNT = 1
@@ -17,7 +18,7 @@ MAX_DISCOUNT = 99
 
 MAX_NAME_LENGTH = 255
 
-# `RN-36`: exactamente uno. El orden fija cuál se reporta primero en el error.
+# `RN-36`: como máximo uno. El orden fija cuál se reporta primero en el error.
 SCOPE_FIELDS = ("product_id", "category_id", "brand_id")
 
 
@@ -34,13 +35,14 @@ class PromotionInput:
     brand_id: int | None
 
     @property
-    def scope_field(self) -> str:
-        """El único campo de alcance poblado."""
-        return next(campo for campo in SCOPE_FIELDS if getattr(self, campo) is not None)
+    def scope_field(self) -> str | None:
+        """El campo de alcance poblado, o `None` si aplica a todos los productos."""
+        return next((campo for campo in SCOPE_FIELDS if getattr(self, campo) is not None), None)
 
     @property
-    def scope_id(self) -> int:
-        return getattr(self, self.scope_field)
+    def scope_id(self) -> int | None:
+        campo = self.scope_field
+        return getattr(self, campo) if campo is not None else None
 
 
 def _fecha(payload: dict, campo: str, errores: list, *, obligatoria: bool) -> datetime | None:
@@ -77,13 +79,7 @@ def parse_promotion(payload: dict) -> PromotionInput:
     """
     errores: list[dict] = []
 
-    nombre = (payload.get("name") or "").strip()
-    if not nombre:
-        errores.append({"field": "name", "detail": "name is required"})
-    elif len(nombre) > MAX_NAME_LENGTH:
-        errores.append(
-            {"field": "name", "detail": f"name must be at most {MAX_NAME_LENGTH} characters"}
-        )
+    nombre = texto(payload, "name", errores, maximo=MAX_NAME_LENGTH)
 
     descuento = payload.get("discount_percentage")
     if descuento is None:
@@ -115,12 +111,13 @@ def parse_promotion(payload: dict) -> PromotionInput:
 
     alcances = {campo: _entero_de_alcance(payload, campo, errores) for campo in SCOPE_FIELDS}
     poblados = [campo for campo, valor in alcances.items() if valor is not None]
-    if len(poblados) != 1:
-        # `RN-36`: ni ninguno ni varios.
+    if len(poblados) > 1:
+        # `RN-36`: como máximo uno. Ninguno poblado es válido: la promoción
+        # aplica a todos los productos (v1.6.0, pedido explícito del usuario).
         errores.append(
             {
                 "field": SCOPE_FIELDS[0],
-                "detail": "exactly one of " + ", ".join(SCOPE_FIELDS) + " is required",
+                "detail": "at most one of " + ", ".join(SCOPE_FIELDS) + " may be set",
             }
         )
 
@@ -129,7 +126,7 @@ def parse_promotion(payload: dict) -> PromotionInput:
 
     return PromotionInput(
         name=nombre,
-        description=(payload.get("description") or "").strip() or None,
+        description=texto_o_none(payload, "description", errores),
         discount_percentage=descuento,
         starts_at=inicio,
         ends_at=fin,

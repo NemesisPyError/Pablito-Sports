@@ -8,8 +8,6 @@ prohíbe que un servicio conozca HTTP, así que no puede leer la sesión por su
 cuenta.
 """
 
-import re
-
 from ..core.audit import (
     ACTION_ACTIVATE,
     ACTION_CREATE,
@@ -17,20 +15,20 @@ from ..core.audit import (
     ACTION_UPDATE,
     AuditService,
 )
-from ..core.decorators import transactional
+from ..core.decorators import schedule_file_deletion, transactional
 from ..core.exceptions import BusinessRuleError, NotFoundError, RequestValidationError
 from ..core.utils.pagination import Page
 from ..core.utils.urls import public_file_url
+from ..extensions import db
 from ..repositories.admin_classification_repository import (
     AdminBrandRepository,
     AdminCategoryRepository,
     AdminSizeRepository,
     AdminSportRepository,
 )
+from ..repositories.gender_repository import GenderRepository
 from ..repositories.product_repository import ProductRepository
-from ..repositories.size_type_repository import SizeTypeRepository
-
-_SOLO_DIGITOS = re.compile(r"^\d+$")
+from ..schemas.shared import texto
 
 # §14.2: el snapshot de auditoría es selectivo. Las marcas de tiempo quedan
 # fuera porque las mantiene la base, no el administrador.
@@ -162,36 +160,18 @@ class AdminClassificationService:
         demasiado largo llegaba a PostgreSQL y el error de columna se traducía
         en un `500` opaco: el cliente no podía saber qué había hecho mal.
         """
-        errores = []
-
-        name = payload.get("name", "").strip()
-        slug = payload.get("slug", "").strip()
-
-        if not name:
-            errores.append({"field": "name", "detail": "name is required"})
-        elif len(name) > cls.max_name_length:
-            errores.append(
-                {
-                    "field": "name",
-                    "detail": f"name must be at most {cls.max_name_length} characters",
-                }
-            )
-
-        if not slug:
-            errores.append({"field": "slug", "detail": "slug is required"})
-        elif len(slug) > cls.max_slug_length:
-            errores.append(
-                {
-                    "field": "slug",
-                    "detail": f"slug must be at most {cls.max_slug_length} characters",
-                }
-            )
+        # S-13: `texto()` rechaza el tipo en vez de convertirlo. Antes,
+        # `{"name": 123}` llegaba a `.strip()` y devolvía 500 en lugar de 422.
+        errores: list[dict] = []
+        texto(payload, "name", errores, maximo=cls.max_name_length)
+        texto(payload, "slug", errores, maximo=cls.max_slug_length)
 
         if errores:
             raise RequestValidationError(errores)
 
     @classmethod
     def _fields_from_payload(cls, payload: dict) -> dict:
+        # Los tipos ya los validó `_validate_payload`, que corre antes.
         return {
             "name": payload["name"].strip(),
             "slug": payload["slug"].strip(),
@@ -263,7 +243,7 @@ class AdminBrandService(AdminClassificationService):
 
         errores = []
 
-        tagline = (payload.get("tagline") or "").strip()
+        tagline = texto(payload, "tagline", [], requerido=False)
         if len(tagline) > cls.max_tagline_length:
             errores.append(
                 {
@@ -312,6 +292,11 @@ class AdminBrandService(AdminClassificationService):
         else:
             fields["home_position"] = int(str(crudo).strip())
 
+        # Franja de marcas. Ausente = `True`, no `False`: la columna nace en
+        # `TRUE` (migración `a1c4e77b90d2`) y un cliente que no conozca el campo
+        # no debe sacar marcas de la franja sin querer.
+        fields["show_in_strip"] = bool(payload.get("show_in_strip", True))
+
         return fields
 
     @classmethod
@@ -320,6 +305,7 @@ class AdminBrandService(AdminClassificationService):
         dto["image_url"] = public_file_url(entity.image_path)
         dto["tagline"] = entity.tagline
         dto["home_position"] = entity.home_position
+        dto["show_in_strip"] = entity.show_in_strip
         return dto
 
     @classmethod
@@ -331,15 +317,30 @@ class AdminBrandService(AdminClassificationService):
         el CRUD de clasificaciones es JSON y volverlo `multipart` por un campo
         obligaría a enviar el archivo en cada renombrado.
 
-        `image_path` nulo borra la referencia. El archivo permanece en el
-        volumen: `AD-39` acota la limpieza física a los archivos sin fila.
+        `image_path` nulo borra la referencia. post-S13: el archivo anterior se
+        retira del volumen salvo que otra fila viva lo use — el logotipo y las
+        piezas del collage comparten el espacio `brands/<id>/`, así que el
+        recuento cruza las dos tablas.
         """
         entity = cls.repo.find_by_id(brand_id)
         if entity is None:
             raise NotFoundError("brand not found", resource=cls.entity_type)
 
         old_values = cls._audit_snapshot(entity)
+        anterior = entity.image_path
         entity = cls.repo.update(entity, image_path=image_path)
+
+        if anterior and anterior != image_path:
+            db.session.flush()
+            from ..repositories.admin_brand_image_repository import AdminBrandImageRepository
+
+            if (
+                AdminBrandImageRepository.count_live_references_to_brand_logo(
+                    anterior, excluding_brand_id=entity.id
+                )
+                == 0
+            ):
+                schedule_file_deletion(anterior)
 
         AuditService.record(
             administrator_id=administrator_id,
@@ -361,19 +362,65 @@ class AdminCategoryService(AdminClassificationService):
     def _fields_from_payload(cls, payload: dict) -> dict:
         fields = super()._fields_from_payload(payload)
         fields["parent_id"] = payload.get("parent_id") or None
+        # RN-83: los sexos son una relación, no una columna, pero el repositorio
+        # hace `setattr` sobre la entidad y SQLAlchemy sincroniza la N:M sola,
+        # así que viajan con el resto de los campos. `PUT` reemplaza la lista
+        # completa, igual que el resto del recurso (§10.13).
+        fields["genders"] = cls._resolve_genders(payload)
         return fields
+
+    @classmethod
+    def _resolve_genders(cls, payload: dict) -> list:
+        """RN-83, AD-41: `gender_ids` es opcional y la lista vacía es válida.
+
+        Ausente o vacía significa «sin restricción», no «ningún sexo»: la
+        categoría se ofrece en todos los ejes de la navegación. Un identificador
+        inexistente sí es un error del cliente y corta con `422`, en lugar de
+        colarse como `None` dentro de la relación.
+        """
+        gender_ids = payload.get("gender_ids") or []
+        if not isinstance(gender_ids, list):
+            raise RequestValidationError(
+                [{"field": "gender_ids", "detail": "gender_ids must be a list"}]
+            )
+
+        generos = []
+        for gender_id in gender_ids:
+            # Un valor que no es un entero se rechaza acá y no en la consulta:
+            # llegar al repositorio con `"abc"` produce un error de base de
+            # datos, que es un 500 para el cliente cuando en realidad mandó mal
+            # el dato (`ERR-04`).
+            try:
+                identificador = int(gender_id)
+            except (TypeError, ValueError):
+                identificador = None
+
+            genero = GenderRepository.find_by_id(identificador) if identificador else None
+            if genero is None:
+                raise RequestValidationError(
+                    [{"field": "gender_ids", "detail": f"gender {gender_id!r} not found"}]
+                )
+            if genero not in generos:
+                generos.append(genero)
+        return generos
 
     @classmethod
     def _to_admin_dto(cls, entity) -> dict:
         dto = super()._to_admin_dto(entity)
         dto["parent_id"] = entity.parent_id
+        dto["gender_ids"] = [genero.id for genero in entity.genders]
         return dto
 
     @classmethod
     def _check_dependencies(cls, entity):
         if ProductRepository.count_by_category(entity.id) > 0:
             raise BusinessRuleError("category has associated products", rule="RN-68")
-        if entity.children:
+        # `Category.children` no filtra el borrado lógico, así que una hija ya
+        # eliminada seguía bloqueando a la madre: para el administrador esa
+        # subcategoría no existe, pero RN-68 la contaba igual y dejaba la
+        # categoría imposible de borrar sin explicación visible. Solo las hijas
+        # vivas son una dependencia real.
+        if any(hija.deleted_at is None for hija in entity.children):
             raise BusinessRuleError("category has child categories", rule="RN-68")
 
 
@@ -404,35 +451,7 @@ class AdminSizeService(AdminClassificationService):
             raise RequestValidationError(
                 [{"field": "size_type_id", "detail": "size_type_id is required"}]
             )
-        cls._validate_name_format(fields["name"], fields["size_type_id"])
         return fields
-
-    @classmethod
-    def _validate_name_format(cls, name: str, size_type_id) -> None:
-        """RN-15b: el nombre del talle debe ser coherente con su tipo.
-
-        `footwear_numeric` (Calzado) exige solo dígitos; `apparel_alpha`
-        (Indumentaria) rechaza un valor puramente numérico. `one_size`
-        (Talle único) no tiene restricción de formato.
-        """
-        size_type = SizeTypeRepository.find_by_id(size_type_id)
-        if size_type is None:
-            return
-
-        es_numerico = bool(_SOLO_DIGITOS.match(name))
-        if size_type.slug == "footwear_numeric" and not es_numerico:
-            raise RequestValidationError(
-                [{"field": "name", "detail": "un talle de Calzado debe ser numérico, ej: 35, 42"}]
-            )
-        if size_type.slug == "apparel_alpha" and es_numerico:
-            raise RequestValidationError(
-                [
-                    {
-                        "field": "name",
-                        "detail": "un talle de Indumentaria no puede ser puramente numérico, ej: XS, M, XL",
-                    }
-                ]
-            )
 
     @classmethod
     def _to_admin_dto(cls, entity) -> dict:

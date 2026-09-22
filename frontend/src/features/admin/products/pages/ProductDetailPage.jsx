@@ -85,7 +85,12 @@ export function ProductDetailPage() {
                 <Dato etiqueta="Categoría principal" valor={producto.primary_category?.name} />
                 <Dato
                   etiqueta="Sexo"
-                  valor={producto.gender?.slug ? translateGender(producto.gender.slug) : null}
+                  // RN-09 (v2.9.0): `genders` es una lista, no un solo sexo.
+                  valor={
+                    producto.genders?.length > 0
+                      ? producto.genders.map((g) => translateGender(g.slug)).join(', ')
+                      : null
+                  }
                 />
                 <Dato
                   etiqueta="Tipo de talle"

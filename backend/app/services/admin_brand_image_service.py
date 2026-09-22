@@ -14,9 +14,10 @@ en `audit_logs` dentro de la misma transacción (`AD-20`, `CONS-05`).
 """
 
 from ..core.audit import ACTION_CREATE, ACTION_DELETE, ACTION_UPDATE, AuditService
-from ..core.decorators import transactional
+from ..core.decorators import schedule_file_deletion, transactional
 from ..core.exceptions import BusinessRuleError, NotFoundError, RequestValidationError
 from ..core.utils.urls import public_file_url
+from ..extensions import db
 from ..repositories.admin_brand_image_repository import AdminBrandImageRepository
 from ..repositories.admin_classification_repository import AdminBrandRepository
 
@@ -112,8 +113,9 @@ class AdminBrandImageService:
     def delete(cls, brand_id: int, image_id: int, *, administrator_id: int):
         """§9.6 `DELETE /admin/brands/{id}/images/{image_id}`. Borrado lógico.
 
-        El archivo **no se toca**: `AD-39` acota la limpieza física a los
-        archivos sin fila, y esta fila sigue existiendo.
+        post-S13: la fila sobrevive (`AD-18`) y el archivo se retira, salvo que
+        siga referenciado. El recuento cruza `BrandImage` **y** `Brand`: el
+        logotipo y el collage comparten el espacio `brands/<id>/`.
         """
         cls._require_brand(brand_id)
         imagen = AdminBrandImageRepository.find_by_id(image_id, brand_id)
@@ -121,7 +123,17 @@ class AdminBrandImageService:
             raise NotFoundError("brand image not found", resource=ENTITY_TYPE)
 
         old_values = AuditService.snapshot(imagen, AUDIT_FIELDS)
+        ruta = imagen.file_path
         AdminBrandImageRepository.soft_delete(imagen)
+        # post-S13: mismo criterio que las imágenes de producto (S-13). El
+        # archivo se retira sólo si NINGUNA fila viva lo referencia y sólo
+        # tras confirmar la transacción.
+        db.session.flush()
+        referencias = AdminBrandImageRepository.count_live_references_to_path(
+            ruta, excluding_image_id=imagen.id
+        )
+        if ruta and referencias == 0:
+            schedule_file_deletion(ruta)
         AuditService.record(
             administrator_id=administrator_id,
             action=ACTION_DELETE,

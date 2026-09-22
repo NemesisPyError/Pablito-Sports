@@ -35,10 +35,13 @@ class Promotion(IdentityMixin, ActiveMixin, TimestampMixin, SoftDeleteMixin, db.
     __table_args__ = (
         CheckConstraint("discount_percentage BETWEEN 1 AND 99", name="discount_percentage_range"),
         CheckConstraint("ends_at IS NULL OR ends_at > starts_at", name="window_ordered"),
-        # RN-36: a promotion applies to exactly one of product, category or brand.
+        # RN-36: a promotion applies to at most one of product, category or
+        # brand. All three NULL means "applies to every product" (v1.6.0,
+        # pedido explícito del usuario) — not "no scope", which never existed
+        # as a valid state before and still can't be expressed any other way.
         CheckConstraint(
             "(product_id IS NOT NULL)::int + (category_id IS NOT NULL)::int "
-            "+ (brand_id IS NOT NULL)::int = 1",
+            "+ (brand_id IS NOT NULL)::int <= 1",
             name="scope_exclusive",
         ),
         Index("idx_promotions_product_id", "product_id"),

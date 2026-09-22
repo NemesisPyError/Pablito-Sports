@@ -1,0 +1,50 @@
+/**
+ * Campo de búsqueda del catálogo (09_COMPONENTES.md §9.8).
+ *
+ * Bootstrap aporta la estructura (`input-group`); acá solo se pisan color,
+ * borde y foco para no heredar el azul por defecto de `.form-control`.
+ */
+
+.field {
+  border: var(--border-width-medium) var(--border-style-default) var(--color-ink-900);
+  background-color: var(--color-white);
+  color: var(--color-ink-900);
+}
+
+.field::placeholder {
+  color: var(--color-text-muted);
+}
+
+.field:focus {
+  border-color: var(--color-ink-900);
+}
+
+/*
+ * `.form-control:focus` de Bootstrap declara `outline: 0` con la misma
+ * especificidad (una clase + una pseudoclase) que la regla genérica de foco
+ * de `base.css` (`:focus-visible` a secas, menos específica) — le gana y
+ * deja el campo sin anillo. Mismo caso que ya resuelve `.btn:focus-visible`
+ * ahí mismo, aplicado acá: se restituye el anillo del sistema con una regla
+ * de igual especificidad que la de Bootstrap, sin usar `box-shadow` (queda
+ * recortado dentro de contenedores con overflow, §10.3).
+ */
+.field:focus-visible {
+  outline: var(--focus-ring-width) var(--border-style-default) var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.clear {
+  border: var(--border-width-medium) var(--border-style-default) var(--color-ink-900);
+  color: var(--color-ink-900);
+  transition: var(--transition-fast);
+}
+
+.clear:hover {
+  background-color: var(--color-ink-900);
+  color: var(--color-white);
+}
+
+.clear:focus-visible {
+  outline: var(--focus-ring-width) var(--border-style-default) var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}

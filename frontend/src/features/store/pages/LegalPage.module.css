@@ -1,0 +1,110 @@
+/**
+ * Páginas legales: lectura larga (08_UI_SYSTEM.md §7.1).
+ *
+ * `Page narrow` ya acota la medida; acá solo se da ritmo al texto. Mismos
+ * tokens que el resto del sitio: nada de tipografía ni colores propios.
+ */
+
+.document {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-relaxed);
+}
+
+.document p {
+  margin-block: var(--spacing-0) var(--spacing-4);
+}
+
+/* Sección mayor: un filete arriba la separa como en el documento aprobado. */
+.h2 {
+  margin-block: var(--spacing-8) var(--spacing-4);
+  padding-block-start: var(--spacing-5);
+  border-block-start: var(--border-width-thin) var(--border-style-default) var(--color-border);
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-snug);
+}
+
+.document > .h2:first-child,
+.document > .h3:first-child {
+  margin-block-start: var(--spacing-0);
+}
+
+.document > .h2:first-child {
+  padding-block-start: var(--spacing-0);
+  border-block-start: none;
+}
+
+.h3 {
+  margin-block: var(--spacing-6) var(--spacing-2);
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+}
+
+.list {
+  margin-block: var(--spacing-0) var(--spacing-4);
+  padding-inline-start: var(--spacing-5);
+}
+
+.list li + li {
+  margin-block-start: var(--spacing-2);
+}
+
+/* Aviso destacado: el mismo lenguaje del documento, un filete de acento. */
+.note {
+  padding: var(--spacing-4) var(--spacing-5);
+  border-inline-start: 3px solid var(--color-volt-500);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-alt);
+}
+
+/* Ficha clave/valor (datos del titular, contacto). */
+.facts {
+  margin-block: var(--spacing-0) var(--spacing-5);
+}
+
+.fact {
+  display: grid;
+  gap: var(--spacing-1);
+  padding-block: var(--spacing-3);
+  border-block-end: var(--border-width-thin) var(--border-style-default) var(--color-border);
+}
+
+.fact dt {
+  font-weight: var(--font-weight-semibold);
+}
+
+.fact dd {
+  margin: var(--spacing-0);
+  /* El horario llega con saltos de línea desde el panel. */
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 576px) {
+  .fact {
+    grid-template-columns: 12rem 1fr;
+    gap: var(--spacing-4);
+  }
+}
+
+/* Las tablas anchas se desplazan dentro de su caja, nunca la página entera. */
+.tableWrap {
+  margin-block: var(--spacing-0) var(--spacing-5);
+  overflow-x: auto;
+}
+
+.table {
+  min-width: 36rem;
+  margin-block-end: var(--spacing-0);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+}
+
+.table th {
+  background-color: var(--color-surface-alt);
+  white-space: nowrap;
+}

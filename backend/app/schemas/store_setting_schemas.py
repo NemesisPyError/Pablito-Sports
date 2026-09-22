@@ -9,6 +9,7 @@ tales; §12.2 **no declara ninguna obligatoria** para la plantilla de ítem, de
 modo que aquí tampoco se exige ninguna: inventarla sería una regla propia.
 """
 
+import re
 from dataclasses import dataclass
 
 from ..core.exceptions import RequestValidationError
@@ -88,6 +89,11 @@ def _plantilla(payload: dict, campo: str, errores: list, *, requeridas: tuple) -
     return valor
 
 
+# Sólo navegación web. Deja fuera `javascript:`, `data:`, `vbscript:` y
+# cualquier esquema exótico que un navegador pudiera ejecutar.
+_ESQUEMA_PERMITIDO = re.compile(r"^https?://", re.IGNORECASE)
+
+
 def _redes(payload: dict, errores: list) -> dict | None:
     """`social_links` es un objeto libre (§10.x): se valida su forma, no su contenido.
 
@@ -113,8 +119,24 @@ def _redes(payload: dict, errores: list) -> dict | None:
                 {"field": "social_links", "detail": "social_links values must be strings"}
             )
             return None
-        if valor.strip():
-            limpio[clave] = valor.strip()
+        recortado = valor.strip()
+        if not recortado:
+            continue
+        # S-13: el esquema SÍ se valida. Estos valores se pintan tal cual en el
+        # `href` del pie público, así que un `javascript:...` guardado desde el
+        # panel se convertiría en XSS almacenado para cada visitante. Exige un
+        # administrador autenticado —el rol de más confianza—, pero validar en
+        # el límite de datos cuesta tres líneas y protege a cualquier consumidor
+        # futuro, no sólo al pie de página actual.
+        if not _ESQUEMA_PERMITIDO.match(recortado):
+            errores.append(
+                {
+                    "field": "social_links",
+                    "detail": "social_links values must start with http:// or https://",
+                }
+            )
+            return None
+        limpio[clave] = recortado
 
     return limpio or None
 

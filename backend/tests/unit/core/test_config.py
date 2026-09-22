@@ -53,3 +53,101 @@ def test_missing_required_variable_prevents_startup(monkeypatch):
 def test_testing_environment_requires_its_own_database():
     assert "TEST_DATABASE_URL" in TestingConfig.REQUIRED_VARS
     assert "DATABASE_URL" in DevelopmentConfig.REQUIRED_VARS
+
+
+# ---------------------------------------------------------------------------
+# Almacenamiento del rate limiting (03_SEGURIDAD.md §14.4)
+# ---------------------------------------------------------------------------
+
+
+def _entorno_de_produccion(monkeypatch):
+    """Deja el entorno mínimo para que `validate` llegue al chequeo del almacén."""
+    monkeypatch.setenv("SECRET_KEY", "x" * 64)
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@localhost/db")
+    monkeypatch.setenv("UPLOAD_FOLDER", "/tmp/uploads")
+    monkeypatch.setenv("LOG_LEVEL", "INFO")
+
+
+def test_produccion_no_arranca_sin_almacen_de_rate_limit(monkeypatch):
+    """§14.4: el contador debe vivir fuera del proceso, y se exige al arrancar."""
+    _entorno_de_produccion(monkeypatch)
+    monkeypatch.delenv("RATELIMIT_STORAGE_URI", raising=False)
+
+    with pytest.raises(ConfigError, match="RATELIMIT_STORAGE_URI"):
+        ProductionConfig.validate()
+
+
+def test_produccion_rechaza_un_almacen_dentro_del_proceso(monkeypatch):
+    """`memory://` da un contador por worker: el límite declarado dejaría de ser real."""
+    _entorno_de_produccion(monkeypatch)
+    monkeypatch.setenv("RATELIMIT_STORAGE_URI", "memory://")
+
+    with pytest.raises(ConfigError, match="in-process"):
+        ProductionConfig.validate()
+
+
+def test_produccion_acepta_un_almacen_compartido(monkeypatch):
+    _entorno_de_produccion(monkeypatch)
+    monkeypatch.setenv("RATELIMIT_STORAGE_URI", "redis://redis:6379/0")
+
+    ProductionConfig.validate()
+
+
+def test_ningun_entorno_vuelve_en_silencio_a_memoria(monkeypatch):
+    """Si el almacén compartido falla, el límite debe fallar visible, no ceder.
+
+    `RATELIMIT_IN_MEMORY_FALLBACK_ENABLED` haría que Flask-Limiter siguiera
+    contando en memoria del proceso —el bug que esta fase corrige— y
+    `RATELIMIT_SWALLOW_ERRORS` dejaría pasar la petición sin contarla.
+    """
+    for config in (DevelopmentConfig, TestingConfig, ProductionConfig):
+        assert config.RATELIMIT_IN_MEMORY_FALLBACK_ENABLED is False
+        assert config.RATELIMIT_SWALLOW_ERRORS is False
+
+
+# ---------------------------------------------------------------------------
+# Cloudflare Turnstile: opcional, pero nunca a medias.
+# ---------------------------------------------------------------------------
+
+
+def _entorno_de_testing(monkeypatch):
+    monkeypatch.setenv("SECRET_KEY", "x" * 64)
+    monkeypatch.setenv("TEST_DATABASE_URL", "postgresql://u:p@localhost/db")
+    monkeypatch.setenv("UPLOAD_FOLDER", "/tmp/uploads")
+    monkeypatch.setenv("LOG_LEVEL", "INFO")
+
+
+def test_arranca_sin_ninguna_clave_de_turnstile(monkeypatch):
+    """Configuración explícita de desarrollo: sin credenciales, el gate se
+    desactiva solo (`TurnstileService.enabled()`) en vez de romper el arranque."""
+    _entorno_de_testing(monkeypatch)
+    monkeypatch.delenv("TURNSTILE_SITE_KEY", raising=False)
+    monkeypatch.delenv("TURNSTILE_SECRET_KEY", raising=False)
+
+    TestingConfig.validate()
+
+
+def test_arranca_con_las_dos_claves_de_turnstile(monkeypatch):
+    _entorno_de_testing(monkeypatch)
+    monkeypatch.setenv("TURNSTILE_SITE_KEY", "site-key")
+    monkeypatch.setenv("TURNSTILE_SECRET_KEY", "secret-key")
+
+    TestingConfig.validate()
+
+
+def test_rechaza_solo_la_site_key_puesta(monkeypatch):
+    _entorno_de_testing(monkeypatch)
+    monkeypatch.setenv("TURNSTILE_SITE_KEY", "site-key")
+    monkeypatch.delenv("TURNSTILE_SECRET_KEY", raising=False)
+
+    with pytest.raises(ConfigError, match="TURNSTILE"):
+        TestingConfig.validate()
+
+
+def test_rechaza_solo_la_secret_key_puesta(monkeypatch):
+    _entorno_de_testing(monkeypatch)
+    monkeypatch.delenv("TURNSTILE_SITE_KEY", raising=False)
+    monkeypatch.setenv("TURNSTILE_SECRET_KEY", "secret-key")
+
+    with pytest.raises(ConfigError, match="TURNSTILE"):
+        TestingConfig.validate()

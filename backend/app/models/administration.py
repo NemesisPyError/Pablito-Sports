@@ -94,6 +94,44 @@ class PriceHistory(IdentityMixin, db.Model):
     __table_args__ = (Index("idx_price_history_product_id", "product_id"),)
 
 
+class SaleOrder(IdentityMixin, db.Model):
+    """Cabecera de una venta registrada a mano desde el panel (RN-82).
+
+    Agrupa las lineas de `sales` que se registraron juntas y guarda el total.
+    Inmutable, igual que sus lineas y que `PriceHistory` (RN-70): no se edita ni
+    se borra, ni logicamente.
+
+    `total_amount` se guarda aunque sea la suma de las lineas. No es
+    denormalizacion por comodidad: las lineas guardan el precio unitario
+    vigente en ese momento, y el total es el importe que efectivamente se cobro.
+    Recalcularlo despues a partir de otra cosa daria un numero distinto.
+
+    Moneda: entero, como `products.list_price`. El guarani no tiene subunidad,
+    asi que no hay decimales que perder ni redondeos que arrastrar.
+    """
+
+    __tablename__ = "sale_orders"
+
+    administrator_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("administrators.id", ondelete="RESTRICT", onupdate="CASCADE"),
+        nullable=False,
+    )
+    total_amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped["DateTime"] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    administrator = relationship("Administrator")
+    items = relationship("Sale", back_populates="order")
+
+    __table_args__ = (
+        CheckConstraint("total_amount >= 0", name="sale_orders_total_non_negative"),
+        Index("idx_sale_orders_created_at", "created_at"),
+        Index("idx_sale_orders_administrator_id", "administrator_id"),
+    )
+
+
 class Sale(IdentityMixin, db.Model):
     """RN-82. Immutable: no updated_at, no deleted_at, same pattern as PriceHistory."""
 
@@ -103,6 +141,15 @@ class Sale(IdentityMixin, db.Model):
         Integer, ForeignKey("variants.id", ondelete="RESTRICT", onupdate="CASCADE"), nullable=False
     )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Nulos a proposito: las filas anteriores a la venta manual multilinea no
+    # tienen ni cabecera ni precio, y rellenarlos con el precio de hoy seria
+    # inventar un dato historico. Toda venta registrada desde el panel los trae.
+    sale_order_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("sale_orders.id", ondelete="RESTRICT", onupdate="CASCADE"),
+        nullable=True,
+    )
+    unit_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     administrator_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("administrators.id", ondelete="RESTRICT", onupdate="CASCADE"),
@@ -114,11 +161,17 @@ class Sale(IdentityMixin, db.Model):
 
     variant = relationship("Variant")
     administrator = relationship("Administrator")
+    order = relationship("SaleOrder", back_populates="items")
 
     __table_args__ = (
         CheckConstraint("quantity > 0", name="sales_quantity_positive"),
+        CheckConstraint(
+            "unit_price IS NULL OR unit_price >= 0",
+            name="sales_unit_price_non_negative",
+        ),
         Index("idx_sales_variant_id", "variant_id"),
         Index("idx_sales_created_at", "created_at"),
+        Index("idx_sales_sale_order_id", "sale_order_id"),
     )
 
 

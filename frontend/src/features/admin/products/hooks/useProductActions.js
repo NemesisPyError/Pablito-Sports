@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { get } from '../../../../shared/services/apiClient.js';
+import { HOME_NEW_PRODUCTS_KEY } from '../../../store/hooks/useHomeNewProducts.js';
 import { DASHBOARD_KEY } from '../../dashboard/hooks/useDashboard.js';
 import { adminProductsApi } from '../api/productsApi.js';
 import { ADMIN_PRODUCTS_KEY } from './useAdminProducts.js';
@@ -20,8 +21,8 @@ export function useAdminProduct(productId) {
  * Invalida todo lo que una escritura de producto puede haber dejado obsoleto.
  *
  * El dashboard entra en la lista porque sus totales cuentan activos, ocultos,
- * disponibilidad y ofertas (`RF-38`): activar, eliminar o restaurar un producto
- * cambia esos números.
+ * disponibilidad y ofertas (`RF-38`): activar o eliminar un producto cambia
+ * esos números.
  */
 function useProductInvalidation() {
   const queryClient = useQueryClient();
@@ -45,22 +46,33 @@ export function useSetProductActive() {
   });
 }
 
+/**
+ * §9.3 `POST /products/{id}/set-home-new`. Alta y baja en Novedades.
+ *
+ * Además de lo que invalida cualquier escritura de producto, refresca la
+ * vista previa pública de Novedades (`useHomeNewProducts`): sin esto, el
+ * carrusel del home seguiría mostrando la selección anterior hasta el
+ * próximo refetch espontáneo.
+ */
+export function useSetProductHomeNew() {
+  const invalidar = useProductInvalidation();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ productId, selected }) => adminProductsApi.setHomeNew(productId, selected),
+    onSuccess: (_data, { productId }) => {
+      invalidar(productId);
+      queryClient.invalidateQueries({ queryKey: HOME_NEW_PRODUCTS_KEY });
+    },
+  });
+}
+
 /** §9.3 `DELETE /products/{id}`. Borrado lógico (`AD-18`). */
 export function useDeleteProduct() {
   const invalidar = useProductInvalidation();
 
   return useMutation({
     mutationFn: (productId) => adminProductsApi.remove(productId),
-    onSuccess: (_data, productId) => invalidar(productId),
-  });
-}
-
-/** §9.3 `POST /products/{id}/restore`. */
-export function useRestoreProduct() {
-  const invalidar = useProductInvalidation();
-
-  return useMutation({
-    mutationFn: (productId) => adminProductsApi.restore(productId),
     onSuccess: (_data, productId) => invalidar(productId),
   });
 }

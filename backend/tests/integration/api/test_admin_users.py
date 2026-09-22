@@ -485,7 +485,7 @@ def test_cambio_de_contrasena_propia_sin_current_password_es_422(schema_app, adm
 
 
 def test_nueva_contrasena_debe_cumplir_la_politica(schema_app, admin_normal):
-    """§5.5: mínimo 8 caracteres."""
+    """§5.5: mínimo 12 caracteres, tope de 72 bytes y sin triviales."""
     cliente = _cliente(schema_app, admin_normal)
 
     respuesta = cliente.post(
@@ -748,3 +748,74 @@ def test_la_envoltura_ad16_se_respeta(cliente_super):
     assert cuerpo["success"] is True
     assert cuerpo["errors"] == []
     assert "request_id" in cuerpo["meta"]
+
+
+# ---------------------------------------------------------------------------
+# Política de contraseñas en los dos caminos que la fijan (03_SEGURIDAD.md §5.5)
+#
+# La validación vive en un único sitio (`_contrasena` de
+# `administrator_schemas`), pero eso es un detalle interno: lo que estos tests
+# fijan es que el ALTA y el CAMBIO la apliquen igual desde fuera. Si algún día
+# se duplicara la validación y una de las dos se quedara atrás, esto lo caza.
+# ---------------------------------------------------------------------------
+
+CONTRASENAS_RECHAZADAS = [
+    ("once-caract", "por debajo del mínimo de 12"),
+    ("pablitosports", "trivial: el nombre del propio negocio"),
+    ("123456789012", "trivial: secuencia"),
+    ("aaaaaaaaaaaa", "trivial: un solo carácter repetido"),
+    ("a" * 73, "por encima del tope de 72 bytes de bcrypt"),
+]
+
+
+@pytest.mark.parametrize(("password", "motivo"), CONTRASENAS_RECHAZADAS)
+def test_el_alta_rechaza_las_contrasenas_debiles(cliente_super, password, motivo):
+    respuesta = cliente_super.post("/api/v1/admin/users", json=_payload_creacion(password=password))
+
+    assert respuesta.status_code == 422, motivo
+    assert respuesta.get_json()["errors"][0]["field"] == "password"
+
+
+@pytest.mark.parametrize(("password", "motivo"), CONTRASENAS_RECHAZADAS)
+def test_el_cambio_rechaza_las_mismas_contrasenas_que_el_alta(
+    schema_app, admin_normal, password, motivo
+):
+    cliente = _cliente(schema_app, admin_normal)
+
+    respuesta = cliente.post(
+        f"/api/v1/admin/users/{admin_normal}/change-password",
+        json={"current_password": PASSWORD_VALIDA, "new_password": password},
+    )
+
+    assert respuesta.status_code == 422, motivo
+    assert respuesta.get_json()["errors"][0]["field"] == "new_password"
+
+
+def test_el_error_nombra_el_campo_correcto_en_cada_camino(schema_app, admin_normal, cliente_super):
+    """El motivo se adapta: `password` al crear, `new_password` al cambiar."""
+    alta = cliente_super.post("/api/v1/admin/users", json=_payload_creacion(password="corta"))
+    cambio = _cliente(schema_app, admin_normal).post(
+        f"/api/v1/admin/users/{admin_normal}/change-password",
+        json={"current_password": PASSWORD_VALIDA, "new_password": "corta"},
+    )
+
+    assert alta.get_json()["errors"][0]["detail"].startswith("password must be at least 12")
+    assert cambio.get_json()["errors"][0]["detail"].startswith("new_password must be at least 12")
+
+
+def test_una_contrasena_valida_se_acepta_y_permite_iniciar_sesion(schema_app, cliente_super):
+    """Regresión completa: crear con la política nueva y entrar con esa contraseña."""
+    nueva = f"valida-{secrets.token_urlsafe(12)}"
+    creado = cliente_super.post(
+        "/api/v1/admin/users",
+        json=_payload_creacion(username=f"{PREFIJO}-login", password=nueva),
+    )
+    assert creado.status_code == 201
+
+    respuesta = schema_app.test_client().post(
+        "/api/v1/admin/auth/login",
+        json={"username": f"{PREFIJO}-login", "password": nueva},
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.get_json()["data"]["administrator"]["username"] == f"{PREFIJO}-login"

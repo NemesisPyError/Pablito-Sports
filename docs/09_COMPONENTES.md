@@ -10,9 +10,9 @@
 | **Sistema** | Plataforma de Catálogo Comercial |
 | **Documento** | Componentes React |
 | **Código** | 09 |
-| **Versión** | 2.5.0 |
+| **Versión** | 2.10.0 |
 | **Estado** | 🟡 EN REVISIÓN |
-| **Fecha** | 18/08/2026 |
+| **Fecha** | 10/09/2026 |
 | **Documentos previos** | [00.3_NOMENCLATURA.md](00.3_NOMENCLATURA.md) ✅ · [02_ARQUITECTURA.md](02_ARQUITECTURA.md) ✅ · [02.1_DECISIONES_ARQUITECTONICAS.md](02.1_DECISIONES_ARQUITECTONICAS.md) ✅ · [06_FRONTEND.md](06_FRONTEND.md) ✅ · [07_PANEL_ADMIN.md](07_PANEL_ADMIN.md) ✅ · [08_UI_SYSTEM.md](08_UI_SYSTEM.md) ✅ · [09.0_COMPONENTES_ANALISIS_PREVIO.md](09.0_COMPONENTES_ANALISIS_PREVIO.md) ✅ |
 | **Documentos dependientes** | `99_AI_DEVELOPMENT_GUIDE.md` |
 
@@ -428,8 +428,7 @@ Cada componente documenta solo excepciones o estados adicionales.
 | `ProductFilters` | Feature (Catalog) | Container | Stable | Alta | P0 | Panel de filtros del catálogo. | `color-background-card`, `spacing-4`, `radius-md` |
 | `ProductSearch` | Feature (Catalog) | Container | Stable | Media | P0 | Buscador del catálogo. | `color-background-card`, `spacing-3`, `radius-md` |
 | `FiltersPanel` | Feature (Catalog) | Presentational | Stable | Media | P0 | Panel colapsable de filtros. | `color-background-card`, `spacing-4`, `radius-md` |
-| `VariantSelector` | Feature (Products) | Container | Stable | Alta | P0 | Selector de color y talle. | `spacing-3`, `radius-md`, `color-border` |
-| `ColorSelector` | Feature (Products) | Presentational | Internal | Baja | P1 | Selector de color (uso interno). | `radius-md`, `color-border`, `color-border-focus` |
+| `VariantSelector` | Feature (Products) | Container | Stable | Alta | P0 | Selector de talle. | `spacing-3`, `radius-md`, `color-border` |
 | `SizeSelector` | Feature (Products) | Presentational | Internal | Baja | P1 | Selector de talle (uso interno). | `radius-md`, `color-border`, `color-border-focus` |
 | `PriceBadge` | Feature (Catalog) | Presentational | Stable | Baja | P0 | Precio con oferta y descuento. | `color-text-primary`, `color-danger`, `font-size-md` |
 | `PromotionBadge` | Feature (Catalog) | Presentational | Stable | Baja | P0 | Badge de promoción vigente. | `color-danger`, `radius-pill` |
@@ -442,7 +441,9 @@ Cada componente documenta solo excepciones o estados adicionales.
 | `Carousel` | Global | Presentational | Stable | Media | P0 | Carril de desplazamiento horizontal con `scroll-snap` (`UDS-08`). | `carousel-visible-*`, `carousel-gap`, `carousel-control-size` |
 | `SectionHeader` | Global | Presentational | Stable | Baja | P0 | Encabezado de sección con eyebrow, título y enlace de escape. Colores heredados del tono de `Section` (`UDS-12`), nunca fijos. | `section-header-gap`, `font-size-2xl`, `letter-spacing-tight` |
 | `MediaTile` | Global | Presentational | Stable | Baja | P0 | Pieza de contenido con imagen administrable y fallback tipográfico (`UDS-09`). | `aspect-brand`, `aspect-category`, `radius-media`, `color-border` |
-| `Hero` | Feature (Store) | Presentational | Stable | Media | P0 | Pieza única de portada, administrable. Fondo con halo radial (`color-ink-800`/`900`) en vez de tinta plana. | `aspect-hero`, `color-overlay-hero`, `font-size-display`, `color-ink-800` |
+| `Hero` | Feature (Store) | Presentational | Stable | Media | P0 | Una pieza de portada, administrable. Fondo con halo radial (`color-ink-800`/`900`) en vez de tinta plana. | `aspect-hero`, `color-overlay-hero`, `font-size-display`, `color-ink-800` |
+| `HeroCarousel` | Feature (Store) | Container | Stable | Media | P0 | Rotación de piezas de la zona `hero`: autoplay 4,5s, flechas, indicadores, `prefers-reduced-motion` (v2.7.0). | `carousel-control-size`, `duration-slow`, `focus-ring-color-inverse` |
+| `NewArrivalsCarousel` | Feature (Store) | Container | Stable | Media | P0 | Carrusel de productos de Novedades: selección editorial desde el panel, no `is_new` (v2.7.0). | `carousel-visible-categories`, `carousel-gap` |
 | `BrandRail` | Feature (Store) | Container | Stable | Baja | P1 | Carril de marcas del catálogo. | `carousel-visible-brands`, `aspect-brand` |
 | `CategoryRail` | Feature (Store) | Container | Stable | Media | P1 | Accesos comerciales por sexo y categoría. | `carousel-visible-categories`, `aspect-category` |
 | `ProductRail` | Feature (Catalog) | Container | Stable | Media | P0 | Carrusel compacto de productos de una consulta. | `carousel-visible-products`, `carousel-gap` |
@@ -457,7 +458,7 @@ Cada componente documenta solo excepciones o estados adicionales.
 |---|---|
 | **Props** | `product: ProductListItemDTO`, `variant?: 'grid' \| 'rail' \| 'compact'` (default: `'grid'`), `priority?: boolean` (default: `false`) |
 | **Eventos** | Ninguno; la tarjeta es un enlace. |
-| **Estados** | → estándar (`Default`, `Hover`, `Focus`); `Skeleton` durante la carga del listado. |
+| **Estados** | → estándar (`Default`, `Hover`, `Focus`); `Skeleton` durante la carga del listado. En `Hover` con puntero real (`@media (hover: hover)`) la imagen principal cruza en opacidad hacia `secondary_thumbnail_url` si el producto tiene una segunda foto activa. En táctil (v2.9.9, pedido explícito del usuario) el mismo cruce ocurre al mantener el dedo apretado sobre la foto — no depende de `:hover` ni de eventos sintéticos de mouse, lo controla `onTouchStart`/`onTouchMove`/`onTouchEnd` explícitamente, así que no se puede quedar "pegado"; se suelta con el dedo o al mover (scroll). |
 | **Accesibilidad** | La tarjeta entera es un único enlace; los distintivos no son focoables. `alt` de la imagen = nombre del producto. El anillo de foco lo dibuja la tarjeta, no el enlace interno, porque el objetivo accionable es la superficie completa. |
 | **Dependencias** | `ProductListItemDTO`, `Image`, `PriceBadge`, `PromotionBadge`, `AvailabilityBadge`, `Link` |
 | **Usado por** | `ProductGrid`, `ProductRail`, `SearchResults`, `RelatedProducts` |
@@ -479,10 +480,13 @@ Cada componente documenta solo excepciones o estados adicionales.
 │ Botín Mercurial Vapor 15    │  nombre — 2 líneas máximo
 │ Gs. 890.000  Gs. 1.270.000  │  precio vigente + lista tachado
 │ ● Stock bajo                │  disponibilidad, solo si no es normal
+│ 38  40  42  45               │  talles con stock, en chips
 └─────────────────────────────┘
 ```
 
 Reglas: la imagen es el 70 % de la altura de la tarjeta. El nombre se recorta a dos líneas con altura reservada, de modo que dos tarjetas contiguas nunca se desalinean. La disponibilidad solo se muestra cuando aporta urgencia o advertencia (`low_stock`, `out_of_stock`); `available` no dibuja nada, porque decir lo esperable es ruido. **v1.4.0 (`RN-38b`):** el estado se deriva de la cantidad real cargada por variante (`derive_availability`, `05_API.md` §10.5) — "Últimas unidades" pasa a llamarse **"Stock bajo"** y "Sin stock" pasa a llamarse **"No disponible"**; se retira el estado `coming_soon`.
+
+**v2.7.0:** se agregan los talles con stock (`available_sizes`, chips en varias filas si hace falta, tope de 6 más un chip "+N"). Solo llegan los que realmente tienen cantidad mayor a 0 — el servidor ya los filtró, la tarjeta no repite ese criterio. Sin talles cargados no se dibuja la fila.
 
 #### Variantes
 
@@ -496,7 +500,7 @@ Reglas: la imagen es el 70 % de la altura de la tarjeta. El nombre se recorta a 
 
 #### Por qué no hay acción de agregar al carrito
 
-`RN-53` fija la **variante** como unidad del carrito, y `ProductListItemDTO` no transporta variantes: solo `slug`, `name`, `brand`, `primary_category`, precios, `availability`, `is_new`, `is_featured` y `thumbnail_url`. Un botón de «agregar» en el listado tendría que elegir un color y un talle por el cliente, o inventar una variante por defecto que el modelo no define. La selección vive en la ficha, donde está `VariantSelector`.
+`RN-53` fija la **variante** como unidad del carrito, y `ProductListItemDTO` no transporta variantes con identificador propio — desde v2.7.0 sí trae `available_sizes` (§10.4), pero es solo la etiqueta del talle para mostrar, sin el `id` de variante que el carrito necesita para agregar algo. Un botón de «agregar» en el listado seguiría teniendo que resolver esa variante, o inventar una por defecto que el modelo no define. La selección sigue viviendo en la ficha, donde está `VariantSelector`.
 
 ### `Carousel`
 
@@ -543,12 +547,15 @@ Sin imagen, la pieza **no** muestra un hueco gris: muestra el nombre compuesto t
 
 ### `Hero`
 
-> **Corrección (v2.2.0):** v2.0.0 había documentado esto como `HeroCarousel`,
-> un carrusel de varias piezas. Lo que se construyó —y lo que pidió el
-> negocio, ver `01_ANALISIS_NEGOCIO.md`— es lo opuesto a propósito: **una
-> sola pieza, nunca una rotación**. La portada abre con una afirmación; un
-> carrusel obliga a esperar para leerla entera y mueve el contenido bajo el
-> puntero. Esta entrada se corrige para describir el componente real.
+> **Corrección (v2.7.0):** v2.2.0 había corregido esto a pieza única,
+> revirtiendo el `HeroCarousel` de v2.0.0, citando una decisión de negocio
+> contra la rotación. Pedido explícito del usuario: **se revierte esa
+> corrección** — la zona `hero` vuelve a admitir varias piezas, con avance
+> automático cada 4,5s, flechas, indicadores y `prefers-reduced-motion`. La
+> pieza única sigue existiendo como el caso de una sola imagen: la rotación
+> la aporta `HeroCarousel` (nuevo, abajo), que decide cuántas piezas hay y
+> delega en `Hero` el dibujo de la que está activa. `Hero` en sí no cambia
+> de contrato ni sabe que existe un carrusel alrededor.
 
 | Campo | Valor |
 |---|---|
@@ -557,12 +564,59 @@ Sin imagen, la pieza **no** muestra un hueco gris: muestra el nombre compuesto t
 | **Estados** | `Default` (con imagen); `Plain` (sin `image_url`: se sostiene con tipografía sobre `color-ink-900`, no deja un hueco); no se renderiza si `banner` es `null` —la Home continúa sin hueco—. |
 | **Accesibilidad** | El título del banner es un `<h2>` (`id={titleId}`); el `<h1>` de la Home es un encabezado propio, oculto visualmente. `alt=""` en la imagen: el titular visible ya dice lo mismo, repetirlo duplicaría el anuncio del lector de pantalla. |
 | **Dependencias** | `BannerDTO`, `Image`, `Link` |
-| **Usado por** | `HomePage` |
+| **Usado por** | `HeroCarousel` (directamente cuando hay 0 o 1 pieza; como la vista de "pieza actual" cuando hay varias) |
 | **Composición** | Puede contener: `Image`, `Link`. No puede contener: `Carousel`, `ProductCard`. |
 | **Tokens** | `aspect-hero`, `color-overlay-hero`, `font-size-display`, `color-action-accent-bg` |
-| **Prohibiciones** | No es un carrusel y no debe volver a serlo (ver nota de corrección arriba). No asume `description` ni identificador público del banner: el contrato real es `title`, `subtitle`, `image_url`, `link_url`, `button_label`, `placement`, `position` (§10.3). Si hay más de una pieza en la zona `hero`, se publica la de menor `position`; las demás no se muestran acá. No renderiza el botón primario cuando `link_url` es nulo — el secundario a Promociones es fijo y siempre se muestra. |
+| **Prohibiciones** | No asume `description` ni identificador público del banner: el contrato real es `title`, `subtitle`, `image_url`, `link_url`, `button_label`, `placement`, `position` (§10.3). No renderiza el botón primario cuando `link_url` es nulo — el secundario a Promociones es fijo y siempre se muestra. No decide rotación ni cuántas piezas hay: eso es de `HeroCarousel`. |
 
 Es el elemento con mayor peso visual de la portada y la única imagen que justifica precarga: se pide sin diferir (`lazy={false}`) y con `fetchpriority="high"`, porque es el LCP de la página.
+
+### `HeroCarousel`
+
+Rotación de piezas de la zona `hero` (v2.7.0). No reutiliza `Carousel`
+(`COMPP-04`: sin autoplay ni bucle infinito, por accesibilidad) — es
+deliberadamente un componente aparte, porque acá el avance automático es
+justo lo que se pidió, con las mismas salvaguardas que `COMPP-04` exige en
+espíritu: pausa en interacción y respeto de `prefers-reduced-motion`.
+
+| Campo | Valor |
+|---|---|
+| **Props** | `banners: BannerDTO[]`, `titleId?: string` (default: `'hero-title'`) |
+| **Eventos** | Ninguno público; internamente gestiona el índice activo. |
+| **Estados** | 0 piezas: no dibuja nada. 1 pieza: delega directo en `Hero`, sin controles ni temporizador. 2+: rotación con flechas, indicadores (`role="tablist"`) y avance automático cada 4,5s. |
+| **Comportamiento** | El temporizador se reinicia en cada cambio de pieza, manual o automático, para que un clic no compita con el siguiente avance. Se pausa con `hover`/`focus` sobre el carrusel. No avanza si `prefers-reduced-motion: reduce` — ninguna rotación forzada para quien la pidió apagada, con o sin controles manuales disponibles. Solo se mide en el DOM la pieza activa (`key` la remonta): la transición es de entrada (`opacity`), no un cruce entre dos imágenes superpuestas, lo que evita que el contenedor pierda su alto al no haber piezas apiladas en `position: absolute`. |
+| **Accesibilidad** | Igual que `Carousel`: `Anterior`/`Siguiente` con `aria-label`; los indicadores llevan `aria-selected` y describen su destino ("Ir a la pieza N de M"). La animación de entrada queda neutralizada globalmente por `prefers-reduced-motion` (`base.css` §10.5). |
+| **Dependencias** | `Hero`, `heroCarouselMetrics.js` (`wrapIndex`, `shouldAutoplay`, lógica pura y testeada aparte del componente, mismo criterio que `carouselMetrics.js` de `Carousel`) |
+| **Usado por** | `HomePage` |
+| **Composición** | Contiene instancias de `Hero`, nunca otro `Carousel`. |
+| **Tokens** | `carousel-control-size`, `z-index-dropdown`, `radius-pill`, `focus-ring-color-inverse`, `duration-slow` |
+| **Prohibiciones** | No reordena piezas: el orden es `position`, el mismo que fija el panel. No clona nodos para simular un bucle infinito — al llegar al final, "Siguiente" vuelve a la primera pieza sin duplicar DOM (mismo criterio de `COMPP-04`, aplicado con temporizador en vez de con `scroll-snap`). |
+
+### `NewArrivalsCarousel`
+
+> **Corrección (v2.7.0):** reemplaza en esta zona de la Home a `BannerRail
+> placement="news"` (ver nota en §10.1 «Ejes de navegación»). Pedido
+> explícito del usuario: Novedades deja de ser un carril de imágenes
+> administradas para pasar a ser una selección editorial de **productos**
+> del catálogo, elegidos a mano en el panel. `Banner.placement="news"` no se
+> retira del modelo — sigue existiendo por si se reutiliza más adelante —
+> pero ya no tiene consumidor público.
+
+Carril grande de `ProductCard`, con el mismo desenfoque decorativo de
+bordes que `BannerRail`, un poco más marcado por tratarse de tarjetas
+claras en vez de campañas sobre tinta.
+
+| Campo | Valor |
+|---|---|
+| **Props** | `id: string`, `eyebrow?: string`, `title: string`, `href?: string`, `tone?: 'default' \| 'inverse'` |
+| **Eventos** | Ninguno. |
+| **Estados** | Sin selección (`products.home_new_position` nulo en todo el catálogo): no dibuja nada, ni encabezado ni carril vacío. Con selección: carrusel de `ProductCard variant="grid"`, en el orden de `home_new_position`. |
+| **Accesibilidad** | Hereda la de `Carousel` (`role="group"`, `aria-roledescription="carrusel"`, controles con `aria-label`). El desenfoque de bordes es decorativo, `aria-hidden` y `pointer-events: none`. |
+| **Dependencias** | `Carousel` (`metric="categories"`), `ProductCard`, `ProductListItemDTO` (con `available_sizes`, §10.4) |
+| **Usado por** | `HomePage` |
+| **Composición** | Contiene `ProductCard`, nunca otra pieza. |
+| **Tokens** | `carousel-visible-categories`, `carousel-gap`, `radius-md` |
+| **Prohibiciones** | No usa `is_new` como fuente: ese campo es un autotoggle por producto sin curaduría ni orden propio, y confundirlo con esta selección editorial es justo lo que se quiso evitar (ver nota de corrección). No pagina — es un conjunto curado, mismo criterio que `BrandShowcase`. |
 
 ### `PublicNavbar`
 
@@ -588,10 +642,28 @@ Es el elemento con mayor peso visual de la portada y la única imagen que justif
 |---|---|---|
 | `HOMBRES` | `gender` = `men,unisex` | `/catalogo?gender=men,unisex` |
 | `MUJERES` | `gender` = `women,unisex` | `/catalogo?gender=women,unisex` |
-| `NIÑOS` | `gender` = `boys,girls` | `/catalogo?gender=boys,girls` |
+| `INFANTIL` | `gender` = `boys,girls` | `/catalogo?gender=boys,girls` |
+| `DEPORTES` | Entidad `Sport` (`GET /api/v1/sports`) | `/catalogo?sport=<slug>` (eje: `/catalogo`) |
 | `ACCESORIOS` | Categoría raíz `accesorios` | `/catalogo?category=accesorios` |
 | `NOVEDADES` | Filtro `is_new` | `/catalogo?is_new=true` |
 | `PROMOCIONES` | Filtro `on_sale` | `/catalogo?on_sale=true` |
+
+> **`DEPORTES` (v2.8.0)** reutiliza la entidad `Sport` ya existente
+> (`04_BASE_DATOS.md`, `05_API.md` §7.7) — no crea backend nuevo. A
+> diferencia de `HOMBRES`/`MUJERES`/`INFANTIL`, no combina eje con categoría:
+> el panel de `MegaMenu` lista los deportes reales como enlaces planos
+> (sin jerarquía de categorías ni bloque "Marcas"), cada uno resolviendo
+> `/catalogo?sport=<slug>`. El eje en sí (botón «DEPORTES» / «Ver todo
+> Deportes») enlaza al catálogo sin filtro de deporte, igual que
+> `ACCESORIOS` enlaza a su categoría raíz sin subfiltro.
+>
+> **v2.9.1** — si el panel administra una **categoría** de producto con
+> slug `deportes` (distinta de la entidad `Sport`), esa categoría queda
+> excluida de los árboles de `HOMBRES`/`MUJERES`/`INFANTIL` con el mismo
+> criterio que `ACCESORIOS` (`SPORTS_CATEGORY_SLUG` en `navAxes.js`):
+> mostrarla ahí duplicaría visualmente el eje `DEPORTES` real. La categoría
+> no se borra ni deja de administrarse en el panel, solo no se anida en
+> esos tres menús.
 
 `PROMOCIONES` y `NOVEDADES` no abren panel y llevan directo al listado
 filtrado; `PROMOCIONES` además se distingue con un filete `volt` bajo la
@@ -599,22 +671,27 @@ etiqueta, el único uso del acento en la barra.
 
 > **`NOVEDADES` del navbar ≠ sección "Novedades" de la Home.** El eje de
 > arriba es un atajo de navegación sobre `products.is_new` (marca manual del
-> administrador, `RN-43`). La sección "Novedades" que aparece en la Home
-> justo debajo del hero es otra cosa: un carril editorial de imágenes
-> grandes, administrado como `Banner` con `placement="news"`
-> (`04_BASE_DATOS.md` §9.2.11, `07_PANEL_ADMIN.md` §14.6). No hay que
-> confundirlos ni intentar unificarlos — son dos formas distintas de mostrar
-> "lo nuevo": una por producto, otra editorial y curada a mano.
+> administrador, `RN-43`), y sigue siéndolo. La sección "Novedades" que
+> aparece en la Home justo debajo del hero **cambió de naturaleza en
+> v2.7.0**: hasta esa versión era un carril editorial de imágenes
+> (`Banner` con `placement="news"`); ahora es `NewArrivalsCarousel` (§9.8,
+> nuevo), un carrusel de **productos** elegidos a mano desde "Agregar a
+> novedades" en el listado de productos del panel (`products.home_new_position`,
+> `04_BASE_DATOS.md` §9.2.1, `07_PANEL_ADMIN.md` §14.2). Sigue sin ser
+> `is_new`: seguir sin confundirlos — uno es un autotoggle por producto sin
+> curaduría ni orden, el otro es una selección editorial ordenada. La zona
+> `Banner.placement="news"` deja de tener consumidor público, pero no se
+> retira del modelo ni del panel (ver v2.7.0 más abajo).
 
 ### `MegaMenu`
 
 | Campo | Valor |
 |---|---|
-| **Props** | `axis: NavAxis`, `categories: CategoryTreeDTO[]`, `brands: BrandDTO[]`, `isOpen: boolean`, `onClose: () => void` |
+| **Props** | `axis: NavAxis`, `categories: CategoryTreeDTO[]`, `brands: BrandDTO[]`, `sports: SportDTO[]`, `isOpen: boolean`, `onClose: () => void` |
 | **Eventos** | `onClose` |
-| **Estados** | `Closed`, `Open`; `Empty` si el eje no tiene categorías **ni marcas** cargadas —en cuyo caso el eje enlaza directo y no despliega nada—. |
+| **Estados** | `Closed`, `Open`; `Empty` si el eje no tiene categorías **ni marcas ni deportes** cargados —en cuyo caso el eje enlaza directo y no despliega nada—. |
 | **Accesibilidad** | Panel de navegación, **no** diálogo: no captura el foco. Se cierra con `Escape`, al salir con `Tab` o al perder el puntero con retardo `delay-short`. |
-| **Dependencias** | `CategoryTreeDTO`, `BrandDTO`, `MediaTile`, `Link` |
+| **Dependencias** | `CategoryTreeDTO`, `BrandDTO`, `SportDTO`, `MediaTile`, `Link` |
 | **Usado por** | `PublicNavbar` |
 | **Composición** | Puede contener: `Link`, `MediaTile` (bloque "Marcas"). No puede contener: `Carousel`, `Form`, `ProductCard`. |
 | **Tokens** | `color-ink-800`, `color-text-inverse`, `shadow-md`, `spacing-5`, `z-index-dropdown` |
@@ -630,28 +707,90 @@ enlace compone eje + marca: `/catalogo?gender=<eje>&brand=<slug>`. Es el
 mismo listado de marcas en los tres ejes de sexo — las marcas no tienen
 sexo propio en el modelo, el filtro de sexo lo aporta el eje, no la marca.
 
+**v2.10.0 — filtrado por sexo de la categoría (`RN-83`).** Qué categorías
+entran en cada eje ya no es el árbol completo: cada categoría declara en el
+panel a qué sexos aplica, y el eje muestra las que comparten al menos uno con
+él. `HOMBRES` compara contra `men,unisex`; `MUJERES` contra `women,unisex`;
+`INFANTIL` contra `boys,girls`. La regla vive en
+`shared/utils/categoryGenders.js` y no en `navAxes.js`, porque el filtro del
+catálogo aplica exactamente la misma y duplicarla garantizaría que un día
+discrepen.
+
+Tres precisiones que sostienen el comportamiento:
+
+- **Una categoría sin sexos no está restringida** y aparece en los tres ejes
+  (`AD-41`). Es lo que hace que el árbol ya cargado se siga viendo igual.
+- **Las subcategorías se filtran dentro de su columna**: una hija puede quedar
+  fuera aunque la madre aplique.
+- **Una raíz que no aplica sobrevive si alguna hija sí aplica.** `AD-29` hace
+  que filtrar por el padre incluya a los descendientes, así que esconder la
+  columna dejaría a esas hijas sin camino. La columna desaparece solo cuando
+  no queda nada que ofrecer.
+
+Esto reemplaza a la lista de slugs excluidos que `navAxes.js` mantenía a mano
+(`ACCESSORIES_SLUG`, `SPORTS_CATEGORY_SLUG`): esas dos siguen existiendo
+porque son ejes propios, no exclusiones de sexo, pero ya no hacen falta
+entradas nuevas para cada categoría que el administrador no quiera en un menú.
+
+**v2.8.0 — eje `DEPORTES`.** A diferencia de los ejes de sexo, el panel de
+`DEPORTES` no combina con categorías ni marcas: lista los deportes reales
+(`GET /api/v1/sports`) como enlaces planos, sin agrupar por nada — no hay
+jerarquía de "grupo con hijos" porque `Sport` no tiene subcategoría. Cada
+enlace resuelve `/catalogo?sport=<slug>`.
+
 ### `PublicFooter`
+
+**v2.9.6 — reestilado sobre referencia visual** (pedido explícito del
+usuario): misma estructura de columnas de v2.9.2 (Marca + Soporte + Formas de
+pago + Redes/Ubicación), con iconografía en línea (mismo criterio sin
+librería que `PublicNavbar`), tarjetas con borde, encabezados con divisor
+corto en el acento azul (`--color-volt-500`), un CTA de WhatsApp de la tienda
+bajo la marca, una columna "Ubicación" (enlace a Google Maps, sin mapa
+embebido ni SDK), un bloque "Desarrollado por CodingMaxPy" (WhatsApp fijo,
+`+595 986 848215`, no un dato de `store_settings`) y el horario en un bloque
+propio al final, separado del resto por un divisor — antes iba mezclado en la
+línea de datos institucionales del pie.
+
+La franja de bancos con reintegros de la imagen de referencia **no se
+reprodujo**: nombra entidades financieras y porcentajes de otro negocio, no
+confirmados para Pablito Sports, y no formaba parte del pedido escrito — solo
+de la captura. Mostrarla habría violado la prohibición ya vigente de este
+componente de no inventar datos comerciales.
 
 | Campo | Valor |
 |---|---|
 | **Props** | `storeSettings: StoreSettingsPublicDTO` |
 | **Eventos** | Ninguno. |
-| **Estados** | `Default`; cada bloque se omite si su dato no está cargado. |
-| **Accesibilidad** | `<footer>` con encabezados por columna; en móvil el acordeón usa `aria-expanded`. Los datos de contacto no se colapsan. |
-| **Dependencias** | `StoreSettingsPublicDTO`, `Accordion`, `Link`, `Icon` |
+| **Estados** | `Default`; cada bloque se omite si su dato no está cargado (redes sin cargar, columna entera fuera; sin dirección, no hay columna "Ubicación" ni ubicación en el pie; sin horario, no hay bloque de horario). |
+| **Accesibilidad** | `<footer>` con un `<nav aria-labelledby>` por columna de enlaces. En móvil las columnas se apilan, sin colapsar — no hay acordeón. Los íconos son decorativos (`aria-hidden`); el texto es lo que anuncia el lector de pantalla. |
+| **Dependencias** | `StoreSettingsPublicDTO`, `Link`, `simpleWhatsAppHref` (`shared/utils/whatsapp.js`) |
 | **Usado por** | `PublicLayout` |
-| **Composición** | Puede contener: `Accordion`, `Link`, `Icon`. No puede contener: `Form`, `Carousel`. |
-| **Tokens** | `color-surface-inverse`, `color-text-inverse`, `color-text-inverse-muted`, `border-inverse`, `section-gap-y` |
-| **Prohibiciones** | No inventa datos comerciales —envíos, garantías, medios de pago— que la tienda no haya declarado. Solo muestra lo que existe en `store_settings`. |
+| **Composición** | Puede contener: `Link`, glifos SVG en línea. No puede contener: `Form`, `Carousel`, `Accordion`, mapa embebido. |
+| **Tokens** | `color-surface-inverse`, `color-text-inverse`, `color-text-inverse-muted`, `color-ink-800`, `color-volt-500`, `color-volt-on`, `border-inverse`, `radius-md`, `radius-pill`, `section-gap-y` |
+| **Prohibiciones** | No inventa datos comerciales que la tienda no haya declarado: redes, dirección y horario solo se muestran si existen en `store_settings`. Las tres formas de pago son texto fijo confirmado por el negocio (v2.9.2) — no un campo de `store_settings`. Los cuatro enlaces legales de "Soporte" sin contenido todavía llevan a una página real (`LegalPlaceholderPage`), nunca a `href="#"`. No reproduce la franja de bancos/reintegros de la referencia visual (ver nota arriba). El WhatsApp de "Desarrollado por" es del desarrollador, fijo en código — no debe confundirse con el de la tienda (`store_settings.whatsapp_number`), que es el del CTA bajo la marca. |
 
 #### Estructura
 
 | Columna | Contenido | Origen |
 |---|---|---|
-| **1 — Marca** | Logotipo tipográfico, frase breve, redes. | `store_name`, `social_links` |
-| **2 — Comprar** | Hombres, Mujeres, Niños, Accesorios, Promociones. | Mismos ejes del navbar |
-| **3 — La tienda** | Nosotros, Contacto. | Rutas existentes |
-| **4 — Contacto** | WhatsApp, dirección, horarios. | `whatsapp_number`, `address`, `business_hours` |
+| **1 — Marca** | Nombre de la tienda, frase breve, CTA "Consultanos por WhatsApp". | `store_name`, `whatsapp_number` |
+| **2 — Soporte** | Política de Envío y Reembolso, Preguntas Frecuentes, Términos del Servicio, Política de Privacidad, Contacto — cada uno con ícono. | Rutas fijas; los 4 primeros sin contenido legal todavía (`LegalPlaceholderPage`), "Contacto" es la página real. |
+| **3 — Formas de pago** | Tarjeta de Crédito/Débito, Pago Contra Entrega, Transferencia Bancaria, cada una con ícono y descripción breve. | Texto fijo, confirmado por el negocio — no hay campo administrable. |
+| **4 — Redes sociales + Ubicación** | Tarjeta por red cargada; debajo, tarjeta de dirección con enlace a Google Maps. | `social_links`, `address`; cada bloque ausente si no hay dato. |
+| **Pie inferior** | Copyright, dirección corta, "Desarrollado por CodingMaxPy" (enlace a WhatsApp fijo). | `store_name`, `address`, WhatsApp fijo del desarrollador. |
+| **Horario** (bloque propio, al final) | "Horario de atención" + el texto de `business_hours`. | `business_hours`; no se repite en el pie inferior. |
+
+**v2.9.7** — sobre la misma referencia, el usuario confirmó dos cosas que
+v2.9.6 había dejado afuera por prudencia: los bancos con reintegro de la
+imagen **son reales** para Pablito Sports (se agrega la franja
+`BANK_PROMOTIONS`, fija en código, mismo criterio que `PAYMENT_METHODS`) y
+faltaba Facebook en Redes Sociales (dato de `social_links`, ya soportado por
+el componente — solo faltaba en los datos de ejemplo del entorno de
+desarrollo). El enlace "Ver en Google Maps" pasa de una búsqueda por texto
+derivada de `address` a la URL específica que generó Google para el local
+real (con su propio `geocode`, no derivable del texto de la dirección) — si
+la ubicación cambia, hay que regenerarla a mano desde Google Maps y
+actualizar `GOOGLE_MAPS_URL` en el componente.
 
 ### `TrustBar` (v2.3.0)
 
@@ -685,13 +824,13 @@ sexo propio en el modelo, el filtro de sexo lo aporta el eje, no la marca.
 
 | Campo | Valor |
 |---|---|
-| **Props** | `colors: ColorDTO[]`, `sizes: SizeDTO[]`, `selectedVariant?: VariantDTO`, `onChange: (variant: VariantDTO \| null) => void` |
+| **Props** | `sizes: SizeDTO[]`, `selectedVariant?: VariantDTO`, `onChange: (variant: VariantDTO \| null) => void` |
 | **Eventos** | `onChange` |
 | **Estados** | → estándar; `Error` si no se selecciona antes de agregar al carrito. |
 | **Accesibilidad** | Grupo de opciones con `role="radiogroup"`, foco visible, etiquetas. |
-| **Dependencias** | `ColorDTO`, `SizeDTO`, `VariantDTO`, `ColorSelector`, `SizeSelector`, `Alert` |
+| **Dependencias** | `SizeDTO`, `VariantDTO`, `SizeSelector`, `Alert` |
 | **Usado por** | `ProductDetailPage` |
-| **Composición** | Puede contener: `ColorSelector`, `SizeSelector`, `Alert`. No puede contener: `Button` (la acción es externa). |
+| **Composición** | Puede contener: `SizeSelector`, `Alert`. No puede contener: `Button` (la acción es externa). |
 | **Tokens** | `spacing-3`, `radius-md`, `color-border`, `color-border-focus` |
 | **Prohibiciones** | No agrega al carrito; solo emite la variante seleccionada. |
 
@@ -722,7 +861,7 @@ sexo propio en el modelo, el filtro de sexo lo aporta el eje, no la marca.
 | `HistoryTimeline` | Feature (Admin) | Presentational | Stable | Media | P1 | Línea de tiempo de historial de precios. | `color-border`, `spacing-4`, `font-size-sm` |
 | `PriceHistoryWidget` | Feature (Admin) | Presentational | Stable | Baja | P1 | Widget de últimos cambios de precio. | `color-background-card`, `spacing-3`, `radius-md` |
 | `StatusBadge` | Feature (Admin) | Presentational | Stable | Baja | P0 | Badge de estado para entidades del panel. | `color-success`, `color-warning`, `color-danger`, `radius-pill` |
-| `VariantMatrix` | Feature (Admin) | Presentational | Stable | Alta | P1 | Matriz de combinaciones color/talle, con cantidad editable y estado derivado (v1.4.0). | `color-border`, `spacing-2`, `radius-md`, `color-success`, `color-warning`, `color-danger` |
+| `VariantMatrix` | Feature (Admin) | Presentational | Stable | Alta | P1 | Matriz de variantes por talle, con cantidad editable y estado derivado (v1.4.0). | `color-border`, `spacing-2`, `radius-md`, `color-success`, `color-warning`, `color-danger` |
 | `ImageReorder` | Feature (Admin) | Container | Experimental | Alta | P1 | Reordenamiento drag-and-drop de imágenes. | `color-border`, `spacing-2`, `radius-md` |
 
 ### `AdminDataTable`
@@ -841,7 +980,10 @@ La regla general es: **si un componente solo cambia por el contexto en el que se
 | `COMPP-03` | `ImageGallery` no incluye lightbox en v1. |
 | `COMPP-04` | `Carousel` no implementa bucle infinito ni reproducción automática: duplicar nodos rompe el orden de tabulación y el movimiento no solicitado perjudica la accesibilidad. |
 | `COMPP-05` | `MediaTile` nace con estado `Fallback` como comportamiento normal, no como error: es el estado que usará hasta que exista soporte de imágenes administrables para marcas y categorías. |
-| `COMPP-06` | La navegación no crea categorías por sexo: `HOMBRES`, `MUJERES` y `NIÑOS` se resuelven con el eje `gender` combinado con las categorías reales. |
+| `COMPP-06` | La navegación no crea categorías por sexo: `HOMBRES`, `MUJERES` e `INFANTIL` se resuelven con el eje `gender` combinado con las categorías reales. |
+| `COMPP-07` | `HeroCarousel` (v2.7.0) no reutiliza `Carousel` para su autoplay: `COMPP-04` prohíbe reproducción automática en `Carousel` por accesibilidad, y esa prohibición se mantiene ahí. El autoplay del hero es una excepción explícita, pedida por el usuario, en un componente aparte y con sus propias salvaguardas (pausa en interacción, respeto de `prefers-reduced-motion`) — no una relajación general de `COMPP-04`. |
+| `COMPP-09` | El eje de sexo del menú (v2.10.0) no infiere qué categorías le corresponden a partir de los productos que contienen: lo declara el administrador en la categoría (`RN-83`). Inferirlo haría que el menú cambiara solo al cargar o agotar un producto, y dejaría al administrador sin forma de decidir. |
+| `COMPP-08` | Novedades (v2.7.0) no reutiliza `is_featured` ni `is_new` para su selección: `is_featured` ya alimenta "Destacados" y `is_new` es un autotoggle sin curaduría ni orden propio. La selección editorial vive en `products.home_new_position`, mismo patrón que `brands.home_position`. |
 
 ---
 
@@ -849,6 +991,17 @@ La regla general es: **si un componente solo cambia por el contexto en el que se
 
 | Versión | Fecha | Estado | Descripción |
 |---|---|---|---|
+| **2.10.0** | 10/09/2026 | 🟡 EN REVISIÓN | **`MegaMenu` filtra las categorías por sexo (`RN-83`, `07_PANEL_ADMIN.md` v1.15.0, `05_API.md` v1.10.0, pedido explícito del usuario).** §9.8: cada eje de sexo deja de mostrar el árbol completo y muestra solo las categorías que declaran ese sexo en el panel. La regla se extrae a `shared/utils/categoryGenders.js` porque el filtro del catálogo aplica la misma. Las subcategorías se filtran dentro de su columna, y una raíz que no aplica sobrevive si alguna hija sí (`AD-29`). Reemplaza a la lista de slugs excluidos que `navAxes.js` mantenía a mano. **`COMPP-09` nueva**: el eje no infiere las categorías a partir de sus productos, lo declara el administrador. Sin sexos = sin restricción (`AD-41`), así que el menú se ve igual hasta que el administrador destilde algo. |
+| **2.9.9** | 24/08/2026 | 🟡 EN REVISIÓN | **`ProductCard` — segunda foto también en táctil.** Pedido explícito del usuario: en mobile no hay hover, así que al mantener apretada la foto del catálogo pasa a la segunda imagen, igual que el hover de escritorio. `ProductCard.jsx` suma `onTouchStart`/`onTouchMove`/`onTouchEnd`/`onTouchCancel` sobre el mismo `enHover` que ya usaba el mouse; `.hoverImageVisible` deja de estar condicionada a `@media (hover: hover)` (ya no depende de un evento sintético que se pudiera "pegar" — el estado táctil se controla explícitamente). El zoom por `:hover` de la imagen principal sigue siendo exclusivo de mouse, sin cambios. |
+| **2.9.8** | 24/08/2026 | 🟡 EN REVISIÓN | **Logotipos reales en la franja de bancos.** Pedido explícito del usuario. `BANK_PROMOTIONS` pasa de mostrar el nombre de cada banco en texto a su logotipo real (recortado de la imagen de referencia que el usuario ya había provisto), servido como estático desde `frontend/public/banks/` — no pasa por el pipeline de derivados de imágenes de productos/banners. Se corrige de paso un `<img loading="lazy">` sin ancho explícito que nunca llegaba a cargar en el entorno de verificación. |
+| **2.9.7** | 24/08/2026 | 🟡 EN REVISIÓN | **Correcciones sobre el reestilo del Footer.** El usuario confirmó que los bancos con reintegro de la referencia (Contimarket, Sudameris, Banco GNB, Progresar, Bancop y una sexta tarjeta genérica) son reales para Pablito Sports — se agregan como franja fija `BANK_PROMOTIONS`, mismo criterio que `PAYMENT_METHODS`. Se agrega Facebook a "Redes sociales" (ya soportado por el componente; faltaba en los datos de ejemplo de desarrollo) con su color de marca en el ícono, igual que Instagram. El enlace "Ver en Google Maps" pasa de una búsqueda por texto a la URL específica con el `geocode` real del local, provista por el usuario. |
+| **2.9.6** | 24/08/2026 | 🟡 EN REVISIÓN | **Footer reestilado sobre referencia visual.** Pedido explícito del usuario, sobre una captura de una tienda de referencia. `PublicFooter` (§9.8) conserva la estructura de columnas de v2.9.2, ahora con iconografía en línea, tarjetas con borde, encabezados con divisor azul (`--color-volt-500`), un CTA de WhatsApp de la tienda, columna "Ubicación" (enlace a Google Maps, sin mapa embebido), bloque "Desarrollado por CodingMaxPy" (WhatsApp fijo del desarrollador, `+595 986 848215`) y el horario en un bloque propio al final. Nuevo `shared/utils/whatsapp.js::simpleWhatsAppHref`, reutilizado también por `StoryBlock` (antes tenía la misma función duplicada localmente). La franja de bancos con reintegros de la referencia no se reprodujo — nombra entidades y porcentajes de otro negocio, no confirmados para Pablito Sports, y no formaba parte del pedido escrito. |
+| **2.9.2** | 24/08/2026 | 🟡 EN REVISIÓN | **Footer reestructurado.** Pedido explícito del usuario, sobre referencia visual. `PublicFooter` (§9.8) pasa de 4 columnas de navegación (Marca/Comprar/La tienda/Contacto) a Marca + Soporte (5 enlaces, 4 sin contenido legal aún) + Formas de pago (3 ítems fijos) + Redes sociales (dinámico, `social_links`), con los datos institucionales movidos al pie inferior junto al copyright. Nuevo componente `LegalPlaceholderPage` (una sola pantalla parametrizada por título) sirve los 4 enlaces "Soporte" sin contenido: páginas reales y accesibles, nunca `href="#"`. Se corrige de paso una descripción desactualizada del contrato ("acordeón en móvil") que nunca reflejó el componente real. |
+| **2.9.1** | 24/08/2026 | 🟡 EN REVISIÓN | **La categoría "Deportes" no se anida en Hombres/Mujeres/Infantil.** Pedido explícito del usuario: si el panel tiene una categoría de producto con slug `deportes` (distinta de la entidad `Sport`), aparecía duplicada como subcategoría dentro de los tres ejes de sexo, compitiendo con el eje `DEPORTES` real. `navAxes.js` suma `SPORTS_CATEGORY_SLUG` y la excluye de `wearable` con el mismo criterio que `ACCESORIOS`. La categoría sigue existiendo y administrable en el panel; solo deja de anidarse en esos tres menús. |
+| **2.9.0** | 24/08/2026 | 🟡 EN REVISIÓN | **Etiqueta del eje de sexo infantil.** Pedido explícito del usuario. El eje `NIÑOS` del navbar pasa a llamarse `INFANTIL` — solo la etiqueta comercial (`GENDER_AXES` en `navAxes.js`), la clave interna (`ninos`) y el eje `gender=boys,girls` no cambian. Se alinea con la etiqueta `group: 'Infantil'` que ya usaba `useCatalogFilters.js` para agrupar Niños/Niñas en el filtro de sexo del catálogo. |
+| **2.8.0** | 24/08/2026 | 🟡 EN REVISIÓN | **Eje `DEPORTES` en el navbar.** Pedido explícito del usuario. `PublicNavbar` agrega un eje `DEPORTES` entre `NIÑOS` y `ACCESORIOS`, reutilizando la entidad `Sport` ya existente (`GET /api/v1/sports`) — sin backend nuevo. `MegaMenu` suma la prop `sports: SportDTO[]` y, para este eje, lista los deportes como enlaces planos (sin agrupar por categoría ni bloque "Marcas", a diferencia de los ejes de sexo). Cada enlace resuelve `/catalogo?sport=<slug>`. |
+| **2.7.0** | 24/08/2026 | 🟡 EN REVISIÓN | **Tanda funcional y visual: hover de imagen, Hero rotativo, Novedades editorial, talles en la tarjeta.** Pedido explícito del usuario. `Hero` deja de ser pieza única: se agrega `HeroCarousel` (§9.8, nuevo), que revierte la corrección de v2.2.0 sobre una decisión de negocio anterior — el usuario confirmó explícitamente la reversión al presentársele el conflicto. `Hero` no cambia de contrato, solo pasa a ser la vista de "pieza actual" dentro del carrusel. Novedades cambia de naturaleza: `BannerRail placement="news"` deja de estar en la Home y se reemplaza por `NewArrivalsCarousel` (§9.8, nuevo), selección editorial de **productos** (`products.home_new_position`, patrón de `brands.home_position`) — no `is_new`. `ProductCard` suma talles con stock (`available_sizes`) y ajusta su hover/zoom para no quedar "pegado" en táctil (`@media (hover: hover) and (pointer: fine)`). Nuevas decisiones `COMPP-07`, `COMPP-08`. |
+| **2.6.0** | 19/08/2026 | 🟡 EN REVISIÓN | **Eliminación de "color" del catálogo** (`01_ANALISIS_NEGOCIO.md` 2.7.0, pedido del administrador). `VariantSelector` (§9.8) pasa a ser solo selector de talle: pierde la prop `colors`, la dependencia de `ColorDTO`, y la composición con `ColorSelector`. Se retira la fila `ColorSelector` del inventario (§9.8) — ya era aspiracional, sin archivo propio (`VariantSelector.jsx` lo maneja todo). `VariantMatrix` (§9.8) pasa a describirse como matriz por talle. |
 | **2.5.0** | 18/08/2026 | 🟡 EN REVISIÓN | **Más tinta, menos blanco (`08_UI_SYSTEM.md` v2.3.0, `UDS-12`).** Novedades y Ofertas destacadas (`BannerRail`) y Promociones (`ProductRail`) pasan a `tone="inverse"` en `HomePage`: de 2 bloques oscuros en la Home a 5, con Destacados como único respiro claro. `Section` (§9.8) suma variables CSS de tono para que `SectionHeader` herede sus colores sin conocer el tono. `Hero` cambia su fondo a un halo radial; `BannerRail` suma diagonales sutiles al marco del carrusel; `BrandShowcase` suma un filete de acento en el borde superior. Decisión explícita del usuario tras revisar mockups de las opciones. |
 | **2.4.0** | 18/08/2026 | 🟡 EN REVISIÓN | **Logotipos ilegibles en el menú de navegación.** `MegaMenu` (§9.8, bloque "Marcas") y el cajón móvil de `PublicNavbar` usaban `tone="inverse"` en `MediaTile` — un tile con fondo casi negro pensado para verse "sobre un bloque de tinta". Los logotipos reales son tinta negra sobre transparente: sobre un fondo casi negro quedaban invisibles. Se quita `tone="inverse"` en ambos; el bloque "Marcas" pasa al tile claro por defecto, igual que `BrandStrip`. Reportado por el usuario como *"al subir estos aparecen con fondo negro"*. Un segundo problema, no relacionado con `MediaTile`, se documenta en `99_AI_DEVELOPMENT_GUIDE.md` v1.4.0 §17.1.6: el WebP con alfa de los logotipos se decodifica mal en una franja real de navegadores; el canónico de `brands` pasa a JPEG. |
 | **2.3.0** | 17/08/2026 | 🟡 EN REVISIÓN | **Diseño visual de la Home.** Se agrega `TrustBar` (§9.8) entre `BannerRail placement="promo"` y `StoryBlock`. Decisión explícita del usuario, revertida sobre una decisión previa de la misma tanda que la había rechazado. `WhatsappTemplateForm` (reincorporado en 2.2.0) vuelve a quedar sin ruta en el panel — a diferencia de la retirada de v2.1.0, esta vez el componente **no se elimina**, solo deja de estar enlazado, junto con `SettingsPage` y `SeedDataPage` (`07_PANEL_ADMIN.md` v1.6.0). `ProductForm` y `ClassificationsTable` dejan de mostrar el slug: sigue siendo el identificador real de la URL pública, solo se oculta de las pantallas de solo lectura del panel. |

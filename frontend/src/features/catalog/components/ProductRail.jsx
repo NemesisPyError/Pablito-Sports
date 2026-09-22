@@ -2,7 +2,7 @@ import { Carousel } from '../../../shared/components/Carousel.jsx';
 import { Section } from '../../../shared/components/Section.jsx';
 import { SectionHeader } from '../../../shared/components/SectionHeader.jsx';
 import { useProducts } from '../hooks/useProducts.js';
-import { ProductCard } from './ProductCard.jsx';
+import { IMAGE_SWAP_HINT_TEXT, ProductCard } from './ProductCard.jsx';
 
 /**
  * Carril compacto de productos (09_COMPONENTES.md §9.8 `ProductRail`).
@@ -23,9 +23,19 @@ export function ProductRail({ id, eyebrow, title, href, query, products, tone = 
 
   if (listado.length === 0) return null;
 
+  // Un símbolo por carril, no uno por tarjeta: alcanza con que un producto
+  // del carril tenga segunda foto para que el aviso tenga sentido acá.
+  const hayFotoParaCambiar = listado.some((producto) => producto.secondary_thumbnail_url);
+
   return (
     <Section labelledBy={id} tone={tone}>
-      <SectionHeader id={id} eyebrow={eyebrow} title={title} href={href} />
+      <SectionHeader
+        id={id}
+        eyebrow={eyebrow}
+        title={title}
+        href={href}
+        hint={hayFotoParaCambiar ? IMAGE_SWAP_HINT_TEXT : undefined}
+      />
 
       <Carousel label={title} metric="products" bleed>
         {listado.map((product) => (

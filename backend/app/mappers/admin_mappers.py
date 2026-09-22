@@ -10,6 +10,7 @@ from ..dtos.admin_dtos import (
     AdministratorMinimalDTO,
     AdministratorProfileDTO,
     AuditLogDTO,
+    BankAdminDTO,
     BannerAdminDTO,
     GenderAdminDTO,
     PriceHistoryDTO,
@@ -79,8 +80,21 @@ def banner_to_admin_dto(banner) -> BannerAdminDTO:
     )
 
 
+def bank_to_admin_dto(bank) -> BankAdminDTO:
+    """`BankAdminDTO`, mismo criterio que `banner_to_admin_dto`."""
+    return BankAdminDTO(
+        id=bank.id,
+        name=bank.name,
+        discount_percentage=bank.discount_percentage,
+        image_url=public_file_url(bank.image_path),
+        position=bank.position,
+        is_active=bank.is_active,
+    )
+
+
 # §10.9: el tipo de alcance se deduce de qué columna está poblada. `RN-36` y el
-# CHECK `scope_exclusive` garantizan que sea exactamente una.
+# CHECK `scope_exclusive` garantizan que sea como máximo una; ninguna poblada
+# es "all" (v1.6.0).
 _SCOPES = (("product", "product"), ("category", "category"), ("brand", "brand"))
 
 
@@ -105,9 +119,10 @@ def _promotion_scope(promotion) -> PromotionScopeDTO:
             return PromotionScopeDTO(
                 type=tipo, entity=NamedEntityDTO(slug=entidad.slug, name=entidad.name)
             )
-    # Inalcanzable mientras el CHECK `scope_exclusive` siga en la tabla: una
-    # promoción sin alcance no puede existir.
-    raise ValueError(f"promotion {promotion.id} has no scope, which RN-36 forbids")
+    # Los tres campos en NULL: la promoción aplica a todos los productos
+    # (v1.6.0, pedido explícito del usuario). No hay una única entidad que
+    # nombrar.
+    return PromotionScopeDTO(type="all", entity=None)
 
 
 def administrator_to_minimal_dto(administrator) -> AdministratorMinimalDTO:

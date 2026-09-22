@@ -1,0 +1,48 @@
+# HTTP Strict Transport Security (03_SEGURIDAD.md §12.1).
+#
+# SOLO PRODUCCIÓN. Este archivo lo monta únicamente `docker-compose.prod.yml`:
+# HSTS solo tiene sentido sobre TLS y el entorno de desarrollo sirve por HTTP.
+# (Un navegador ignora la cabecera si llega por HTTP —RFC 6797 §7.2—, pero
+# emitirla ahí sería ruido que sugiere una protección que no existe.)
+#
+# --- Por qué es un include y no una línea suelta -----------------------------
+#
+# En Nginx, `add_header` NO se acumula entre niveles: si un `location` declara
+# aunque sea una cabecera propia, **descarta todas las heredadas del `server`**.
+# `/uploads/` y `/assets/` declaran su `Cache-Control`, y `@uploads_missing`
+# incluye `security_headers`; los tres perdían HSTS en silencio. Verificado
+# antes de corregirlo:
+#
+#     documento HTML   /                        HSTS: SI
+#     bundle JS        /assets/index-*.js       HSTS: NO   <-
+#     404 uploads      /uploads/nada.webp       HSTS: NO   <-
+#
+# Teniendo el valor en un solo archivo, cada sitio que rompe la herencia lo
+# vuelve a incluir y no hay cuatro copias que se desincronicen.
+#
+# --- Sobre el valor ----------------------------------------------------------
+#
+# `max-age=86400` (1 día) es el primer escalón a propósito, no un descuido.
+# HSTS es difícil de revertir: mientras el plazo siga vigente, el navegador se
+# niega a hablar HTTP con este dominio, y si el certificado caduca o falla una
+# renovación el sitio queda inalcanzable durante todo ese tiempo. Un día es lo
+# que se puede aguantar mientras la renovación automática no está probada.
+#
+# ESCALADO — subir un escalón solo cuando el anterior se cumplió:
+#
+#   1. `max-age=86400`     (1 día)     <-- AQUÍ. Primer despliegue con TLS.
+#   2. `max-age=604800`    (1 semana)  tras 1 semana sin incidencias de TLS.
+#   3. `max-age=2592000`   (30 días)   tras una renovación automática exitosa.
+#   4. `max-age=31536000`  (1 año)     tras dos renovaciones seguidas.
+#
+# `includeSubDomains` NO se añade todavía: exige que **todos** los subdominios
+# sirvan TLS, y hoy no hay DNS ni servidor de producción con el que comprobarlo.
+# Añadirlo antes dejaría fuera de servicio cualquier subdominio futuro que no
+# tenga certificado.
+#
+# `preload` NO se añade: exige `max-age` >= 31536000 más `includeSubDomains`,
+# inscripción en hstspreload.org y, sobre todo, es prácticamente irreversible —
+# salir de la lista tarda meses y depende del calendario de los navegadores.
+# Es una decisión para tomar con el dominio ya estable, no ahora.
+
+add_header Strict-Transport-Security "max-age=86400" always;

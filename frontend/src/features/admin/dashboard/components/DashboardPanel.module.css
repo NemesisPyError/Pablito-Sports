@@ -1,0 +1,47 @@
+/**
+ * Encabezado compartido de los paneles inferiores del dashboard
+ * ("Productos incompletos", "Cambios de precio recientes";
+ * 07_PANEL_ADMIN.md §14.1, rediseño v2.9.11, pedido explícito del usuario).
+ *
+ * Un solo archivo para los dos componentes: son la misma anatomía de panel
+ * (encabezado con ícono + título, cuerpo con lista o estado vacío), no dos
+ * estilos independientes que puedan desalinearse entre sí.
+ */
+
+.panel {
+  height: 100%;
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-background);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4);
+  background-color: var(--color-background);
+  border-block-end: var(--border-width-thin) var(--border-style-default) var(--color-border);
+}
+
+.panelIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background-color: color-mix(in srgb, var(--color-volt-500) 12%, var(--color-background));
+  color: var(--color-volt-500);
+}
+
+.panelTitle {
+  flex-grow: 1;
+  margin-block-end: var(--spacing-0);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}

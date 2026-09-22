@@ -26,6 +26,12 @@ PRODUCT_PATH = "/producto"
 
 DESCRIPTION_LIMIT = 160
 
+# Imagen de marca (1200×630) que sirve el frontend desde `public/`. Es la que
+# ve una red social cuando la página no tiene una propia: la portada, el
+# catálogo, una categoría o un producto sin fotos. Sin ella el enlace se
+# despliega como texto plano.
+DEFAULT_SHARE_IMAGE = "/og-default.png"
+
 
 def _truncate(texto: str | None, maximo: int = DESCRIPTION_LIMIT) -> str:
     limpio = " ".join(str(texto or "").split())
@@ -34,14 +40,25 @@ def _truncate(texto: str | None, maximo: int = DESCRIPTION_LIMIT) -> str:
     return limpio[: maximo - 1].rsplit(" ", 1)[0] + "…"
 
 
-def _store_name() -> str:
-    """El nombre configurado, o uno neutro si la tienda no se inicializó."""
+def _store_settings():
+    """La configuración pública, o `None` si la tienda no se inicializó."""
     try:
-        return StoreSettingService.get_public().store_name
+        return StoreSettingService.get_public()
     except Exception:
         # Un rastreador no debe recibir un 500 porque falte la configuración:
         # §6.4 sólo contempla 200 y 404.
-        return "Pablito Sports"
+        return None
+
+
+def _store_name(ajustes=None) -> str:
+    """El nombre configurado, o uno neutro si la tienda no se inicializó."""
+    ajustes = ajustes or _store_settings()
+    return ajustes.store_name if ajustes else "Pablito Sports"
+
+
+def _share_image(imagen: str | None = None) -> str:
+    """La imagen propia de la página o, si no la tiene, la de la marca."""
+    return imagen or absolute_url(DEFAULT_SHARE_IMAGE)
 
 
 class SeoService:
@@ -68,6 +85,10 @@ class SeoService:
             producto.description or f"{producto.name}{f' de {marca}' if marca else ''} en {tienda}."
         )
 
+        # Para compartir se cae a la imagen de marca; el dato estructurado, en
+        # cambio, sólo lleva fotos reales del producto (`_product_schema`).
+        compartida = _share_image(imagen)
+
         return {
             "title": titulo,
             "heading": producto.name,
@@ -76,17 +97,16 @@ class SeoService:
             "og": {
                 "title": titulo,
                 "description": descripcion,
-                "image": imagen,
+                "image": compartida,
                 "url": canonical,
                 "type": "product",
                 "site_name": tienda,
             },
             "twitter": {
-                # Sin imagen, `summary_large_image` muestra una tarjeta rota.
-                "card": "summary_large_image" if imagen else "summary",
+                "card": "summary_large_image",
                 "title": titulo,
                 "description": descripcion,
-                "image": imagen,
+                "image": compartida,
             },
             "structured_data": cls._product_schema(producto, canonical, imagen, marca),
             "links": [{"label": "Ver catálogo", "url": absolute_url(CATALOG_PATH)}],
@@ -135,13 +155,20 @@ class SeoService:
 
     @classmethod
     def catalog_document(cls) -> dict:
-        """§6.2 `/_seo/catalog`. El catálogo **limpio**, sin filtros."""
-        tienda = _store_name()
+        """§6.2 `/_seo/catalog`. El catálogo **limpio**, sin filtros.
+
+        Nginx también entrega este documento a los rastreadores que piden la
+        portada (`/`), de modo que es el que ve una red social al compartir el
+        enlace principal de la tienda.
+        """
+        ajustes = _store_settings()
+        tienda = _store_name(ajustes)
         canonical = absolute_url(CATALOG_PATH)
         titulo = f"Catálogo · {tienda}"
         descripcion = _truncate(
             f"Explorá el catálogo de indumentaria y calzado deportivo de {tienda}."
         )
+        imagen = _share_image()
 
         return {
             "title": titulo,
@@ -151,12 +178,18 @@ class SeoService:
             "og": {
                 "title": titulo,
                 "description": descripcion,
+                "image": imagen,
                 "url": canonical,
                 "type": "website",
                 "site_name": tienda,
             },
-            "twitter": {"card": "summary", "title": titulo, "description": descripcion},
-            "structured_data": None,
+            "twitter": {
+                "card": "summary_large_image",
+                "title": titulo,
+                "description": descripcion,
+                "image": imagen,
+            },
+            "structured_data": cls._store_schema(tienda, ajustes, imagen),
             # Enlaces reales para que el rastreador descubra las fichas.
             "links": [
                 {
@@ -186,6 +219,7 @@ class SeoService:
         descripcion = _truncate(
             f"{categoria.name} en {tienda}. Explorá el catálogo completo de la categoría."
         )
+        imagen = _share_image()
 
         return {
             "title": titulo,
@@ -195,14 +229,59 @@ class SeoService:
             "og": {
                 "title": titulo,
                 "description": descripcion,
+                "image": imagen,
                 "url": canonical,
                 "type": "website",
                 "site_name": tienda,
             },
-            "twitter": {"card": "summary", "title": titulo, "description": descripcion},
+            "twitter": {
+                "card": "summary_large_image",
+                "title": titulo,
+                "description": descripcion,
+                "image": imagen,
+            },
             "structured_data": None,
             "links": [{"label": "Ver catálogo", "url": absolute_url(CATALOG_PATH)}],
         }
+
+    @staticmethod
+    def _store_schema(tienda: str, ajustes, imagen: str) -> dict:
+        """`Schema.org/SportingGoodsStore` para la portada y el catálogo.
+
+        Sólo se emite lo que la configuración pública ya publica: nada se
+        inventa ni se infiere. El horario queda fuera a propósito, porque es
+        texto libre (`«Lunes a sábado: 08:00 - 18:30»`) y `openingHours`
+        exige un formato estricto: declararlo mal es peor que omitirlo.
+        """
+        schema = {
+            "@context": "https://schema.org",
+            "@type": "SportingGoodsStore",
+            "name": tienda,
+            "url": absolute_url("/"),
+            "image": imagen,
+        }
+        if ajustes is None:
+            return schema
+
+        if ajustes.whatsapp_number:
+            schema["telephone"] = ajustes.whatsapp_number
+        if ajustes.address:
+            # `address` es una sola línea libre; no se intenta partirla en
+            # localidad y departamento.
+            schema["address"] = {
+                "@type": "PostalAddress",
+                "streetAddress": ajustes.address,
+                "addressCountry": "PY",
+            }
+        redes = [
+            url
+            for url in (ajustes.social_links or {}).values()
+            if isinstance(url, str) and url.startswith(("http://", "https://"))
+        ]
+        if redes:
+            schema["sameAs"] = redes
+
+        return schema
 
     # --- Sitemap y robots -------------------------------------------------
 

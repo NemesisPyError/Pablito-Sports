@@ -1,0 +1,172 @@
+/**
+ * Acceso al panel (07_PANEL_ADMIN.md §6.1).
+ *
+ * La única superficie oscura del producto. No pertenece al catálogo ni al
+ * panel: es la puerta, y conviene que se note. El azul profundo la separa de
+ * los dos y a la vez la ata al acento de energía, que es el mismo azul
+ * aclarado.
+ *
+ * UDS-01: acá no hay ningún color escrito a mano; todos salen de `tokens.css`.
+ */
+
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--spacing-4);
+  background-color: var(--color-auth-background);
+  /* Un halo del acento detrás de la tarjeta. Es decorativo: si el navegador no
+     resolviera el gradiente, el color plano de arriba ya sostiene el diseño. */
+  background-image: radial-gradient(
+    ellipse at 50% 0%,
+    var(--color-auth-glow),
+    transparent 60%
+  );
+}
+
+.shell {
+  width: 100%;
+  max-width: 24rem;
+}
+
+/* --------------------------------------------------------------------------
+ * Logotipo
+ *
+ * Es el mismo de la sidebar y el del catálogo público: la identidad de Pablito
+ * Sports es tipográfica, no un archivo de imagen. Reproducirlo con texto lo
+ * mantiene nítido en cualquier pantalla, no suma una petición de red y no puede
+ * quedar desincronizado de las otras dos pantallas donde ya aparece.
+ * ----------------------------------------------------------------------- */
+.brand {
+  margin-block-end: var(--spacing-6);
+  text-align: center;
+}
+
+.brandName {
+  display: block;
+  color: var(--color-text-inverse);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-tighter);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.brandMark {
+  margin-inline-start: var(--spacing-2);
+  color: var(--color-volt-500);
+}
+
+.brandTag {
+  display: block;
+  margin-block-start: var(--spacing-3);
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------------------------
+ * Tarjeta y campos
+ * ----------------------------------------------------------------------- */
+.card {
+  padding: var(--spacing-6);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-auth-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-auth-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.label {
+  display: block;
+  margin-block-end: var(--spacing-2);
+  color: var(--color-text-inverse);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.field {
+  width: 100%;
+  padding: 0.625rem var(--spacing-3);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-auth-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-auth-field);
+  color: var(--color-text-inverse);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+}
+
+.field:focus {
+  border-color: var(--color-volt-500);
+  outline: var(--border-width-thick) var(--border-style-default) var(--color-volt-500);
+  outline-offset: 1px;
+}
+
+/* El autorrelleno de Chrome pinta el campo de amarillo y el texto de negro,
+   ignorando `background-color`. Solo cede ante una sombra interior, que sí
+   respeta; sin esto, un usuario con la contraseña guardada vería dos campos
+   claros sobre la tarjeta oscura. */
+.field:-webkit-autofill,
+.field:-webkit-autofill:hover,
+.field:-webkit-autofill:focus {
+  box-shadow: 0 0 0 100px var(--color-auth-field) inset;
+  -webkit-text-fill-color: var(--color-text-inverse);
+  caret-color: var(--color-text-inverse);
+}
+
+.group {
+  margin-block-end: var(--spacing-4);
+}
+
+.submit {
+  width: 100%;
+  padding: 0.625rem var(--spacing-4);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-volt-500);
+  border-radius: var(--radius-md);
+  background-color: var(--color-volt-500);
+  color: var(--color-volt-on);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.submit:hover:not(:disabled) {
+  border-color: var(--color-volt-600);
+  background-color: var(--color-volt-600);
+}
+
+.submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* El error mantiene el rojo semántico del sistema, pero sobre fondo oscuro el
+   `--color-danger` sólido no se lee: se usa un velo translúcido y el texto en
+   claro. Sigue siendo el mismo estado, no un color nuevo. */
+.error {
+  margin-block-end: var(--spacing-4);
+  padding: var(--spacing-3);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-auth-danger-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-auth-danger-bg);
+  color: var(--color-auth-danger-text);
+  font-size: var(--font-size-sm);
+}
+
+.footnote {
+  margin-block-start: var(--spacing-5);
+  margin-block-end: 0;
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .submit {
+    transition: background-color var(--duration-fast) var(--easing-default);
+  }
+}

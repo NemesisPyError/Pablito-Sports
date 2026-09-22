@@ -34,7 +34,6 @@ const DEFAULTS = {
   category: '',
   availability: '',
   is_active: '',
-  deleted: false,
   sort: 'name_asc',
   page: 1,
   per_page: 20,
@@ -56,7 +55,6 @@ export function useAdminProductFilters() {
       category: searchParams.get('category') ?? DEFAULTS.category,
       availability: searchParams.get('availability') ?? DEFAULTS.availability,
       is_active: searchParams.get('is_active') ?? DEFAULTS.is_active,
-      deleted: searchParams.get('deleted') === 'true',
       sort: searchParams.get('sort') ?? DEFAULTS.sort,
       page: Number.parseInt(searchParams.get('page') ?? '1', 10) || 1,
       per_page: DEFAULTS.per_page,
@@ -91,8 +89,7 @@ export function useAdminProductFilters() {
     Boolean(filters.brand) ||
     Boolean(filters.category) ||
     Boolean(filters.availability) ||
-    filters.is_active !== '' ||
-    filters.deleted;
+    filters.is_active !== '';
 
   return { filters, setFilters, reset, hasActiveFilters };
 }

@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import joinedload, selectinload
 
 from ..extensions import db
@@ -26,7 +26,6 @@ class AdminProductRepository:
         category_slugs: list[str] | None,
         availability: list[str] | None,
         is_active: bool | None,
-        deleted: bool | None,
     ):
         """Predicados compartidos por el listado y el conteo.
 
@@ -35,11 +34,8 @@ class AdminProductRepository:
         """
         statement = select(Product)
 
-        # §9.3: `deleted` ausente significa "no eliminados"; `true` solo eliminados.
-        if deleted:
-            statement = statement.where(Product.deleted_at.is_not(None))
-        else:
-            statement = statement.where(Product.deleted_at.is_(None))
+        # §9.3: el panel nunca lista los productos eliminados (`AD-18`).
+        statement = statement.where(Product.deleted_at.is_(None))
 
         if search:
             pattern = f"%{search.lower()}%"
@@ -86,7 +82,6 @@ class AdminProductRepository:
         category_slugs: list[str] | None = None,
         availability: list[str] | None = None,
         is_active: bool | None = None,
-        deleted: bool | None = None,
         sort: str = "name_asc",
     ):
         statement = cls._filtered(
@@ -95,7 +90,6 @@ class AdminProductRepository:
             category_slugs=category_slugs,
             availability=availability,
             is_active=is_active,
-            deleted=deleted,
         )
 
         # §9.3: conjunto cerrado de ordenamientos. Un valor no reconocido cae al
@@ -125,7 +119,6 @@ class AdminProductRepository:
         category_slugs: list[str] | None = None,
         availability: list[str] | None = None,
         is_active: bool | None = None,
-        deleted: bool | None = None,
     ) -> int:
         statement = cls._filtered(
             search=search,
@@ -133,11 +126,21 @@ class AdminProductRepository:
             category_slugs=category_slugs,
             availability=availability,
             is_active=is_active,
-            deleted=deleted,
         )
         return db.session.execute(
             select(db.func.count()).select_from(statement.subquery())
         ).scalar_one()
+
+    @classmethod
+    def next_home_new_position(cls) -> int:
+        """Siguiente lugar libre en Novedades: agregar siempre va al final.
+
+        Mismo criterio que `reorder_images` con `position`, pero acá no hay
+        reordenamiento manual — el orden es el orden en que se fue
+        seleccionando cada producto.
+        """
+        statement = select(db.func.coalesce(db.func.max(Product.home_new_position), -1) + 1)
+        return db.session.execute(statement).scalar_one()
 
     @classmethod
     def find_by_id(cls, product_id: int) -> Product | None:
@@ -147,10 +150,10 @@ class AdminProductRepository:
             .options(
                 joinedload(Product.brand),
                 joinedload(Product.primary_category),
-                joinedload(Product.gender),
                 joinedload(Product.size_type),
                 selectinload(Product.categories),
                 selectinload(Product.sports),
+                selectinload(Product.genders),
                 selectinload(Product.sizes),
                 selectinload(Product.variants).joinedload(Variant.size),
                 selectinload(Product.images),
@@ -164,6 +167,51 @@ class AdminProductRepository:
             Variant.id == variant_id,
             Variant.product_id == product_id,
             Variant.deleted_at.is_(None),
+        )
+        return db.session.execute(statement).scalar_one_or_none()
+
+    @classmethod
+    def find_variant_for_update(cls, product_id: int, variant_id: int) -> Variant | None:
+        """Igual que `find_variant_by_id`, pero bloqueando la fila (`RN-82`).
+
+        `SELECT ... FOR UPDATE`: mientras la transacción siga abierta, ninguna
+        otra puede leer esta misma fila con intención de escribirla — queda
+        esperando. Es lo que convierte «leer el stock, comprobarlo y
+        descontarlo» en una operación indivisible.
+
+        Sin el bloqueo, dos ventas simultáneas del mismo talle leían ambas el
+        mismo número, ambas pasaban la comprobación y ambas escribían un valor
+        calculado sobre el stock viejo: la segunda pisaba a la primera y se
+        vendían más unidades de las que había.
+
+        Solo lo usa el registro de venta. La carga manual de stock
+        (`set_variant_quantity`) asigna un valor absoluto y no depende de lo que
+        leyó, así que no necesita el bloqueo; su `UPDATE` toma igualmente el
+        candado de fila de PostgreSQL y no puede colarse en medio de una venta.
+        """
+        statement = (
+            select(Variant)
+            .where(
+                Variant.id == variant_id,
+                Variant.product_id == product_id,
+                Variant.deleted_at.is_(None),
+            )
+            .with_for_update()
+            # Sin esto el bloqueo es una ilusion. `session.execute(select(...))`
+            # devuelve la instancia que ya este en el identity map SIN releer sus
+            # columnas: si algo cargo la variante antes en la misma peticion —la
+            # venta manual carga el producto con `selectinload(Product.variants)`
+            # para resolver el precio—, el `SELECT ... FOR UPDATE` toma el
+            # candado, pero `variant.quantity` sigue siendo el valor leido ANTES
+            # de esperarlo. Dos ventas simultaneas volvian a perder una: cada una
+            # descontaba sobre el mismo numero viejo.
+            #
+            # `populate_existing` obliga a sobrescribir el estado en memoria con
+            # lo que devuelve esta consulta, que es la fila ya bloqueada. Es el
+            # unico modo de que "leer, comprobar y descontar" opere sobre el
+            # valor real. Lo encontro el test de dos ventas concurrentes que si
+            # caben en stock: ambas respondian 201 y solo una descontaba.
+            .execution_options(populate_existing=True)
         )
         return db.session.execute(statement).scalar_one_or_none()
 
@@ -193,6 +241,26 @@ class AdminProductRepository:
             Image.deleted_at.is_(None),
         )
         return db.session.execute(statement).scalar_one_or_none()
+
+    @classmethod
+    def count_live_images_with_path(cls, file_path: str, *, excluding_id: int) -> int:
+        """Cuántas filas VIVAS distintas de `excluding_id` apuntan a ese archivo.
+
+        S-13: dos altas del mismo archivo en el mismo producto producen la misma
+        huella y, por tanto, la **misma ruta**. Borrar el archivo al eliminar una
+        de las filas dejaría a la otra apuntando al vacío, así que sólo se borra
+        cuando ya no queda ninguna referencia viva.
+        """
+        statement = (
+            select(func.count())
+            .select_from(Image)
+            .where(
+                Image.file_path == file_path,
+                Image.id != excluding_id,
+                Image.deleted_at.is_(None),
+            )
+        )
+        return db.session.execute(statement).scalar_one()
 
     @classmethod
     def set_primary_image(cls, product_id: int, image_id: int):

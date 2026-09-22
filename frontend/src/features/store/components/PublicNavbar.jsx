@@ -5,6 +5,7 @@ import { MediaTile } from '../../../shared/components/MediaTile.jsx';
 import { useCart } from '../../cart/index.js';
 import { useBrands } from '../../catalog/hooks/useBrands.js';
 import { useCategories } from '../../catalog/hooks/useCategories.js';
+import { useSports } from '../../catalog/hooks/useSports.js';
 import { buildNavAxes } from '../utils/navAxes.js';
 import { MegaMenu } from './MegaMenu.jsx';
 import styles from './PublicNavbar.module.css';
@@ -21,6 +22,10 @@ function Icon({ name }) {
     close: 'M6 6l12 12M18 6L6 18',
     search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4',
     cart: 'M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.55L20.5 8H6M9 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+    // Selector de tema, mismos glifos que `AdminIcon` (sin compartir
+    // componente a propósito: la tienda no depende del panel ni viceversa).
+    sun: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
+    moon: 'M20.5 14.5a8.5 8.5 0 1 1-9-11 7 7 0 0 0 9 11z',
   };
 
   return (
@@ -41,17 +46,27 @@ function Icon({ name }) {
   );
 }
 
-/** Campo de búsqueda que navega al enviar. */
-function SearchForm({ className, autoFocus = false, onSubmitted }) {
+/**
+ * Campo de búsqueda que navega al enviar.
+ *
+ * Se exporta sólo para poder probarlo aislado: montar `PublicNavbar`
+ * entero arrastraría el carrito y tres consultas de catálogo. Mismo
+ * criterio que `BannerCard` en `BannerRail.jsx`.
+ */
+export function SearchForm({ className, autoFocus = false, onSubmitted }) {
   const navigate = useNavigate();
   const [term, setTerm] = useState('');
 
   const handleSubmit = (event) => {
     event.preventDefault();
     const value = term.trim();
-    if (!value) return;
 
-    navigate(`/catalogo?q=${encodeURIComponent(value)}`);
+    // Con el campo vacío no hay término que buscar, pero sí hay un destino
+    // razonable: el catálogo, que es donde viven la búsqueda y los filtros. Se
+    // navega sin `q` en lugar de con `q=` vacío, así la URL sigue diciendo la
+    // verdad —"mostrame el catálogo", no "buscá la cadena vacía"— y
+    // `useCatalogFilters` no arranca con un filtro de texto activo.
+    navigate(value ? `/catalogo?q=${encodeURIComponent(value)}` : '/catalogo');
     onSubmitted?.();
   };
 
@@ -69,6 +84,20 @@ function SearchForm({ className, autoFocus = false, onSubmitted }) {
         autoFocus={autoFocus}
         onChange={(event) => setTerm(event.target.value)}
       />
+      {/*
+        Lupa para quien no descubre que Enter busca. Es `type="submit"` dentro
+        del mismo formulario a propósito: dispara el `onSubmit` que ya existía,
+        así que no hay un segundo camino de búsqueda que pueda desincronizarse
+        —clic y Enter son literalmente el mismo código—.
+
+        Siempre habilitada. Antes se deshabilitaba con el campo vacío y el
+        control quedaba muerto justo cuando más se lo usa: quien todavía no sabe
+        qué busca pulsa la lupa esperando llegar al buscador. Ahora lleva al
+        catálogo, que es ese lugar.
+      */}
+      <button type="submit" className={styles.searchSubmit} aria-label="Buscar">
+        <Icon name="search" />
+      </button>
     </form>
   );
 }
@@ -80,11 +109,17 @@ function SearchForm({ className, autoFocus = false, onSubmitted }) {
  * crean categorías por sexo. «Nosotros» y «Contacto» no viven acá, viven en
  * el pie.
  */
-export function PublicNavbar({ storeSettings }) {
+export function PublicNavbar({ storeSettings, theme, onToggleTheme }) {
   const cart = useCart();
+  const esOscuro = theme === 'dark';
   const categoriesQuery = useCategories();
   const brandsQuery = useBrands();
-  const axes = buildNavAxes(categoriesQuery.data ?? [], brandsQuery.data ?? []);
+  const sportsQuery = useSports();
+  const axes = buildNavAxes(
+    categoriesQuery.data ?? [],
+    brandsQuery.data ?? [],
+    sportsQuery.data ?? [],
+  );
 
   const [openAxis, setOpenAxis] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -208,11 +243,27 @@ export function PublicNavbar({ storeSettings }) {
         <div className={styles.actions}>
           <SearchForm className={styles.search} />
 
+          {onToggleTheme && (
+            <button
+              type="button"
+              className={styles.iconButton}
+              onClick={onToggleTheme}
+              aria-pressed={esOscuro}
+              aria-label={esOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+              title={esOscuro ? 'Modo claro' : 'Modo oscuro'}
+            >
+              <Icon name={esOscuro ? 'sun' : 'moon'} />
+            </button>
+          )}
+
           <button
             type="button"
             className={styles.searchToggle}
             onClick={() => setSearchOpen((open) => !open)}
-            aria-label="Buscar"
+            // Despliega el campo, no busca: con la búsqueda abierta este botón
+            // y la lupa de `SearchForm` conviven en pantalla, y dos controles
+            // distintos no pueden llamarse igual para un lector de pantalla.
+            aria-label={searchOpen ? 'Cerrar búsqueda' : 'Abrir búsqueda'}
             aria-expanded={searchOpen}
           >
             <Icon name={searchOpen ? 'close' : 'search'} />
@@ -232,7 +283,7 @@ export function PublicNavbar({ storeSettings }) {
 
       {searchOpen && (
         <SearchForm
-          className={styles.searchMobile}
+          className={`${styles.searchMobile} ${styles.searchMobileForm}`}
           autoFocus
           onSubmitted={() => setSearchOpen(false)}
         />

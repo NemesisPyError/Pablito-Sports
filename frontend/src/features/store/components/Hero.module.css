@@ -34,11 +34,19 @@
  * Contenido. En móvil se apoya en el borde inferior, donde el degradado es
  * más denso; desde `md` pasa a ocupar el flanco izquierdo.
  * ----------------------------------------------------------------------- */
+/*
+ * `padding-block-end` reserva una franja libre en el borde inferior para los
+ * indicadores del carrusel (`HeroCarousel.module.css` `.dots`), que se
+ * dibujan aparte, fuera de este flujo. Sin esta reserva, el bloque de
+ * acciones —fijo, en la esquina inferior izquierda— y los indicadores
+ * —centrados, en la misma franja— competirían por el mismo renglón.
+ */
 .content {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: flex-end;
+  padding-block-end: var(--spacing-6);
 }
 
 .inner {
@@ -97,17 +105,25 @@
 /* --------------------------------------------------------------------------
  * Acciones
  * ----------------------------------------------------------------------- */
+/*
+ * Alineados a la izquierda (v2.8.0, referencia visual del usuario): el
+ * bloque de acciones vive en la esquina inferior izquierda del hero, misma
+ * esquina que el título y el subtítulo, no centrado — el centro de la
+ * franja inferior es del carrusel (`HeroCarousel.module.css` `.dots`).
+ */
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-3);
+  gap: var(--spacing-2);
 }
 
+/* Tamaño compacto, pensado para mobile: el objetivo táctil real lo da
+   `min-height` (44px, `--touch-target-min`), no un relleno generoso. */
 .action {
   display: inline-flex;
   align-items: center;
   min-height: var(--touch-target-min);
-  padding: var(--spacing-3) var(--spacing-5);
+  padding: var(--spacing-2) var(--spacing-4);
   border: var(--border-width-thin) var(--border-style-default) transparent;
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
@@ -118,15 +134,20 @@
   transition: var(--transition-fast);
 }
 
-/* `UDS-11`: el acento solo como superficie, con texto tinta encima. */
+/*
+ * `#3B6CFF` es el único color puntual aprobado fuera de tokens (referencia
+ * visual del usuario, v2.8.0): no es el acento de marca (`UDS-11` reserva
+ * ese acento para superficies con texto tinta encima), es un azul de
+ * contacto propio, con texto blanco.
+ */
 .actionPrimary {
-  background-color: var(--color-action-accent-bg);
-  color: var(--color-action-accent-text);
+  background-color: #3b6cff;
+  color: var(--color-text-inverse);
 }
 
 .actionPrimary:hover {
-  background-color: var(--color-action-accent-bg-hover);
-  color: var(--color-action-accent-text);
+  background-color: #2f57d1;
+  color: var(--color-text-inverse);
 }
 
 .actionSecondary {

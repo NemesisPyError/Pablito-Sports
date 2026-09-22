@@ -10,9 +10,9 @@
 | **Sistema** | Plataforma de Catálogo Comercial |
 | **Documento** | Modelo de Datos |
 | **Código** | 04 |
-| **Versión** | 1.3.0 |
+| **Versión** | 1.9.0 |
 | **Estado** | 🟡 EN REVISIÓN |
-| **Fecha** | 18/08/2026 |
+| **Fecha** | 22/09/2026 |
 | **Documentos previos** | [00_VISION_PROYECTO.md](00_VISION_PROYECTO.md) ✅ · [00.2_GLOSARIO.md](00.2_GLOSARIO.md) ✅ · [00.3_NOMENCLATURA.md](00.3_NOMENCLATURA.md) ✅ · [01_ANALISIS_NEGOCIO.md](01_ANALISIS_NEGOCIO.md) ✅ · [02_ARQUITECTURA.md](02_ARQUITECTURA.md) ✅ · [02.1_DECISIONES_ARQUITECTONICAS.md](02.1_DECISIONES_ARQUITECTONICAS.md) ✅ |
 | **Documentos dependientes** | `05_API.md`, `07_PANEL_ADMIN.md`, `11_TESTING.md`, `99_AI_DEVELOPMENT_GUIDE.md` |
 
@@ -102,9 +102,9 @@ Definir el **modelo físico de datos** de Pablito Sports: tablas, columnas, tipo
 
 # 6. Entidades del modelo
 
-El modelo contiene **16 entidades** más **3 tablas de relación N:M**. Todas derivan del glosario (`00.2_GLOSARIO.md` §4), del diccionario de nomenclatura (`00.3_NOMENCLATURA.md` §7) y de la arquitectura de datos (`02_ARQUITECTURA.md` §12.3).
+El modelo contiene **16 entidades** más **5 tablas de relación N:M**. Todas derivan del glosario (`00.2_GLOSARIO.md` §4), del diccionario de nomenclatura (`00.3_NOMENCLATURA.md` §7) y de la arquitectura de datos (`02_ARQUITECTURA.md` §12.3).
 
-*(Revisado 19/08/2026: se retiran la entidad Color/`colors` y la relación Producto-Color/`product_colors` — `01_ANALISIS_NEGOCIO.md` 2.7.0. Numeración renumerada sin huecos; la tabla es un índice de esta sección, no un identificador citado desde otros documentos.)*
+*(Revisado 19/08/2026: se retiran la entidad Color/`colors` y la relación Producto-Color/`product_colors` — `01_ANALISIS_NEGOCIO.md` 2.7.0. Numeración renumerada sin huecos; la tabla es un índice de esta sección, no un identificador citado desde otros documentos. Revisado 24/08/2026: se suma la relación Producto-Sexo/`product_genders` — `RN-09` pasa de FK simple a N:M, pedido explícito del usuario.)*
 
 | # | Entidad de negocio | Tabla | Origen |
 |---|---|---|---|
@@ -127,6 +127,8 @@ El modelo contiene **16 entidades** más **3 tablas de relación N:M**. Todas de
 | 17 | Relación Producto-Categoría | `product_categories` | `RN-03`, `00.3` §7.1 |
 | 18 | Relación Producto-Deporte | `product_sports` | `RN-08`, `00.3` §7.1 |
 | 19 | Relación Producto-Talle | `product_sizes` | `RN-14`, `00.3` §7.1 |
+| 20 | Relación Producto-Sexo | `product_genders` | `RN-09` (v2.9.0), `00.3` §7.1 |
+| 21 | Relación Categoría-Sexo | `category_genders` | `RN-83` (v2.10.0), `AD-41` |
 
 **Entidades deliberadamente ausentes:** carrito, consulta, cliente, pedido, pago, stock numérico. Su ausencia está justificada en `AD-06`, `RN-63`, `DV-01`, `RN-39` y `02_ARQUITECTURA.md` §7.9.
 
@@ -166,9 +168,10 @@ erDiagram
 | Producto ↔ Categoría | N:M | `RN-03`; categoría principal en `products.primary_category_id` (`RN-04`) |
 | Categoría → Categoría | Autorreferencia, máx. 2 niveles | `AD-24`, `AD-29` |
 | Producto ↔ Deporte | N:M | `RN-08` |
-| Producto → Sexo | N:1 | `RN-09` |
+| Producto ↔ Sexo | N:M | `RN-09` (v2.9.0: era N:1) |
 | Producto → Tipo de Talle | N:1 | `RN-15` |
 | Producto ↔ Talle | N:M | `RN-14` |
+| Categoría ↔ Sexo | N:M | `RN-83` (v2.10.0); sin filas = sin restricción (`AD-41`) |
 | Variante → Producto | N:1 | `DN-01`, `AD-15` |
 | Variante → Talle | N:1 | `DN-01` |
 | Producto → Imagen | 1:N | `RN-19` a `RN-22` |
@@ -220,14 +223,22 @@ erDiagram
 | `availability` | `VARCHAR(20)` | No | — | Estado comercial (`RN-38`, `00.3` §9.1). **v1.2.0**: deja de ser un valor que el administrador escribe a mano — se recalcula en el servicio como la suma de `variants.quantity` de las variantes vivas del producto, con la misma regla de `RN-38b`. Se mantiene como columna física (no derivada en consulta) para no romper el filtro `?availability=` ni el índice `idx_products_availability` (`05_API.md`). |
 | `is_featured` | `BOOLEAN` | No | `FALSE` | Destacado manual (`RN-42`). |
 | `is_new` | `BOOLEAN` | No | `FALSE` | Nuevo manual (`RN-43`). |
+| `home_new_position` | `INTEGER` | Sí | `NULL` | **v1.5.0.** Selección editorial de Novedades en la Home. `NULL` = el producto no está en Novedades; un entero marca a la vez que está y en qué lugar de la fila. Mismo patrón que `brands.home_position` (§9.2.3) — no se reutiliza `is_new` ni `is_featured` a propósito (`COMPP-08` de `09_COMPONENTES.md`): ninguno de los dos tiene curaduría ni orden propio, y ambos ya significan otra cosa. |
 | `is_active` | `BOOLEAN` | No | `TRUE` | Producto activo/visible (`RN-01`, `RN-02`). |
 | `primary_category_id` | `INTEGER` | No | FK | Categoría principal (`RN-04`). |
 | `size_type_id` | `INTEGER` | No | FK | Tipo de talle del producto (`RN-15`). |
 | `brand_id` | `INTEGER` | No | FK | Marca (`RN-05`). |
-| `gender_id` | `INTEGER` | No | FK | Sexo destinatario (`RN-09`). |
 | `created_at` | `TIMESTAMPTZ` | No | `NOW()` | Alta en UTC (`AD-34`). |
 | `updated_at` | `TIMESTAMPTZ` | No | `NOW()` | Última modificación en UTC. |
 | `deleted_at` | `TIMESTAMPTZ` | Sí | `NULL` | Soft delete (`AD-18`, `RN-69`). |
+
+> **v2.9.0 (`RN-09` revisada):** `gender_id` deja de ser columna de
+> `products` — pedido explícito del usuario: un producto puede pertenecer a
+> varios sexos, no a uno solo. Pasa a resolverse por la tabla intermedia
+> `product_genders` (§9.2.19), mismo patrón que `product_sports`/RN-08: sin
+> columna propia, clave primaria compuesta. "Al menos un sexo" sigue siendo
+> obligatorio, pero ya no lo puede expresar una FK `NOT NULL` — lo valida
+> `AdminProductService` al guardar.
 
 **Restricciones:**
 
@@ -236,13 +247,13 @@ PRIMARY KEY (id),
 UNIQUE (slug) — índice funcional que incluye filas eliminadas,
 UNIQUE (sku),
 FOREIGN KEY (brand_id) REFERENCES brands(id),
-FOREIGN KEY (gender_id) REFERENCES genders(id),
 FOREIGN KEY (size_type_id) REFERENCES size_types(id),
 FOREIGN KEY (primary_category_id) REFERENCES categories(id),
 CHECK (list_price > 0),
 CHECK (sale_price IS NULL OR sale_price < list_price),
 CHECK (sale_ends_at IS NULL OR sale_starts_at IS NULL OR sale_ends_at > sale_starts_at),
-CHECK (availability IN ('available', 'low_stock', 'out_of_stock'))
+CHECK (availability IN ('available', 'low_stock', 'out_of_stock')),
+CHECK (home_new_position IS NULL OR home_new_position >= 0)
 ```
 
 **v1.2.0 — RN-38b (regla de disponibilidad derivada):** se retira el estado
@@ -464,11 +475,13 @@ CHECK (ends_at IS NULL OR ends_at > starts_at),
 CHECK (
     (product_id IS NOT NULL)::int +
     (category_id IS NOT NULL)::int +
-    (brand_id IS NOT NULL)::int = 1
+    (brand_id IS NOT NULL)::int <= 1
 )
 ```
 
-**Justificación de la implementación del alcance:** `RN-36` exige que una promoción aplique a exactamente uno de {producto, categoría, marca}. Tres columnas nullable mutuamente excluyentes es la forma más simple en v1, mantiene la extensibilidad a promociones complejas futuras (`PA-12`, `DN-03`) y permite joins directos para el cálculo del precio efectivo. Una tabla de alcance normalizada sería más pura, pero añade complejidad sin requisito que la justifique (`PA-11`). Si en el futuro una promoción pudiera aplicar a varias entidades simultáneamente, el cambio requerirá una migración que reemplace este diseño por una tabla de alcance.
+**Justificación de la implementación del alcance:** `RN-36` exige que una promoción aplique a como máximo uno de {producto, categoría, marca} — con los tres en `NULL`, aplica a todos los productos (v1.9.0, pedido explícito del usuario). Tres columnas nullable mutuamente excluyentes es la forma más simple en v1, mantiene la extensibilidad a promociones complejas futuras (`PA-12`, `DN-03`) y permite joins directos para el cálculo del precio efectivo. Una tabla de alcance normalizada sería más pura, pero añade complejidad sin requisito que la justifique (`PA-11`). Si en el futuro una promoción pudiera aplicar a varias entidades simultáneamente, el cambio requerirá una migración que reemplace este diseño por una tabla de alcance.
+
+**"Todos los productos" (v1.9.0):** antes el CHECK exigía exactamente una columna poblada (`= 1`), así que no había forma de representar "sin alcance particular". Se relajó a `<= 1`: los tres `NULL` significan que la promoción se suma al cálculo del precio efectivo de cualquier producto (`ProductRepository._best_promotion_percentage`, RN-37 sigue resolviendo el mayor descuento entre las vigentes). Migración `a3f6c9d21b47`, de esquema únicamente — no toca ninguna fila existente.
 
 ### 9.2.11 `banners`
 
@@ -501,6 +514,32 @@ CHECK (ends_at IS NULL OR starts_at IS NULL OR ends_at > starts_at)
 El valor por defecto `'hero'` no es arbitrario: las filas que ya existen se crearon cuando la única zona era la portada, de modo que la migración las deja donde siempre estuvieron sin necesidad de decidir por el administrador.
 
 **Nota sobre `button_label` (v1.1.0):** el texto del botón acompaña a `link_url`, que ya existía. Un banner sin `link_url` no muestra botón, tenga o no etiqueta. Cuando hay enlace pero no etiqueta, el frontend usa un texto por defecto: la ausencia de etiqueta no debe dejar al hero sin salida.
+
+### 9.2.11b `banks`
+
+**Nueva en v1.5.0** (pedido explícito del usuario): panel administrativo para los bancos de la sección pública "Superdescuentos", antes hardcodeados en el frontend sin ningún campo administrable.
+
+| Columna | Tipo | Nullable | Default |
+|---|---|---|---|
+| `id` | `INTEGER` | No | PK |
+| `name` | `VARCHAR(100)` | No | — |
+| `discount_percentage` | `INTEGER` | No | — |
+| `image_path` | `VARCHAR(500)` | Sí | `NULL` |
+| `position` | `INTEGER` | No | `0` |
+| `is_active` | `BOOLEAN` | No | `TRUE` |
+| `created_at` | `TIMESTAMPTZ` | No | `NOW()` |
+| `updated_at` | `TIMESTAMPTZ` | No | `NOW()` |
+| `deleted_at` | `TIMESTAMPTZ` | Sí | `NULL` |
+
+```sql
+PRIMARY KEY (id),
+CHECK (discount_percentage BETWEEN 1 AND 99),
+CHECK (position >= 0)
+```
+
+**Justificación:** no reutiliza `promotions` (atada por `RN-36`/`scope_exclusive` a producto/categoría/marca, sin ese concepto de banco) ni `banners` (atado a las tres zonas fijas de portada `placement`, con campos —`subtitle`, `link_url`, `button_label`, vigencia— que un banco no necesita). Es una entidad mínima, con el mismo rango 1-99 de `discount_percentage` que `promotions` y el mismo `position` de `banners` para el orden de aparición. Un caso comercial compuesto (p. ej. un banco con porcentaje distinto según débito/crédito) se resuelve cargando dos filas, no ampliando el modelo con un campo que nadie más pidió.
+
+`image_path` es el mini banner del banco; usa el mismo pipeline de imágenes que `banners`/`brand_images` (espacio de nombres propio `banks`, ver `99_AI_DEVELOPMENT_GUIDE.md` §17.1). El borrado es lógico (`AD-18`); el archivo solo se retira del disco si ningún otro banco vivo lo referencia.
 
 ### 9.2.12 `administrators`
 
@@ -626,6 +665,40 @@ FOREIGN KEY (product_id) REFERENCES products(id),
 FOREIGN KEY (size_id) REFERENCES sizes(id)
 ```
 
+#### `product_genders` (v2.9.0)
+
+`RN-09` revisada: un producto pertenece a uno o varios sexos, ya no a uno
+solo. Reemplaza a la columna `products.gender_id` (§9.2.1) — mismo patrón
+que `product_sports`, sin columna propia. "Al menos un sexo" es obligatorio
+mediante código en `AdminProductService`, no mediante una restricción de
+esquema: ninguna FK ni `CHECK` puede expresar "al menos una fila" sobre
+otra tabla.
+
+```sql
+PRIMARY KEY (product_id, gender_id),
+FOREIGN KEY (product_id) REFERENCES products(id),
+FOREIGN KEY (gender_id) REFERENCES genders(id)
+```
+
+#### `category_genders` (v2.10.0)
+
+`RN-83`: la categoría declara a qué sexos aplica, para que la navegación de la
+tienda no tenga que ofrecer el árbol completo bajo Hombres, Mujeres e Infantil
+a la vez. Mismo patrón que `product_genders`: sin columna propia, sin marcas de
+tiempo y sin borrado lógico — la fila no tiene atributo alguno, así que quitar
+un sexo es borrar la fila.
+
+**La ausencia de filas es un estado con significado** (`AD-41`): una categoría
+sin sexos **no está restringida** y se ofrece en todos los ejes. No es "ningún
+sexo". Por eso la migración `c5b1f0a72e14` crea la tabla **sin backfill**: el
+menú se comporta igual que antes hasta que el administrador destilde algo.
+
+```sql
+PRIMARY KEY (category_id, gender_id),
+FOREIGN KEY (category_id) REFERENCES categories(id),
+FOREIGN KEY (gender_id) REFERENCES genders(id)
+```
+
 ### 9.2.17 `brand_images`
 
 Collage del bloque de marca de la portada. Se numera al final para no renumerar las tablas ya aprobadas.
@@ -708,7 +781,6 @@ Todas las relaciones del modelo lógico se implementan con claves foráneas expl
 | Tabla | Índice | Propósito |
 |---|---|---|
 | `products` | `idx_products_brand_id` | Filtrado por marca (`RN-46`). |
-| `products` | `idx_products_gender_id` | Filtrado por sexo. |
 | `products` | `idx_products_size_type_id` | Join con talles del producto. |
 | `products` | `idx_products_primary_category_id` | Filtrado por categoría principal. |
 | `products` | `idx_products_availability` | Filtrado por disponibilidad. |
@@ -746,7 +818,7 @@ Requiere la extensión `unaccent` de PostgreSQL.
 
 1. **Fase inicial:** confiar en los índices simples sobre FK listados en §9.6.1 y en el índice parcial `idx_products_active_not_deleted`.
 2. **Fase de medición:** durante las pruebas de carga (`11_TESTING.md`), medir el percentil 95 de la consulta de catálogo con facetas. El disparador es `RNF-02` (< 300 ms).
-3. **Fase de ajuste:** si se incumple `RNF-02`, agregar índices compuestos dirigidos a los patrones de filtro más frecuentes. Ejemplo: `idx_products_catalog_brand_gender` sobre `(is_active, deleted_at, brand_id, gender_id)`.
+3. **Fase de ajuste:** si se incumple `RNF-02`, agregar índices compuestos dirigidos a los patrones de filtro más frecuentes. Ejemplo: `idx_products_catalog_brand_category` sobre `(is_active, deleted_at, brand_id, primary_category_id)`. **v2.9.0:** el filtro por sexo ya no puede entrar en un índice compuesto de `products` — `gender_id` pasó a `product_genders` (§9.2.16); un ajuste dirigido a ese filtro iría sobre `product_genders(gender_id)`.
 4. **Último recurso:** si los índices no bastan, evaluar materialización de facetas en un caché de corta duración. Esta decisión requiere un `AD-xx` nuevo porque afecta la arquitectura (`PA-11`, `AD-35`).
 
 **Regla:** no se crean índices compuestos por anticipación; solo por medición (`AD-35`).
@@ -837,7 +909,7 @@ Se entregan por migración los datos que el sistema necesita para arrancar:
 
 | Operación | Tablas involucradas | Regla |
 |---|---|---|
-| Alta de producto | `products`, `product_categories`, `product_sports`, `product_sizes`, `variants`, `images` | Todo en una transacción (`CONS-01`, `CONS-02`). |
+| Alta de producto | `products`, `product_categories`, `product_sports`, `product_sizes`, `product_genders`, `variants`, `images` | Todo en una transacción (`CONS-01`, `CONS-02`). |
 | Edición de talles | `product_sizes`, `variants` | Reconciliación en una transacción (`CONS-04`). |
 | Cambio de precio | `products`, `price_history` | Update + insert en una transacción (`RN-70`). |
 | Cualquier escritura del panel | Tabla afectada + `audit_logs` | Auditoría en la misma transacción (`CONS-05`). |
@@ -1018,7 +1090,8 @@ Este documento **no crea decisiones arquitectónicas propias**. Desarrolla las d
 | `RN-04` Categoría principal | `products.primary_category_id` |
 | `RN-05` Una marca por producto | `products.brand_id` |
 | `RN-08` Deportes opcionales | `product_sports` |
-| `RN-09` Sexo del producto | `products.gender_id`, `genders` |
+| `RN-09` Sexo del producto (v2.9.0: N:M) | `product_genders`, `genders` |
+| `RN-83` Sexos de la categoría (v2.10.0) | `category_genders`, `genders` |
 | `RN-10` Slug único | `products.slug` |
 | `RN-11` SKU único | `products.sku` |
 | `RN-12` Condiciones de activación | CHECKs en `products`, validación en servicio |
@@ -1044,6 +1117,7 @@ Este documento **no crea decisiones arquitectónicas propias**. Desarrolla las d
 | `AD-33` Claves enteras | Todas las PK son `INTEGER` |
 | `AD-34` UTC | Todos los `TIMESTAMPTZ` |
 | `AD-35` Índices por medición | §9.6 |
+| `AD-41` Sin sexos = sin restricción | `category_genders` §9.2.16 |
 
 ---
 
@@ -1067,6 +1141,11 @@ Este documento **no crea decisiones arquitectónicas propias**. Desarrolla las d
 
 | Versión | Fecha | Estado | Cambios |
 |---|---|---|---|
+| **1.9.0** | 22/09/2026 | 🟡 **EN REVISIÓN** | **Promoción "todos los productos" (`RN-36` revisada, pedido explícito del usuario).** §9.2.10: el CHECK `scope_exclusive` pasa de "exactamente uno" (`= 1`) a "como máximo uno" (`<= 1`) de `product_id`/`category_id`/`brand_id`. Con los tres en `NULL`, la promoción aplica a todos los productos — antes ese estado no era representable. Migración `a3f6c9d21b47`, de esquema únicamente: solo reemplaza el CHECK, no toca ninguna fila ni columna. |
+| **1.8.0** | 22/09/2026 | 🟡 **EN REVISIÓN** | **Nueva tabla `banks` (§9.2.11b), Superdescuentos (pedido explícito del usuario).** Panel administrativo nuevo para los bancos del pie de la tienda, antes hardcodeados en el frontend sin ningún campo administrable. Migración `e2db739a4c13`, de esquema únicamente: crea la tabla, sin backfill ni tocar ninguna existente. No reutiliza `promotions` (`scope_exclusive`, `RN-36`, sin sentido para un banco) ni `banners` (`placement` fijo a las tres zonas de portada, con campos que un banco no usa). |
+| **1.7.0** | 10/09/2026 | 🟡 **EN REVISIÓN** | **Sexos por categoría (`RN-83` nueva).** Pedido explícito del usuario: ordenar el menú de la tienda desde el panel en lugar de con una lista de slugs excluidos escrita en el frontend. Nueva tabla `category_genders` (§9.2.16, entidad 21 de §6), mismo patrón sin columna propia que `product_genders`. Migración `c5b1f0a72e14`, **de esquema y sin backfill**: `AD-41` establece que la ausencia de filas significa «sin restricción», así que el menú se ve igual que antes del despliegue y ninguna categoría cargada necesita tocarse. Ninguna tabla existente cambia. |
+| **1.6.0** | 24/08/2026 | 🟡 **EN REVISIÓN** | **Sexo pasa de N:1 a N:M (`RN-09` revisada).** Pedido explícito del usuario: un producto puede pertenecer a varios sexos, no a uno solo. Se retira `products.gender_id` (§9.2.1) y se agrega `product_genders` (§9.2.16, entidad 20 de §6), mismo patrón sin columna propia que `product_sports`. "Al menos un sexo" ya no es una FK `NOT NULL`, pasa a validarse en `AdminProductService`. Tres migraciones en orden: `cdc83d47fa5e` (crea `product_genders`), `5208210560cf` (backfill de `gender_id` a la tabla nueva, con `insert().from_select(...)` para no aparecer como dato comercial sembrado), `b99b11955f25` (retira la columna, la FK y el índice). Se retira `idx_products_gender_id` (§9.6.1); el ejemplo de índice compuesto de §9.6.3 cambia de `brand_id + gender_id` a `brand_id + primary_category_id`. |
+| **1.5.0** | 24/08/2026 | 🟡 **EN REVISIÓN** | **Novedades como selección editorial de productos.** Nueva columna `products.home_new_position` (§9.2.1): `INTEGER NULL`, `CHECK (home_new_position IS NULL OR home_new_position >= 0)`. Mismo patrón que `brands.home_position` (§9.2.3, v1.1.0) — no se reutiliza `is_featured` ni `is_new`, ninguno de los dos tiene curaduría ni orden propio y ambos ya significan otra cosa (`COMPP-08` de `09_COMPONENTES.md`). Migración `f4d4c1fe2de3` (esquema únicamente, reversible: nace `NULL` en todas las filas, ningún producto queda en Novedades por default). Pedido explícito del usuario en la tanda funcional del 24/08/2026. |
 | **1.4.0** | 19/08/2026 | 🟡 **EN REVISIÓN** | **Eliminación de "color" del catálogo** (`01_ANALISIS_NEGOCIO.md` 2.7.0, pedido del administrador). Se eliminan las tablas `colors` y `product_colors`, y la columna `variants.color_id`. El índice único de `variants` pasa de `(product_id, color_id, size_id)` a `(product_id, size_id)`. Migraciones `add2a263a249` (fusiona variantes que solo se diferenciaban por color, sumando su `quantity`; no reversible) y `d20b530ad8a6` (esquema; reversible salvo los datos). §6 renumerada a 16 entidades y 3 tablas de relación; §9.2 renumerada de §9.2.7 en adelante, sin huecos. Total: 17 entidades (18 de v1.3.0 menos `colors`). |
 | **1.3.0** | 18/08/2026 | 🟡 **EN REVISIÓN** | **Registro de ventas (`RN-82`).** Nueva tabla `sales` (§9.2.18): `variant_id` (FK, `RESTRICT`), `quantity` (`CHECK > 0`), `administrator_id` (FK, `RESTRICT`), `created_at`. Inmutable, mismo patrón que `price_history` (§9.2.14, `RN-70`) — sin `updated_at` ni `deleted_at`, solo inserción y consulta. Registrar una venta descuenta `quantity` de la variante en la misma transacción y dispara el recálculo de disponibilidad de `RN-39`. Total: 18 entidades. Pedido explícito del usuario: *"agregar opcion de registrar ventas para que de esta manera reduzca en el stock desded el panel admin"* (18/08/2026). |
 | **1.2.0** | 17/08/2026 | 🟡 **EN REVISIÓN** | **Stock real por variante (`RN-38b`).** `variants`: nueva columna `quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0)`, fuente de verdad del stock. `products.availability` deja de ser un campo que el administrador escribe: pasa a recalcularse en el servicio como la suma de `quantity` de las variantes vivas del producto, con la regla `>5 → available`, `1-5 → low_stock`, `0 → out_of_stock`. Se retira el estado `coming_soon` del `CHECK` (sin datos que lo usaran). Migración con backfill que preserva el estado visible de los 11 productos existentes (no inventa cifras de inventario real, ver `05_API.md` para el detalle del algoritmo) y `downgrade()` reversible. Pedido explícito del usuario en la tanda funcional del 17/08/2026. |

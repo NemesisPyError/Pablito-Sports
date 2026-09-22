@@ -25,4 +25,12 @@ class TestingConfig(BaseConfig):
     # dedicated tests that turn it back on.
     RATELIMIT_ENABLED = False
 
+    # Los tests que sí lo encienden necesitan un almacén propio: comparten
+    # proceso con el resto de la suite y `limiter.reset()` vacía lo que
+    # encuentre. Apuntan a otra base del mismo Redis (`/1` en Compose) para no
+    # borrar los contadores reales de desarrollo. Sin la variable se queda en
+    # `memory://`, de modo que la suite sigue corriendo sin Redis delante — los
+    # tests que exigen almacén compartido se saltan solos en ese caso.
+    RATELIMIT_STORAGE_URI = os.environ.get("TEST_RATELIMIT_STORAGE_URI", "memory://")
+
     REQUIRED_VARS = ("SECRET_KEY", "TEST_DATABASE_URL", "UPLOAD_FOLDER", "LOG_LEVEL")

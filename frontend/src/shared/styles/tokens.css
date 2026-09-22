@@ -33,6 +33,32 @@
   --color-volt-600: #1e4bd8;
   --color-volt-on: var(--color-white);
 
+  /* §6.1 Azul profundo del acceso al panel (decisión del usuario, 09/09/2026).
+     La pantalla de login es la única superficie oscura del producto: no forma
+     parte del catálogo ni del panel, y el azul la separa de ambos a la vez que
+     la ata al acento de energía, que es el mismo azul aclarado.
+
+     No es una escala de tinta con un tinte: es su propia familia, porque
+     `--color-ink-900` es neutro casi negro y aguarlo de azul habría cambiado
+     todas las superficies inversas del sitio. Se usa solo acá.
+
+     Contraste medido sobre `--color-auth-surface` (#111a2e): blanco 16,3:1 y
+     `--color-text-inverse-muted` 8,9:1; ambos pasan AA holgado. El acento
+     `--color-volt-500` sobre el fondo da 3,4:1, suficiente para el logotipo
+     —texto grande, ≥3:1— y por eso no se usa para texto normal. */
+  --color-auth-background: #0b1220;
+  --color-auth-surface: #111a2e;
+  --color-auth-field: #0d1526;
+  --color-auth-border: #24314d;
+  /* Halo decorativo detrás de la tarjeta: el acento, muy diluido. */
+  --color-auth-glow: rgba(47, 95, 255, 0.18);
+  /* El estado de error sigue siendo `--color-danger`, pero sólido no se lee
+     sobre azul profundo: acá va velado, con el texto en claro. Mismo estado,
+     no un color nuevo. Contraste del texto sobre el velo: 8,1:1. */
+  --color-auth-danger-bg: rgba(179, 35, 24, 0.16);
+  --color-auth-danger-border: rgba(179, 35, 24, 0.55);
+  --color-auth-danger-text: #ffc7c2;
+
   /* §6.1 Colores de estado */
   --color-success: #0f6b41;
   --color-success-soft: #e7f4ed;
@@ -101,6 +127,21 @@
   --color-badge-new-text: var(--color-white);
   --color-badge-sale-bg: var(--color-volt-500);
   --color-badge-sale-text: var(--color-white);
+
+  /* Superficie fija para el logotipo de marca (`MediaTile` `.aspectBrand`).
+     A propósito NO se redefine en ningún bloque de tema oscuro (ni el de la
+     tienda ni el del panel): un logotipo es un activo de terceros con su
+     propio color fijo — la mayoría de las marcas del catálogo son marcas
+     negras pensadas para fondo claro (comprobado: Adidas, Nike, Caterpillar,
+     Kappa) — y no hay forma no arbitraria de decidir por marca si conviene
+     invertirla. Mantener la superficie siempre clara es la misma solución
+     que ya usan la mayoría de los sitios para logotipos de proveedores:
+     una tarjeta clara fija, no el fondo de la página. Ver 99_AI_DEVELOPMENT_GUIDE.md §17.1.6.
+  */
+  --color-logo-surface: var(--color-white);
+  --color-logo-surface-border: var(--color-ink-200);
+  --color-logo-surface-text: var(--color-ink-900);
+  --color-logo-surface-accent: var(--color-volt-500);
 
   /* §11.3 Alias de compatibilidad */
   --color-background-page: var(--color-background);
@@ -254,8 +295,9 @@
    * ------------------------------------------------------------------- */
   --carousel-visible-products: 2.2;
   --carousel-visible-brands: 2.5;
-  /* Piezas grandes y editoriales (Novedades/Promociones, BannerRail): una
-     pieza dominante con apenas un asomo de la siguiente, no una grilla. */
+  /* Piezas grandes y editoriales (Promociones y Novedades vía `BannerRail`,
+     y el carrusel de productos de Novedades): una pieza dominante con apenas
+     un asomo de la siguiente, no una grilla. */
   --carousel-visible-categories: 1.15;
   --carousel-gap: var(--spacing-3);
   --carousel-control-size: 2.75rem;
@@ -349,4 +391,329 @@
     --carousel-visible-brands: 7;
     --carousel-visible-categories: 2.4;
   }
+}
+
+/* --------------------------------------------------------------------------
+ * §12.2 Tema oscuro — panel administrativo.
+ *
+ * Reservado en 08_UI_SYSTEM.md para incorporarse "aplicando valores
+ * alternativos mediante una clase en <html>, sin reescribir componentes":
+ * acá se cumple esa condición, con una salvedad deliberada. El atributo no
+ * se pone en `<html>`/`<body>` sino en el contenedor raíz de `AdminLayout`
+ * (`.shell`, ver `AdminLayout.jsx`) — el único elemento del proyecto que
+ * lleva `data-theme`. La tienda pública nunca renderiza ese contenedor, así
+ * que no puede heredar ni un token de este bloque aunque comparta el mismo
+ * `:root`.
+ *
+ * El selector es el atributo solo (`[data-theme='dark']`), sin `.shell`
+ * delante: los módulos CSS hashean los nombres de clase en tiempo de
+ * build (`.shell` → `._shell_xxxxx_14`), así que un selector global que
+ * dependiera de ese nombre literal nunca matchearía.
+ *
+ * Reutiliza la escala azul profundo `--color-auth-*` (única superficie
+ * oscura existente en el proyecto, con el contraste ya verificado más
+ * arriba) en lugar de inventar una paleta nueva — mismo criterio de
+ * "tokens existentes primero" que el resto de este archivo.
+ * ----------------------------------------------------------------------- */
+[data-theme='dark'] {
+  /* `body` (en `base.css`) fija `color`/`background-color` leyendo los
+     tokens light — un descendiente que no vuelve a declarar `color` hereda
+     ese valor YA RESUELTO, no una referencia viva a los tokens de acá
+     abajo. Declararlos de nuevo en la raíz del panel corta esa herencia:
+     todo lo que cuelgue de `.shell` y no fije su propio `color` hereda el
+     blanco de este bloque en lugar del ink-900 de `body`. */
+  color: var(--color-text-body);
+  background-color: var(--color-background-page);
+
+  --color-background: var(--color-auth-surface);
+  --color-surface: var(--color-auth-field);
+  --color-surface-alt: var(--color-auth-background);
+  --color-background-disabled: var(--color-auth-field);
+  --color-border: var(--color-auth-border);
+  --color-text-primary: var(--color-text-inverse);
+  --color-text-secondary: var(--color-text-inverse-muted);
+  --color-text-muted: var(--color-text-inverse-muted);
+  --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-shadow: rgba(0, 0, 0, 0.5);
+
+  --color-action-secondary-text: var(--color-text-inverse);
+  --color-action-secondary-border: var(--color-auth-border);
+  --color-link: var(--color-text-inverse);
+  --color-link-hover: var(--color-text-inverse-muted);
+  --color-border-focus: var(--color-volt-500);
+
+  /* §11.3 alias: mismas referencias que ya usan los componentes migrados. */
+  --color-background-page: var(--color-surface-alt);
+  --color-background-card: var(--color-background);
+  --color-text-heading: var(--color-text-primary);
+  --color-text-body: var(--color-text-primary);
+  --color-text-link: var(--color-link);
+  --color-text-link-hover: var(--color-link-hover);
+  --color-border-default: var(--color-border);
+
+  /* Bootstrap: las mismas variables que `base.css` impone en `:root` para
+     el tema claro, reescritas acá con los valores oscuros de arriba —
+     `.form-control`, `.form-select`, `.table`, `.modal`, `.alert` y demás
+     clases de Bootstrap las resuelven en tiempo de ejecución. */
+  --bs-body-bg: var(--color-background-page);
+  --bs-body-color: var(--color-text-body);
+  --bs-border-color: var(--color-border-default);
+  --bs-secondary-color: var(--color-text-muted);
+  --bs-tertiary-bg: var(--color-surface);
+  --bs-emphasis-color: var(--color-text-primary);
+  --bs-heading-color: var(--color-text-primary);
+  --bs-link-color: var(--color-text-link);
+  --bs-link-hover-color: var(--color-text-link-hover);
+
+  --bs-table-color: var(--color-text-primary);
+  --bs-table-bg: var(--color-background);
+  --bs-table-border-color: var(--color-border);
+  --bs-table-striped-bg: color-mix(in srgb, var(--color-text-inverse) 4%, var(--color-background));
+  --bs-table-striped-color: var(--color-text-primary);
+  --bs-table-hover-bg: color-mix(in srgb, var(--color-volt-500) 12%, var(--color-background));
+  --bs-table-hover-color: var(--color-text-primary);
+
+  --bs-modal-bg: var(--color-background);
+  --bs-modal-color: var(--color-text-primary);
+  --bs-modal-header-border-color: var(--color-border);
+  --bs-modal-footer-border-color: var(--color-border);
+
+  /* `.alert-*`/`.text-bg-*` "subtle": Bootstrap los deriva de estas
+     variables, no de `--bs-success`/`--bs-danger` (esas ya las impone
+     `base.css`). Sin esto el aviso de éxito/error quedaría con el verde o
+     rojo pastel por defecto de Bootstrap, ajeno a los tokens del proyecto. */
+  --bs-success-bg-subtle: color-mix(in srgb, var(--color-success) 25%, var(--color-background));
+  --bs-success-border-subtle: color-mix(in srgb, var(--color-success) 45%, var(--color-background));
+  --bs-success-text-emphasis: color-mix(
+    in srgb,
+    var(--color-success) 55%,
+    var(--color-text-inverse)
+  );
+
+  --bs-danger-bg-subtle: color-mix(in srgb, var(--color-danger) 25%, var(--color-background));
+  --bs-danger-border-subtle: color-mix(in srgb, var(--color-danger) 45%, var(--color-background));
+  --bs-danger-text-emphasis: color-mix(in srgb, var(--color-danger) 45%, var(--color-text-inverse));
+
+  --bs-warning-bg-subtle: color-mix(in srgb, var(--color-warning) 25%, var(--color-background));
+  --bs-warning-border-subtle: color-mix(in srgb, var(--color-warning) 45%, var(--color-background));
+  --bs-warning-text-emphasis: color-mix(
+    in srgb,
+    var(--color-warning) 35%,
+    var(--color-text-inverse)
+  );
+
+  --bs-info-bg-subtle: color-mix(in srgb, var(--color-info) 25%, var(--color-background));
+  --bs-info-border-subtle: color-mix(in srgb, var(--color-info) 45%, var(--color-background));
+  --bs-info-text-emphasis: color-mix(in srgb, var(--color-info) 45%, var(--color-text-inverse));
+
+  /* `.bg-white` (cabeceras/pies de tarjeta de `ProductForm`, `VariantsSection`,
+     `ImagesSection`, etc.) es el único color de Bootstrap hardcodeado que
+     encontramos fuera del sistema de variables: la utilidad de Bootstrap
+     resuelve por `--bs-white-rgb`, así que reescribirla acá alcanza sin
+     tocar cada componente que use la clase. #111a2e = --color-auth-surface,
+     mismo tono que el resto de las tarjetas en oscuro. */
+  --bs-white-rgb: 17, 26, 46;
+
+  /* `Pagination.jsx` (Productos, Banners, Promociones) usa `.pagination` de
+     Bootstrap, que trae su propio juego de variables — no las genéricas de
+     arriba. */
+  --bs-pagination-color: var(--color-text-primary);
+  --bs-pagination-bg: var(--color-background);
+  --bs-pagination-border-color: var(--color-border);
+  --bs-pagination-hover-color: var(--color-text-primary);
+  --bs-pagination-hover-bg: var(--color-surface);
+  --bs-pagination-hover-border-color: var(--color-border);
+  --bs-pagination-focus-color: var(--color-text-primary);
+  --bs-pagination-focus-bg: var(--color-surface);
+  --bs-pagination-active-color: var(--color-volt-on);
+  --bs-pagination-active-bg: var(--color-volt-500);
+  --bs-pagination-active-border-color: var(--color-volt-500);
+  --bs-pagination-disabled-color: var(--color-text-muted);
+  --bs-pagination-disabled-bg: var(--color-background);
+  --bs-pagination-disabled-border-color: var(--color-border);
+}
+
+/* `.table-light` fija sus propias `--bs-table-*` en vez de leer las del
+   bloque de arriba (así compila Bootstrap 5.3), así que el encabezado de
+   cada tabla del panel (`ProductsTable`, `UsersTable`, etc.) necesita su
+   propia reescritura. */
+[data-theme='dark'] .table-light {
+  --bs-table-bg: var(--color-surface);
+  --bs-table-color: var(--color-text-primary);
+  --bs-table-border-color: var(--color-border);
+}
+
+/* Los checkbox nativos de Bootstrap traen fondo blanco fijo por fuera del
+   sistema de variables de arriba. */
+[data-theme='dark'] .form-check-input {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+[data-theme='dark'] .form-check-input:checked {
+  background-color: var(--color-volt-500);
+  border-color: var(--color-volt-500);
+}
+
+/* El X de `.btn-close` (`ManualSaleDialog`) es un SVG horneado en negro sin
+   variable propia — Bootstrap resuelve el tema oscuro invirtiéndolo, no
+   recoloreándolo; es el mecanismo oficial (`.btn-close-white`), no un hack. */
+[data-theme='dark'] .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* --------------------------------------------------------------------------
+ * §12.2 Tema oscuro — tienda pública.
+ *
+ * Mismo mecanismo que el del panel (ver arriba): el atributo se aplica en la
+ * raíz de `PublicLayout` (nunca en `<html>`/`<body>`) y el selector es solo
+ * el atributo, por el mismo hasheo de CSS Modules. Nombre distinto
+ * (`data-store-theme`, no `data-theme`) a propósito: son dos preferencias
+ * independientes — persisten bajo claves de `localStorage` separadas
+ * (`pablito.store.theme` / `pablito.admin.theme`, ver `usePublicTheme.js` /
+ * `useAdminTheme.js`) y nunca deben poder pisarse entre sí.
+ *
+ * No reutiliza la paleta azul de `--color-auth-*`: esa es la identidad
+ * exclusiva de la pantalla de acceso al panel (comentario de esa escala,
+ * arriba). La tienda es "tinta sobre blanco" (UDS-07); su oscuro es la
+ * misma tinta invertida de rol — `--color-ink-900/800/700`, ya parte de la
+ * escala §6.1 —, no una paleta nueva ni un filtro de inversión.
+ * ----------------------------------------------------------------------- */
+[data-store-theme='dark'] {
+  color: var(--color-text-body);
+  background-color: var(--color-background-page);
+
+  --color-background: var(--color-ink-800);
+  --color-surface: var(--color-ink-700);
+  --color-surface-alt: var(--color-ink-900);
+  --color-background-disabled: var(--color-ink-700);
+  --color-border: var(--color-ink-500);
+  --color-text-primary: var(--color-text-inverse);
+  --color-text-secondary: var(--color-text-inverse-muted);
+  --color-text-muted: var(--color-text-inverse-muted);
+  --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-shadow: rgba(0, 0, 0, 0.5);
+
+  --color-action-secondary-text: var(--color-text-inverse);
+  --color-action-secondary-border: var(--color-ink-500);
+  --color-link: var(--color-text-inverse);
+  --color-link-hover: var(--color-volt-500);
+  --color-border-focus: var(--color-volt-500);
+
+  /* El primario (`Agregar al carrito`, talle elegido, "Nuevo") es tinta
+     casi negra sobre blanco en claro — el opuesto exacto del fondo de
+     página, a propósito: es el botón que más debe destacar. Sin esto,
+     "opuesto del fondo" seguía siendo ink-900 pero el fondo TAMBIÉN pasó a
+     ser casi negro acá arriba, y el botón se volvía invisible contra la
+     página (visto en `VariantSelector`/`ProductDetailPage`: el talle
+     elegido y "Agregar al carrito" desaparecían). Blanco sobre tinta
+     mantiene el mismo criterio — el primario sigue siendo el opuesto del
+     fondo — en vez de reutilizar el mismo tono oscuro que ya no contrasta. */
+  --color-action-primary-bg: var(--color-text-inverse);
+  --color-action-primary-bg-hover: var(--color-ink-200);
+  --color-action-primary-text: var(--color-ink-900);
+
+  /* Mismo problema y misma causa en el precio vigente y la insignia "Nuevo":
+     los dos citaban `--color-ink-900` directo, no `--color-text-primary`,
+     así que la herencia de `color` (ver el comentario grande de arriba
+     sobre `body`) no los alcanzaba y quedaban leyendo el ink-900 de
+     siempre — negro sobre un fondo que ahora también es casi negro. */
+  --color-price-current: var(--color-text-inverse);
+  --color-price-list: var(--color-text-inverse-muted);
+  --color-badge-new-bg: var(--color-text-inverse);
+  --color-badge-new-text: var(--color-ink-900);
+
+  /* Trama de puntos de "Destacados" (`Section.module.css` `.toneDefault`):
+     en claro es casi imperceptible sobre blanco; el mismo ink-200 sobre un
+     fondo oscuro se vería como confeti. `--section-dot-color` no existe en
+     claro (el selector de abajo cae al valor por defecto, ink-200), así
+     que esta es la única superficie que la declara. */
+  --section-dot-color: var(--color-ink-700);
+
+  /* §11.3 alias: mismas referencias que ya usan los componentes migrados. */
+  --color-background-page: var(--color-surface-alt);
+  --color-background-card: var(--color-background);
+  --color-text-heading: var(--color-text-primary);
+  --color-text-body: var(--color-text-primary);
+  --color-text-link: var(--color-link);
+  --color-text-link-hover: var(--color-link-hover);
+  --color-border-default: var(--color-border);
+
+  /* Bootstrap, mismo criterio que en el bloque del panel: `/catalogo`
+     (filtros, paginación) y `/carrito` (línea de ítem, avisos) cuelgan del
+     mismo `PublicLayout` y usan clases de Bootstrap sin CSS Modules propio. */
+  --bs-body-bg: var(--color-background-page);
+  --bs-body-color: var(--color-text-body);
+  --bs-border-color: var(--color-border-default);
+  --bs-secondary-color: var(--color-text-muted);
+  --bs-tertiary-bg: var(--color-surface);
+  --bs-emphasis-color: var(--color-text-primary);
+  --bs-heading-color: var(--color-text-primary);
+  --bs-link-color: var(--color-text-link);
+  --bs-link-hover-color: var(--color-text-link-hover);
+
+  --bs-white-rgb: 23, 28, 35;
+
+  --bs-success-bg-subtle: color-mix(in srgb, var(--color-success) 25%, var(--color-background));
+  --bs-success-border-subtle: color-mix(in srgb, var(--color-success) 45%, var(--color-background));
+  --bs-success-text-emphasis: color-mix(
+    in srgb,
+    var(--color-success) 55%,
+    var(--color-text-inverse)
+  );
+
+  --bs-danger-bg-subtle: color-mix(in srgb, var(--color-danger) 25%, var(--color-background));
+  --bs-danger-border-subtle: color-mix(in srgb, var(--color-danger) 45%, var(--color-background));
+  --bs-danger-text-emphasis: color-mix(in srgb, var(--color-danger) 45%, var(--color-text-inverse));
+
+  --bs-warning-bg-subtle: color-mix(in srgb, var(--color-warning) 25%, var(--color-background));
+  --bs-warning-border-subtle: color-mix(in srgb, var(--color-warning) 45%, var(--color-background));
+  --bs-warning-text-emphasis: color-mix(
+    in srgb,
+    var(--color-warning) 35%,
+    var(--color-text-inverse)
+  );
+
+  --bs-info-bg-subtle: color-mix(in srgb, var(--color-info) 25%, var(--color-background));
+  --bs-info-border-subtle: color-mix(in srgb, var(--color-info) 45%, var(--color-background));
+  --bs-info-text-emphasis: color-mix(in srgb, var(--color-info) 45%, var(--color-text-inverse));
+
+  --bs-pagination-color: var(--color-text-primary);
+  --bs-pagination-bg: var(--color-background);
+  --bs-pagination-border-color: var(--color-border);
+  --bs-pagination-hover-color: var(--color-text-primary);
+  --bs-pagination-hover-bg: var(--color-surface);
+  --bs-pagination-hover-border-color: var(--color-border);
+  --bs-pagination-focus-color: var(--color-text-primary);
+  --bs-pagination-focus-bg: var(--color-surface);
+  --bs-pagination-active-color: var(--color-volt-on);
+  --bs-pagination-active-bg: var(--color-volt-500);
+  --bs-pagination-active-border-color: var(--color-volt-500);
+  --bs-pagination-disabled-color: var(--color-text-muted);
+  --bs-pagination-disabled-bg: var(--color-background);
+  --bs-pagination-disabled-border-color: var(--color-border);
+
+  /* `.offcanvas` de los filtros del catálogo en móvil (`FiltersPanel.jsx`). */
+  --bs-offcanvas-bg: var(--color-background);
+  --bs-offcanvas-color: var(--color-text-primary);
+
+  /* `.list-group` del carrito (`CartItemRow.jsx`). */
+  --bs-list-group-bg: var(--color-background);
+  --bs-list-group-color: var(--color-text-primary);
+  --bs-list-group-border-color: var(--color-border);
+  --bs-list-group-action-hover-bg: var(--color-surface);
+}
+
+[data-store-theme='dark'] .form-check-input {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+[data-store-theme='dark'] .form-check-input:checked {
+  background-color: var(--color-volt-500);
+  border-color: var(--color-volt-500);
+}
+
+[data-store-theme='dark'] .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
 }

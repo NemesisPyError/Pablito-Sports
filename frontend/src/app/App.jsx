@@ -4,8 +4,10 @@ import { BrowserRouter } from 'react-router-dom';
 
 import { PublicRoutes } from '../routes/PublicRoutes.jsx';
 import { useStoreSettings } from '../features/store/index.js';
+import { TurnstileGate } from '../features/turnstile/index.js';
 import { LoadingState } from '../shared/components/LoadingState.jsx';
 import { ErrorState } from '../shared/components/ErrorState.jsx';
+import { AdminLoadingScreen } from './AdminLoadingScreen.jsx';
 import { ErrorBoundary } from './ErrorBoundary.jsx';
 import { QueryProvider } from './providers/QueryProvider.jsx';
 
@@ -38,12 +40,23 @@ export default function App() {
             <Route
               path="/admin/*"
               element={
-                <Suspense fallback={<LoadingState message="Cargando panel…" />}>
+                <Suspense fallback={<AdminLoadingScreen />}>
                   <AdminRoutes />
                 </Suspense>
               }
             />
-            <Route path="*" element={<PublicApp />} />
+            {/* `TurnstileGate` envuelve TODA ruta pública, no solo `/`: vive
+                por encima de `PublicApp` para que ni siquiera la consulta de
+                `store_settings` arranque antes de verificar. El panel
+                (`/admin/*`, arriba) nunca pasa por acá. */}
+            <Route
+              path="*"
+              element={
+                <TurnstileGate>
+                  <PublicApp />
+                </TurnstileGate>
+              }
+            />
           </Routes>
         </BrowserRouter>
       </QueryProvider>

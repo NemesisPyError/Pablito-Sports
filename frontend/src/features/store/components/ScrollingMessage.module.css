@@ -1,0 +1,107 @@
+/**
+ * Franja de mensaje deslizante bajo el hero (08_UI_SYSTEM.md §14.1).
+ *
+ * Banda de acento entre dos superficies oscuras: el hero es imagen con velo y
+ * la sección siguiente es `tone="inverse"`. Con fondo oscuro propio las tres
+ * se fundirían en una sola mancha, así que usa el azul de energía. El par
+ * `--color-volt-500` / `--color-volt-on` está verificado en `tokens.css` §6.1:
+ * ~5:1, AA de texto normal.
+ */
+
+.strip {
+  /*
+   * La fila mide lo mismo en cualquier pantalla —`max-content` sobre un texto
+   * fijo—, así que una duración fija da velocidad constante en todos los
+   * anchos, que es justo lo que `linear` promete.
+   */
+  --marquee-duration: 45s;
+
+  /*
+   * Recorta la fila, que es mucho más ancha que la ventana. Sin esto la página
+   * entera ganaría scroll horizontal.
+   */
+  overflow: hidden;
+  background-color: var(--color-volt-500);
+  color: var(--color-volt-on);
+}
+
+.track {
+  display: flex;
+  align-items: center;
+  /*
+   * `max-content` deja que la fila mida lo que suman sus ocho copias, en lugar
+   * del ancho del contenedor. Es lo que hace que el -50% del fotograma final
+   * caiga exactamente sobre el inicio de la quinta copia.
+   */
+  width: max-content;
+  animation: marqueeScroll var(--marquee-duration) linear infinite;
+}
+
+/*
+ * La separación entre frases va **dentro** de la copia y no como `gap` de la
+ * fila: con `gap`, ocho copias suman siete separaciones y el -50% caería medio
+ * espacio corrido del inicio de la quinta — un salto chico pero visible en cada
+ * vuelta. Con el espacio adentro, cada copia mide exactamente lo mismo y la
+ * mitad de la fila es la mitad exacta de las copias.
+ */
+.phrase {
+  padding-block: var(--spacing-3);
+  padding-inline-end: var(--spacing-6);
+  color: inherit;
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-none);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@keyframes marqueeScroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    /* La mitad exacta de la fila: la segunda mitad es copia de la primera. */
+    transform: translateX(-50%);
+  }
+}
+
+@media (min-width: 768px) {
+  .phrase {
+    padding-block: var(--spacing-4);
+    padding-inline-end: var(--spacing-8);
+    font-size: var(--font-size-md);
+  }
+}
+
+/*
+ * §10.5: se respeta `prefers-reduced-motion`.
+ *
+ * La regla global de `base.css` acorta toda animación a `--duration-instant`,
+ * lo que acá dejaría la fila congelada en su fotograma final —desplazada un
+ * -50%, con la frase cortada por el `overflow`—. Por eso hace falta una regla
+ * propia: sin movimiento, la fila deja de tener sentido y se muestra **una
+ * sola** frase centrada, que además puede partirse en varias líneas para que
+ * entre entera en pantallas angostas. La franja queda legible por completo.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    justify-content: center;
+    width: 100%;
+    animation: none;
+    transform: none;
+  }
+
+  .phrase:not(:first-child) {
+    display: none;
+  }
+
+  .phrase {
+    padding-inline: var(--section-inset-x);
+    line-height: var(--line-height-snug);
+    white-space: normal;
+    text-align: center;
+  }
+}

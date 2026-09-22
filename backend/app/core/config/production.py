@@ -41,3 +41,23 @@ class ProductionConfig(BaseConfig):
                 f"(at least {_MIN_SECRET_KEY_LENGTH} characters and not a placeholder). "
                 'Generate it with: python -c "import secrets; print(secrets.token_urlsafe(64))"'
             )
+
+        # §14.4: en producción el contador de rate limiting debe vivir fuera del
+        # proceso. Con `memory://` cada worker lleva el suyo, de modo que el
+        # límite declarado deja de ser el límite real y se pierde en cada
+        # despliegue. Se falla al arrancar, no en silencio: un rate limit que
+        # cuenta mal parece funcionar, y ese es justamente el problema.
+        storage_uri = os.environ.get("RATELIMIT_STORAGE_URI", "").strip()
+        if not storage_uri:
+            raise ConfigError(
+                "RATELIMIT_STORAGE_URI is required in production: the rate limit "
+                "counter must be shared by every Gunicorn worker. "
+                "Example: RATELIMIT_STORAGE_URI=redis://redis:6379/0"
+            )
+        if storage_uri.startswith("memory:"):
+            raise ConfigError(
+                "RATELIMIT_STORAGE_URI must not be an in-process store in production "
+                f"(got {storage_uri!r}). Each Gunicorn worker would keep its own counter, "
+                "so the effective limit would be the declared one multiplied by the number "
+                "of workers, and it would reset on every restart."
+            )

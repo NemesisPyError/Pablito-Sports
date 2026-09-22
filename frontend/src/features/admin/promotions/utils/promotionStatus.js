@@ -46,20 +46,26 @@ export function describePromotionStatus(promotion, now = new Date()) {
   return STATUS_LABELS[getPromotionStatus(promotion, now)];
 }
 
-/** `RN-36`: exactamente uno de los tres alcances. */
+/**
+ * `RN-36` (v1.6.0): como máximo uno de los tres alcances con entidad; `ALL`
+ * no tiene entidad propia y no lleva campo en `SCOPE_FIELD` — el payload no
+ * manda ninguno de los tres FK cuando se elige.
+ */
 export const SCOPE_TYPES = {
   BRAND: 'brand',
   CATEGORY: 'category',
   PRODUCT: 'product',
+  ALL: 'all',
 };
 
 export const SCOPE_LABELS = {
   [SCOPE_TYPES.BRAND]: 'Marca',
   [SCOPE_TYPES.CATEGORY]: 'Categoría',
   [SCOPE_TYPES.PRODUCT]: 'Producto',
+  [SCOPE_TYPES.ALL]: 'Todos los productos',
 };
 
-/** Campo del payload que corresponde a cada tipo de alcance. */
+/** Campo del payload que corresponde a cada tipo de alcance con entidad. */
 export const SCOPE_FIELD = {
   [SCOPE_TYPES.BRAND]: 'brand_id',
   [SCOPE_TYPES.CATEGORY]: 'category_id',

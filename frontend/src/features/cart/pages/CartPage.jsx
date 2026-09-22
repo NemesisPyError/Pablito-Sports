@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
+import { EmptyState } from '../../../shared/components/EmptyState.jsx';
 import { formatGuaranies } from '../../../shared/formatters/currency.js';
 import { Page } from '../../../shared/components/Page.jsx';
 import { CartItemRow } from '../components/CartItemRow.jsx';
@@ -21,6 +23,7 @@ const MIGAS = [{ label: 'Inicio', to: '/' }, { label: 'Carrito' }];
  */
 export function CartPage({ storeSettings }) {
   const cart = useCart();
+  const navigate = useNavigate();
   const revalidation = useCartRevalidation();
   useCartSync();
 
@@ -124,23 +127,36 @@ export function CartPage({ storeSettings }) {
   if (!cart.items.length) {
     return (
       <Page title="Tu carrito de consulta" breadcrumbs={MIGAS} narrow>
-        <p className="text-muted">Todavía no agregaste productos.</p>
+        <EmptyState
+          title="Tu carrito está vacío"
+          message="Explorá el catálogo y agregá los productos que quieras consultar por WhatsApp."
+          actionLabel="Ver catálogo"
+          onAction={() => navigate('/catalogo')}
+        />
       </Page>
     );
   }
 
   return (
     <Page title="Tu carrito de consulta" eyebrow="Consulta por WhatsApp" breadcrumbs={MIGAS}>
+      {/* `role="status"`: el resultado de la verificación llega tras abrir la
+          página; sin región viva un lector de pantalla no lo anuncia. */}
       {revalidation.state === REVALIDATION_STATE.LOADING && (
-        <p className="text-muted small">Verificando precios y disponibilidad…</p>
+        <p className="text-muted small" role="status">
+          Verificando precios y disponibilidad…
+        </p>
       )}
 
       {/* AD-30: "verificado sin cambios" y "no se pudo verificar" son distintos. */}
       {revalidation.state === REVALIDATION_STATE.VERIFIED && !pendingConfirmation && (
-        <p className="text-success small">Precios y disponibilidad verificados.</p>
+        <p className="text-success small" role="status">
+          Precios y disponibilidad verificados.
+        </p>
       )}
       {revalidation.state === REVALIDATION_STATE.UNVERIFIED && !networkFallback && (
-        <p className="text-secondary small">No pudimos verificar los precios en este momento.</p>
+        <p className="text-secondary small" role="status">
+          No pudimos verificar los precios en este momento.
+        </p>
       )}
 
       {pendingConfirmation && revalidation.result && (

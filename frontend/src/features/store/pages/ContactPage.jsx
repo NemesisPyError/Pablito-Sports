@@ -1,4 +1,5 @@
 import { Page } from '../../../shared/components/Page.jsx';
+import { simpleWhatsAppHref } from '../../../shared/utils/whatsapp.js';
 import { useStoreAbout } from '../hooks/useStoreAbout.js';
 
 /**
@@ -22,7 +23,7 @@ export function ContactPage({ storeSettings }) {
         <p>
           <strong>WhatsApp:</strong>{' '}
           <a
-            href={`https://wa.me/${storeSettings.whatsapp_number}`}
+            href={simpleWhatsAppHref(storeSettings.whatsapp_number)}
             target="_blank"
             rel="noopener noreferrer"
           >

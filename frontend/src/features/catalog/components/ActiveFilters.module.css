@@ -1,0 +1,30 @@
+/**
+ * Filtros activos del catálogo (09_COMPONENTES.md §9.8).
+ *
+ * Los chips quedan en utilidades de Bootstrap (`badge bg-light`); solo
+ * "Limpiar todo" tiene estilo propio — es la única acción real de la fila,
+ * el resto son etiquetas informativas con su propia cruz de quitar.
+ */
+
+.clearAll {
+  padding: var(--spacing-1) var(--spacing-3);
+  border: var(--border-width-medium) var(--border-style-default) var(--color-ink-900);
+  border-radius: var(--radius-md);
+  background-color: var(--color-white);
+  color: var(--color-ink-900);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-normal);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.clearAll:hover {
+  background-color: var(--color-ink-900);
+  color: var(--color-white);
+}
+
+.clearAll:focus-visible {
+  outline: var(--focus-ring-width) var(--border-style-default) var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}

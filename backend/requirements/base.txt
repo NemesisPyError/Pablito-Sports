@@ -1,12 +1,12 @@
 # Runtime dependencies (00_VISION_PROYECTO.md §9)
-Flask==3.1.0
+Flask==3.1.3
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.0.7
 SQLAlchemy==2.0.36
 alembic==1.14.0
 psycopg2-binary==2.9.10
 gunicorn==23.0.0
-python-dotenv==1.0.1
+python-dotenv==1.2.3
 
 # Panel administrativo (Fase 6)
 # AD-37 + 10_BACKEND.md §6: sesión de servidor, no testigo autocontenido.
@@ -15,9 +15,23 @@ Flask-Session==0.8.0
 Flask-WTF==1.2.2
 # 03_SEGURIDAD.md §14: límites por endpoint (RNF-11).
 Flask-Limiter==3.9.2
+# §14.4: cliente del almacén compartido del contador. `limits` no trae backend
+# de PostgreSQL, así que un contador único entre workers exige un almacén
+# externo; `limits[redis]` acepta redis >3,<8.
+redis==5.2.1
 # 03_SEGURIDAD.md §5.5: bcrypt con coste >= 12.
 bcrypt==4.2.1
 # 03_SEGURIDAD.md §11.1: validación de dimensiones y comprobación de que el
 # archivo es una imagen real (§11.2). También genera los derivados de
 # 02_ARQUITECTURA.md §15.5.
-Pillow==11.0.0
+#
+# 12.3.0 y no 11.0.0 (post-S13): `pip-audit` reportaba 24 avisos sobre 11.0.0.
+# Es la ÚNICA dependencia que decodifica entrada no confiable —las fotos que
+# sube el panel—, así que aquí la actualización no es higiene sino la superficie
+# real. La mayoría de los avisos no eran alcanzables (fuentes, PSD, PDF, TGA,
+# JPEG2000, ImageCms: la validación por magic bytes sólo admite PNG y JPEG),
+# pero varios sí lo son por la ruta PNG y por `resize()`/`paste()`.
+# Salto de mayor deliberado: el proyecto sólo usa APIs estables de Pillow
+# (`open`, `new`, `convert`, `resize`, `paste`, `save`), verificado con la suite
+# del pipeline de imágenes.
+Pillow==12.3.0

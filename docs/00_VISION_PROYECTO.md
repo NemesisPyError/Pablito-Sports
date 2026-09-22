@@ -69,7 +69,6 @@ Desarrollar Pablito Sports como una plataforma de catálogo comercial moderna, e
 - Gestión de productos.
 - Gestión de marcas.
 - Gestión de categorías.
-- Gestión de colores.
 - Gestión de talles.
 - Gestión de promociones.
 - Gestión de banners.

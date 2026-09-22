@@ -11,7 +11,8 @@ import re
 from dataclasses import dataclass
 
 from ..core.exceptions import RequestValidationError
-from ..core.security.password import MIN_PASSWORD_LENGTH, meets_policy
+from ..core.security.password import policy_violation
+from .shared import texto
 
 # §9.2.13: conjunto cerrado, el mismo del CHECK `role_allowed`.
 ROLES = ("administrator", "super_administrator")
@@ -36,19 +37,34 @@ class AdministratorInput:
 
 
 def _texto(payload: dict, campo: str, errores: list, *, maximo: int) -> str:
-    valor = (payload.get(campo) or "").strip()
-    if not valor:
-        errores.append({"field": campo, "detail": f"{campo} is required"})
-    elif len(valor) > maximo:
-        errores.append({"field": campo, "detail": f"{campo} must be at most {maximo} characters"})
-    return valor
+    """S-13: delega en `shared.texto`, que rechaza el tipo en vez de convertirlo."""
+    return texto(payload, campo, errores, maximo=maximo)
 
 
 def _rol(payload: dict, errores: list) -> str:
-    rol = (payload.get("role") or "").strip()
+    # Sin `texto()` a propósito: el error útil acá no es «debe ser una cadena»
+    # sino la lista de roles admitidos, y vale para los dos casos.
+    rol = payload.get("role")
+    rol = rol.strip() if isinstance(rol, str) else ""
     if rol not in ROLES:
         errores.append({"field": "role", "detail": "role must be one of " + ", ".join(ROLES)})
     return rol
+
+
+def _password(payload: dict, campo: str, errores: list | None = None) -> str:
+    """La contraseña, solo si es una cadena. Nunca llega un no-string a bcrypt.
+
+    El motivo se dice tal cual —«must be a string»— en vez de dejar que la
+    política responda «is required», que sería cierto pero confuso.
+    """
+    valor = payload.get(campo)
+    if valor is None:
+        return ""
+    if not isinstance(valor, str):
+        if errores is not None:
+            errores.append({"field": campo, "detail": f"{campo} must be a string"})
+        return ""
+    return valor
 
 
 def _correo(valor: str, errores: list) -> None:
@@ -57,16 +73,16 @@ def _correo(valor: str, errores: list) -> None:
 
 
 def _contrasena(valor: str, errores: list, *, campo: str = "password") -> None:
-    """03_SEGURIDAD.md §5.5: mínimo 8 caracteres."""
-    if not valor:
-        errores.append({"field": campo, "detail": f"{campo} is required"})
-    elif not meets_policy(valor):
-        errores.append(
-            {
-                "field": campo,
-                "detail": f"{campo} must be at least {MIN_PASSWORD_LENGTH} characters",
-            }
-        )
+    """03_SEGURIDAD.md §5.5: longitud, tope de bcrypt y rechazo de lo trivial.
+
+    Único punto de validación: lo usan tanto el alta como el cambio, de modo que
+    la política no puede quedar desalineada entre los dos caminos.
+    """
+    motivo = policy_violation(valor)
+    if motivo is not None:
+        # `policy_violation` habla de "password"; el campo real puede ser
+        # `new_password`, y el cliente necesita saber cuál corregir.
+        errores.append({"field": campo, "detail": motivo.replace("password", campo, 1)})
 
 
 def parse_administrator_create(payload: dict) -> AdministratorInput:
@@ -76,8 +92,9 @@ def parse_administrator_create(payload: dict) -> AdministratorInput:
     email = _texto(payload, "email", errores, maximo=MAX_EMAIL_LENGTH)
     _correo(email, errores)
     rol = _rol(payload, errores)
-    password = payload.get("password") or ""
-    _contrasena(password, errores)
+    password = _password(payload, "password", errores)
+    if isinstance(payload.get("password"), str) or payload.get("password") is None:
+        _contrasena(password, errores)
 
     if errores:
         raise RequestValidationError(errores)
@@ -125,12 +142,14 @@ def parse_password_change(payload: dict) -> PasswordChangeInput:
     el schema acepta que falte y el servicio decide si era exigible.
     """
     errores: list[dict] = []
-    _contrasena(payload.get("new_password") or "", errores, campo="new_password")
+    nueva = _password(payload, "new_password", errores)
+    if isinstance(payload.get("new_password"), str) or payload.get("new_password") is None:
+        _contrasena(nueva, errores, campo="new_password")
 
     if errores:
         raise RequestValidationError(errores)
 
     return PasswordChangeInput(
-        current_password=payload.get("current_password") or "",
-        new_password=payload["new_password"],
+        current_password=_password(payload, "current_password", errores=None),
+        new_password=nueva,
     )

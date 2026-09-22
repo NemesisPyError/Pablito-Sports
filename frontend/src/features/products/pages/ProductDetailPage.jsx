@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { AvailabilityBadge } from '../../../shared/components/AvailabilityBadge.jsx';
 import { EmptyState } from '../../../shared/components/EmptyState.jsx';
@@ -11,7 +11,7 @@ import { Tag } from '../../../shared/components/Tag.jsx';
 import { translateGender } from '../../../shared/config/labels.js';
 import { productMeta } from '../../../shared/seo/pageMeta.js';
 import { useDocumentMeta } from '../../../shared/seo/useDocumentMeta.js';
-import { useCart } from '../../cart/index.js';
+import { mensajeDeRechazo, useCart } from '../../cart/index.js';
 import { ProductGallery } from '../components/ProductGallery.jsx';
 import { VariantSelector } from '../components/VariantSelector.jsx';
 import { useProduct } from '../hooks/useProduct.js';
@@ -21,7 +21,8 @@ import { useProduct } from '../hooks/useProduct.js';
  */
 export function ProductDetailPage({ storeSettings }) {
   const { slug } = useParams();
-  const { data: product, isLoading, isError, refetch } = useProduct(slug);
+  const navigate = useNavigate();
+  const { data: product, isLoading, isError, error: loadError, refetch } = useProduct(slug);
   const cart = useCart();
 
   // §17.2: título, descripción, canónica y Open Graph de la ficha.
@@ -59,30 +60,50 @@ export function ProductDetailPage({ storeSettings }) {
       return;
     }
 
-    const result = cart.addItem(variant.id, 1, {
-      slug: product.slug,
-      name: product.name,
-      brand: product.brand?.name,
-      size: variant.size?.name ?? null,
-      thumbnail_url: primaryImage?.image_url ?? product.images?.[0]?.image_url ?? null,
-      list_price: product.list_price,
-      sale_price: product.sale_price,
-      availability: variant.availability ?? product.availability,
-    });
+    const result = cart.addItem(
+      variant.id,
+      1,
+      {
+        slug: product.slug,
+        name: product.name,
+        brand: product.brand?.name,
+        size: variant.size?.name ?? null,
+        thumbnail_url: primaryImage?.image_url ?? product.images?.[0]?.image_url ?? null,
+        list_price: product.list_price,
+        sale_price: product.sale_price,
+        availability: variant.availability ?? product.availability,
+        // RN-54b: el tope viaja con la línea para que el carrito pueda limitar
+        // sin volver a pedir el producto. Se refresca en cada revalidación.
+        available_quantity: variant.available_quantity ?? null,
+      },
+      variant.available_quantity ?? null,
+    );
 
     if (!result.ok) {
-      setError(
-        result.error === 'too_many_items'
-          ? `Tu carrito admite hasta ${result.limit} productos distintos.`
-          : 'Cantidad inválida.',
-      );
+      // El talle ya estaba en el carrito y sumar otra unidad pasaría el stock:
+      // es el caso de "agregar de nuevo algo que ya está".
+      setError(mensajeDeRechazo(result, variant.size?.name));
     } else {
       setAdded(true);
     }
   };
 
   if (isLoading) return <LoadingState message="Cargando producto…" />;
-  if (isError) return <ErrorState onRetry={refetch} />;
+  if (isError) {
+    // Un `404` acá es un producto oculto, eliminado o inexistente: no es un
+    // fallo para reintentar, sino un "no está".
+    if (loadError?.status === 404) {
+      return (
+        <EmptyState
+          title="Producto no encontrado"
+          message="Puede que ya no esté disponible o que el enlace sea incorrecto."
+          actionLabel="Volver al catálogo"
+          onAction={() => navigate('/catalogo')}
+        />
+      );
+    }
+    return <ErrorState error={loadError} onRetry={refetch} />;
+  }
   if (!product) return <EmptyState title="Producto no encontrado" />;
 
   return (
@@ -122,7 +143,12 @@ export function ProductDetailPage({ storeSettings }) {
           </div>
 
           <div className="d-flex flex-wrap gap-2 mb-3">
-            <AvailabilityBadge availability={product.availability} />
+            {/* «Stock bajo» es información de inventario, no un mensaje para
+                el cliente: se muestra disponible u no disponible, nunca ese
+                estado intermedio. */}
+            {product.availability !== 'low_stock' && (
+              <AvailabilityBadge availability={product.availability} />
+            )}
             {product.is_new && <Tag variant="ink">Nuevo</Tag>}
             {product.is_featured && <Tag variant="accent">Destacado</Tag>}
           </div>
@@ -164,9 +190,13 @@ export function ProductDetailPage({ storeSettings }) {
                 <strong>Deporte:</strong> {product.sports.map((s) => s.name).join(', ')}
               </p>
             )}
-            {product.gender && (
+            {product.genders?.length > 0 && (
               <p className="small text-muted mb-0">
-                <strong>Sexo:</strong> {translateGender(product.gender.name)}
+                {/* RN-09 (v2.9.0): lista, no un solo sexo. Se traduce por
+                    `slug` — `.name` nunca fue la clave correcta acá, aunque
+                    con un solo sexo pasara desapercibido. */}
+                <strong>Género:</strong>{' '}
+                {product.genders.map((g) => translateGender(g.slug)).join(', ')}
               </p>
             )}
           </div>

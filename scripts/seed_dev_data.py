@@ -56,6 +56,7 @@ RESET_TABLES = (
     "product_sizes",
     "product_sports",
     "product_categories",
+    "product_genders",
     "sales",
     "variants",
     "images",
@@ -65,6 +66,8 @@ RESET_TABLES = (
     "banners",
     "sizes",
     "sports",
+    # `category_genders` apunta a `categories` con `RESTRICT` (RN-83).
+    "category_genders",
     "categories",
     # `brand_images` apunta a `brands` con `RESTRICT` (04 §9.2.18): sin vaciarla
     # antes, el reset falla en cuanto una marca tenga collage cargado.
@@ -102,6 +105,7 @@ def _store_placeholder_image(product_id: int, name: str, position: int) -> str:
 def seed():
     men = db.session.query(Gender).filter_by(slug="men").one()
     women = db.session.query(Gender).filter_by(slug="women").one()
+    boys = db.session.query(Gender).filter_by(slug="boys").one()
     footwear = db.session.query(SizeType).filter_by(slug="footwear_numeric").one()
     apparel = db.session.query(SizeType).filter_by(slug="apparel_alpha").one()
 
@@ -109,10 +113,17 @@ def seed():
         StoreSetting(
             id=1,
             store_name="Pablito Sports",
-            whatsapp_number="+595981123456",
-            address="Av. Mariscal López 1234, Asunción",
-            business_hours="Lunes a sábado de 08:00 a 19:00",
-            social_links={"instagram": "https://instagram.com/pablitosports"},
+            whatsapp_number="+595986742700",
+            address="Trinidad, Itapúa - Paraguay",
+            business_hours=(
+                "Lunes a viernes: 08:00 a 12:00 y 13:30 a 18:30\n"
+                "Sábados: 08:00 a 17:00\n"
+                "Domingos: Cerrado"
+            ),
+            social_links={
+                "instagram": "https://www.instagram.com/pablito_sports_",
+                "facebook": "https://www.facebook.com/Pablitosport",
+            },
             message_template="Hola! Quiero consultar por estos productos:\n{items}",
             item_template="- {name} ({variant}) x{quantity}",
             featured_products_count=8,
@@ -151,6 +162,12 @@ def seed():
     zapatillas = Category(name="Zapatillas", slug="zapatillas", parent_id=calzado.id)
     remeras = Category(name="Remeras", slug="remeras", parent_id=indumentaria.id)
     db.session.add_all([botines, zapatillas, remeras])
+
+    # RN-83: sexos por categoría. `Botines` queda restringida a propósito para
+    # que el entorno de desarrollo muestre el efecto en el menú —no aparece
+    # bajo Mujeres— sin tener que tocar el panel. Las demás quedan sin sexos:
+    # AD-41, sin restricción, se ven en los tres ejes.
+    botines.genders = [men, boys]
 
     # Calzado (botines, zapatillas): numérico 34 a 45, el rango que pisa el
     # negocio. `talles_calzado` queda indexado por número para que el catálogo
@@ -210,12 +227,12 @@ def seed():
             is_active=active,
             brand_id=brand.id,
             primary_category_id=primary_cat.id,
-            gender_id=gender.id,
             size_type_id=size_type.id,
         )
         product.categories = cats
         product.sports = sports
         product.sizes = sizes
+        product.genders = [gender]
         db.session.add(product)
         db.session.flush()
 

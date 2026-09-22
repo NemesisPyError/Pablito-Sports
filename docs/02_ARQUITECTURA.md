@@ -10,9 +10,9 @@
 | **Sistema** | Plataforma de Catálogo Comercial |
 | **Documento** | Arquitectura del Sistema |
 | **Código** | 02 |
-| **Versión** | 0.9.1 |
+| **Versión** | 0.9.2 |
 | **Estado** | 🔒 ARCHITECTURE FREEZE CANDIDATE — 27 secciones completas |
-| **Fecha** | 06/08/2026 |
+| **Fecha** | 02/09/2026 |
 | **Documentos previos** | [00_VISION_PROYECTO.md](00_VISION_PROYECTO.md) ✅ · [00.2_GLOSARIO.md](00.2_GLOSARIO.md) ✅ · [00.3_NOMENCLATURA.md](00.3_NOMENCLATURA.md) ✅ · [01_ANALISIS_NEGOCIO.md](01_ANALISIS_NEGOCIO.md) ✅ |
 | **Documento complementario** | [02.1_DECISIONES_ARQUITECTONICAS.md](02.1_DECISIONES_ARQUITECTONICAS.md) — registro ADR |
 | **Documentos dependientes** | `03_SEGURIDAD.md`, `04_BASE_DATOS.md`, `05_API.md`, `06_FRONTEND.md`, `07_PANEL_ADMIN.md`, `08_UI_SYSTEM.md`, `09_COMPONENTES.md`, `10_IMPLEMENTACION.md`, `11_TESTING.md`, `12_DEPLOY.md`, `99_AI_DEVELOPMENT_GUIDE.md` |
@@ -2034,7 +2034,7 @@ Regla de coherencia: la categoría principal debe estar entre las asignadas. Se 
 | Regla | Enunciado | Por qué |
 |---|---|---|
 | 1 | El **repositorio** excluye eliminados por omisión. | `VAL-02`. Si dependiera de que cada servicio lo recuerde, un olvido filtra datos eliminados al catálogo público. |
-| 2 | Incluir eliminados es **explícito**, solo para panel y auditoría. | Lo excepcional se pide, no se supone. |
+| 2 | Incluir eliminados es **explícito**, solo para panel y auditoría. | Lo excepcional se pide, no se supone. **Excepción (v1.9.0 de `05_API.md`):** el listado de productos del panel ya no ofrece esa opción — un producto eliminado no se ve ni se restaura desde el panel; revertirlo exige intervención directa en la base de datos. Marcas, categorías, deportes, talles y promociones conservan su vista de eliminados con restauración. |
 | 3 | `is_active` y `deleted_at` son **independientes**. | `RN-02` y `RN-69` describen operaciones distintas (`GL-06`). |
 | 4 | Las consultas públicas filtran por **ambos**. | Oculto y eliminado son igualmente invisibles al cliente. |
 | 5 | La unicidad **incluye** las filas eliminadas. | `AD-19`: el slug nunca se libera. |
@@ -2672,7 +2672,7 @@ Es el punto donde `AD-18` y la gestión de archivos se cruzan, y necesita ser ex
 |---|---|---|
 | El administrador quita una imagen de la galería | Eliminada lógicamente | **Se conserva** |
 | El producto se elimina lógicamente | Eliminada lógicamente | **Se conserva** |
-| El producto o la imagen se restauran | Vuelve a estado activo | Sigue ahí: la restauración funciona |
+| Una imagen se restaura, o un producto se reactiva por base de datos | Vuelve a estado activo | Sigue ahí: la restauración funciona |
 | Una carga falla tras escribir el archivo | **No existe** | **Se elimina**: es un huérfano real |
 
 El único archivo que se borra es el que **nunca llegó a tener fila**. Eliminar el archivo de una fila eliminada lógicamente haría irrestaurable el registro y anularía el propósito de `AD-18`.
@@ -3461,6 +3461,7 @@ Los demás pueden resolverse durante la redacción de su documento.
 | 0.6.1 | 05/08/2026 | 📝 BORRADOR | **Architecture Review v1 aplicada.** `B-02`: se retira la afirmación de que el límite de 30 ítems está calculado. `H-02`: facetas como excepción a `AD-35`. `M-06`: excepción acotada para Nginx. `M-01`: advertencias de remisión. |
 | 0.7.0 | 05/08/2026 | 📝 BORRADOR | **Bloque D: secciones 13 a 17.** Restricciones absolutas del administrador, consistencia transaccional (`CONS-`), `AD-37` a `AD-40`, seguridad justificada por riesgo mitigado, tres puntos de transformación, índice de diagramas. |
 | 0.8.0 | 05/08/2026 | 📝 BORRADOR | **Reorganización estructural aprobada.** Integraciones Externas **promovida a sección de primer nivel** (§10); §10 a §26 renumeradas a §11 a §27. Referencias cruzadas actualizadas en cuatro documentos con las de otros documentos protegidas. |
+| **0.9.2** | 02/09/2026 | 🔒 **ARCHITECTURE FREEZE CANDIDATE** | **Excepción a §12.6 regla 2 y ajuste de §15.10** (pedido explícito del usuario, `05_API.md` v1.9.0, `07_PANEL_ADMIN.md` v1.14.0). El listado de productos del panel deja de exponer los eliminados y desaparece la restauración de producto por API — un producto borrado (`AD-18`) solo se revierte por base de datos. `AD-18` **no cambia**: el borrado sigue siendo lógico y ninguna fila se elimina físicamente. Marcas, categorías, deportes, talles y promociones conservan su vista de eliminados con restauración. **Ninguna decisión arquitectónica nueva ni modificada.** |
 | **0.9.1** | 06/08/2026 | 🔒 **ARCHITECTURE FREEZE CANDIDATE** | **Cierre de `ADP-07`.** §13.10 reescrita con el presupuesto de longitud medido: techo vinculante de **4 096 caracteres de cuerpo de mensaje**, techo de trabajo de **4 000**, coste por ítem de **110 / 142 / 239** caracteres. **Corrección de la magnitud a controlar:** el factor limitante es el cuerpo del mensaje, no la longitud del enlace — el transporte de `wa.me` acepta ≥ 40 000 caracteres, medido contra el servidor real. `AR-07` **reevaluado**: mantiene impacto Alto, pasa de riesgo desconocido a cuantificado, y deja de bloquear la implementación. §11.9 recibe nota sobre la analogía de longitud de URL de `AD-32`, **decisión que se mantiene sin cambios**. Límite de ítems actualizado a 26 por `DN-17` de `01` v2.4.0. **Ninguna decisión arquitectónica nueva ni modificada**; el Freeze se respeta: la corrección desarrolla §13.10, no la altera. Evidencia en [`docs/evidencia/ADP-07/`](evidencia/ADP-07/INFORME_ADP-07.md). |
 | **0.9.0** | 05/08/2026 | 🔒 **ARCHITECTURE FREEZE CANDIDATE** | **Bloque E: secciones 19 a 27.** Organización del repositorio remitiendo a §8.12 y §9.14 · patrones con su problema justificante y antipatrones de diseño · escalabilidad como mapa consolidado de puntos de extensión · índice de las 40 decisiones · buenas prácticas como criterios de juicio · convenciones remitiendo a `00.3` y resolviendo `NP-04` · **riesgos `AR-01` a `AR-12`** derivados de sacrificios ya declarados · pendientes agrupados por documento. **Sin decisiones nuevas de gran alcance.** |
 

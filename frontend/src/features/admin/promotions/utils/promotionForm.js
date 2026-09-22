@@ -107,8 +107,9 @@ export function validate(values) {
     }
   }
 
-  // `RN-36`: exactamente uno de producto, categoría o marca.
-  if (!values.scopeId) {
+  // `RN-36`: como máximo uno de producto, categoría o marca. "Todos los
+  // productos" no tiene entidad que elegir, así que no exige `scopeId`.
+  if (values.scopeType !== SCOPE_TYPES.ALL && !values.scopeId) {
     errores.scopeId = 'Elegí a qué se aplica la promoción.';
   }
 
@@ -118,6 +119,7 @@ export function validate(values) {
 /**
  * Arma el payload. Solo viaja el campo del alcance elegido: los otros dos se
  * omiten para que el CHECK `scope_exclusive` siga cumpliéndose (`RN-36`).
+ * Con "todos los productos" no viaja ninguno de los tres.
  */
 export function toPayload(values) {
   const payload = {
@@ -132,7 +134,9 @@ export function toPayload(values) {
   const descripcion = values.description?.trim();
   if (descripcion) payload.description = descripcion;
 
-  payload[SCOPE_FIELD[values.scopeType]] = Number.parseInt(values.scopeId, 10);
+  if (values.scopeType !== SCOPE_TYPES.ALL) {
+    payload[SCOPE_FIELD[values.scopeType]] = Number.parseInt(values.scopeId, 10);
+  }
 
   return payload;
 }

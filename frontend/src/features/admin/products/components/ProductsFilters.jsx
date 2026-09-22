@@ -116,21 +116,6 @@ export function ProductsFilters({ filters, options, onChange, onReset, hasActive
             </select>
           </div>
 
-          <div className="col-6 col-lg-3 d-flex align-items-end">
-            <div className="form-check">
-              <input
-                id="filtro-eliminados"
-                type="checkbox"
-                className="form-check-input"
-                checked={filters.deleted}
-                onChange={(evento) => onChange({ deleted: evento.target.checked })}
-              />
-              <label htmlFor="filtro-eliminados" className="form-check-label small">
-                Ver eliminados
-              </label>
-            </div>
-          </div>
-
           {hasActiveFilters && (
             <div className="col-12 col-lg-6 d-flex align-items-end justify-content-lg-end">
               <button type="button" className="btn btn-link btn-sm" onClick={onReset}>

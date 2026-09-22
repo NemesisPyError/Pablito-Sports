@@ -1,11 +1,47 @@
 # Entorno local de Pablito Sports (12_DEPLOY.md §6, DPL-05).
 # Topología: Nginx → (Vite dev server | Gunicorn+Flask) → PostgreSQL.
+#
+# --- Privilegios de los contenedores (S-12, 12_DEPLOY.md §18) ----------------
+#
+# `no-new-privileges:true` en TODOS los servicios: impide que un proceso gane
+# privilegios por un binario setuid dentro del contenedor. No tiene coste ni
+# excepciones aquí, porque ninguno de estos servicios usa setuid para su trabajo.
+#
+# `cap_drop: [ALL]` en todos, y sólo se devuelven las capabilities que cada
+# imagen necesita **de verdad**, comprobadas arrancando el servicio y no
+# deducidas de la documentación. Es una reducción desde el conjunto por defecto
+# de Docker, no un agregado.
+#
+# Quién corre como quién (medido con `id` y `ps`, no supuesto):
+#
+#   backend / migrate   appuser (1000)      no-root de punta a punta
+#   frontend            node (1000)         no-root desde S-12
+#   nginx               master root,        el root del master es de diseño de la
+#                       workers nginx(101)  imagen: liga :80 y lee la clave TLS
+#   postgres            postgres (70)       el entrypoint arranca root sólo para
+#   redis               redis (999)         ajustar el volumen y baja con gosu
+#
+# Los tres últimos quedan como excepción explícita: el proceso que atiende la
+# red ya es no privilegiado en los tres.
 
 services:
   postgres:
     image: postgres:16-alpine
     container_name: pablito_postgres
     restart: unless-stopped
+    # El daemon ya corre como `postgres`; el entrypoint necesita root un
+    # instante para ajustar el dueño del volumen de datos y bajar de privilegios.
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    # Las cinco que necesita el ENTRYPOINT, no el daemon. Comprobado con un
+    # volumen nuevo y `cap_drop: ALL` sin nada más: falla con
+    # «chmod: /var/lib/postgresql/data: Operation not permitted» y
+    # «setpriv: setresuid failed». CHOWN/DAC_OVERRIDE/FOWNER son para dejar el
+    # volumen de datos en condiciones; SETGID/SETUID, para bajar a `postgres`.
+    #
+    # Lo importante: una vez arrancado, el proceso tiene CapEff=0000000000000000
+    # —cero capabilities— porque las suelta al bajar de privilegios. Medido.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -32,6 +68,34 @@ services:
       timeout: 5s
       retries: 10
 
+  # 03_SEGURIDAD.md §14.4: almacén compartido del contador de rate limiting.
+  # `memory://` guardaba un contador por worker de Gunicorn, así que el límite
+  # declarado no era el límite real. `limits` no ofrece backend de PostgreSQL,
+  # de modo que un contador único exige un almacén externo.
+  #
+  # En desarrollo NO persiste (`--save ""`): los contadores son estado efímero
+  # y no hay nada que conservar entre sesiones de trabajo.
+  redis:
+    image: redis:7-alpine
+    container_name: pablito_redis
+    restart: unless-stopped
+    # Mismo caso que PostgreSQL: `redis-server` ya corre como `redis` y, ya
+    # arrancado, con CapEff=0000000000000000. Sin estas cinco el entrypoint no
+    # puede bajar de privilegios («setpriv: setresuid failed», comprobado).
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    # §17.2: igual que PostgreSQL, sin puerto publicado en el host. Solo la red
+    # interna de Compose lo alcanza.
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   backend:
     build:
       context: ./backend
@@ -39,6 +103,11 @@ services:
         REQUIREMENTS: requirements/dev.txt
     container_name: pablito_backend
     restart: unless-stopped
+    # Gunicorn corre como `appuser` (1000) desde la propia imagen: no necesita
+    # ninguna capability. Sin `read_only`: en desarrollo `/app` es un bind mount
+    # donde pytest y ruff escriben sus cachés (en producción sí se aplica).
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
     environment:
       FLASK_ENV: ${FLASK_ENV}
       FLASK_APP: wsgi:application
@@ -53,8 +122,17 @@ services:
       ADMIN_INITIAL_USERNAME: ${ADMIN_INITIAL_USERNAME:-admin}
       ADMIN_INITIAL_EMAIL: ${ADMIN_INITIAL_EMAIL:-admin@pablitosports.local}
       ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
-      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # §14.4: contador compartido por todos los workers. La base `0` es la de
+      # desarrollo; los tests usan la `1` para no borrarla al resetear.
+      RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-redis://redis:6379/0}
+      TEST_RATELIMIT_STORAGE_URI: ${TEST_RATELIMIT_STORAGE_URI:-redis://redis:6379/1}
+      # S-11: `CORS_ORIGINS` se retiró. No la leía ningún código y el sistema es
+      # mismo-origen (AD-04); ver la nota en `.env.example`.
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # Cloudflare Turnstile (ver `.env.example`). Vacías por defecto: el gate
+      # se desactiva solo, no arranca con una clave inventada.
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
     volumes:
       - ./backend:/app
       # scripts/ vive en la raíz del repositorio (99_AI_DEVELOPMENT_GUIDE.md §7.2)
@@ -63,6 +141,8 @@ services:
       - uploads_data:${UPLOAD_FOLDER}
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     # --reload keeps the local edit loop short; production uses the image CMD.
     # No --access-logfile: RequestLoggingMiddleware emits the structured record.
@@ -81,11 +161,20 @@ services:
       context: ./frontend
     container_name: pablito_frontend
     restart: unless-stopped
+    # S-12: el servidor de Vite pasa a correr como `node` (1000); ver
+    # `frontend/Dockerfile`. Al cambiar el dueño hay que **recrear** el volumen
+    # `frontend_node_modules`, que se había creado con dueño root.
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
     environment:
       VITE_API_BASE_URL: /api/v1
+      # Copia pública de TURNSTILE_SITE_KEY (ver `.env.example` y el bloque
+      # `backend` de arriba): el frontend solo conoce la clave del sitio,
+      # nunca la secreta.
+      VITE_TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
     healthcheck:
       # 127.0.0.1 explicitly: Vite binds IPv4 only and busybox wget prefers ::1.
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5173/"]
@@ -98,6 +187,20 @@ services:
     image: nginx:1.27-alpine
     container_name: pablito_nginx
     restart: unless-stopped
+    # Excepción documentada: el master arranca como root porque liga el puerto
+    # 80 (privilegiado) y, en producción, lee la clave TLS. Los workers —los que
+    # realmente atienden peticiones— ya bajan a `nginx` (uid 101). Forzar
+    # `nginx-unprivileged` obligaría a cambiar `listen` y a remapear puertos y
+    # TLS, que es peor negocio que este root acotado al arranque.
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    # Conjunto mínimo, medido quitando capabilities una por una hasta que falla:
+    #   CHOWN            ajusta el dueño de /var/cache/nginx/* al usuario worker
+    #                    (sin ella: «chown(...) failed (1: Operation not permitted)»)
+    #   SETGID + SETUID  bajar los workers a `nginx`
+    #   NET_BIND_SERVICE ligar el puerto 80
+    # DAC_OVERRIDE se probó y NO hace falta: se quitó.
+    cap_add: [CHOWN, SETGID, SETUID, NET_BIND_SERVICE]
     ports:
       - "${NGINX_PORT:-8080}:80"
     volumes:

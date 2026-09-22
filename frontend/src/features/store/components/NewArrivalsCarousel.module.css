@@ -1,0 +1,51 @@
+/**
+ * Carrusel de Novedades (09_COMPONENTES.md §9.8).
+ *
+ * A diferencia de `BannerRail`, las piezas son `ProductCard`: fondo claro
+ * propio, no la tinta de una campaña. El marco no fija su propio color de
+ * fondo — hereda el tono de `Section` — para no crear un recuadro oscuro
+ * alrededor de tarjetas claras.
+ */
+
+.carouselFrame {
+  position: relative;
+}
+
+/*
+ * Desenfoque en los bordes, decorativo. `pointer-events: none` para que
+ * nunca capture el gesto de arrastre ni tape los controles del carrusel
+ * (`z-index: dropdown`, muy por encima de este `1`). El `mask-image` hace
+ * que el desenfoque se sienta como un borde, no como una franja pareja.
+ *
+ * Un poco más marcado que el de `BannerRail` (10px de blur y un ancho mayor,
+ * contra 6px): sobre tarjetas claras el mismo desenfoque se nota menos que
+ * sobre la tinta de una campaña, y acá tiene que seguir leyéndose.
+ */
+.edgeFade {
+  display: none;
+  pointer-events: none;
+}
+
+@media (min-width: 992px) {
+  .edgeFade {
+    position: absolute;
+    inset-block: 0;
+    z-index: 1;
+    display: block;
+    width: 4.5rem;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .edgeFadeStart {
+    inset-inline-start: 0;
+    mask-image: linear-gradient(to right, black, transparent);
+    -webkit-mask-image: linear-gradient(to right, black, transparent);
+  }
+
+  .edgeFadeEnd {
+    inset-inline-end: 0;
+    mask-image: linear-gradient(to left, black, transparent);
+    -webkit-mask-image: linear-gradient(to left, black, transparent);
+  }
+}

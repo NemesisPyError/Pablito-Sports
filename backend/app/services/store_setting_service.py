@@ -9,7 +9,7 @@ en `audit_logs` dentro de la misma transacción (`AD-20`, `CONS-05`).
 """
 
 from ..core.audit import ACTION_UPDATE, AuditService
-from ..core.decorators import transactional
+from ..core.decorators import schedule_file_deletion, transactional
 from ..core.exceptions import NotFoundError
 from ..core.utils.whatsapp_defaults import DEFAULT_ITEM_TEMPLATE, DEFAULT_MESSAGE_TEMPLATE
 from ..dtos.admin_dtos import StoreSettingsAdminDTO, WhatsAppTemplateDTO
@@ -141,8 +141,16 @@ class StoreSettingService:
         """
         settings = cls._require()
         old_values = AuditService.snapshot(settings, AUDIT_FIELDS)
+        anterior = settings.about_image_path
 
         settings = StoreSettingRepository.update(settings, about_image_path=image_path)
+
+        # post-S13: reemplazarla o quitarla dejaba la anterior descargable para
+        # siempre. El espacio `store/` es exclusivo de esta fila única, así que
+        # no hay referencias compartidas que comprobar: si cambió, ya no la usa
+        # nadie. Se borra tras confirmar la transacción.
+        if anterior and anterior != image_path:
+            schedule_file_deletion(anterior)
 
         AuditService.record(
             administrator_id=administrator_id,

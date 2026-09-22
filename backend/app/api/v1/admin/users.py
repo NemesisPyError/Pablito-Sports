@@ -14,7 +14,7 @@ from ....schemas.administrator_schemas import (
     parse_administrator_update,
     parse_password_change,
 )
-from ....schemas.shared import parse_page_request
+from ....schemas.shared import json_body, parse_page_request
 from ....services.admin_auth_service import AdminAuthService
 from ....services.admin_user_service import SUPER_ADMINISTRATOR, AdminUserService
 
@@ -56,7 +56,7 @@ def list_users():
 def create_user():
     """POST /api/v1/admin/users (§9.14). `AdministratorDTO` con 201."""
     administrator_id = _super_required()
-    entrada = parse_administrator_create(request.get_json(silent=True) or {})
+    entrada = parse_administrator_create(json_body())
     dto = AdminUserService.create(entrada, administrator_id=administrator_id)
     return success_response(dto.to_dict(), status_code=201)
 
@@ -72,7 +72,7 @@ def get_user(user_id: int):
 def update_user(user_id: int):
     """PUT /api/v1/admin/users/{id} (§9.14)."""
     administrator_id = _super_required()
-    entrada = parse_administrator_update(request.get_json(silent=True) or {})
+    entrada = parse_administrator_update(json_body())
     dto = AdminUserService.update(user_id, entrada, administrator_id=administrator_id)
     return success_response(dto.to_dict())
 
@@ -97,7 +97,7 @@ def change_password(user_id: int):
     es quien conoce sobre quién se está operando.
     """
     administrador = AdminAuthService.require_administrator()
-    entrada = parse_password_change(request.get_json(silent=True) or {})
+    entrada = parse_password_change(json_body())
     AdminUserService.change_password(
         user_id,
         entrada,

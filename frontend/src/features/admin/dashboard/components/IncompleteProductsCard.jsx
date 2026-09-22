@@ -1,5 +1,7 @@
+import { AdminIcon } from '../../layout/AdminIcon.jsx';
 import { EmptyState } from '../../../../shared/components/EmptyState.jsx';
 import { describeMissing } from '../hooks/useDashboard.js';
+import styles from './DashboardPanel.module.css';
 
 /**
  * Alertas de productos incompletos (`RF-39`, 07_PANEL_ADMIN.md §14.1).
@@ -12,17 +14,22 @@ export function IncompleteProductsCard({ products }) {
   const items = products ?? [];
 
   return (
-    <section className="card h-100">
-      <div className="card-header bg-white d-flex align-items-center justify-content-between">
-        <h2 className="h6 mb-0">Productos incompletos</h2>
-        {items.length > 0 && (
-          <span className="badge text-bg-warning rounded-pill">{items.length}</span>
-        )}
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <span className={styles.panelIcon}>
+          <AdminIcon name="clipboardCheck" size={18} />
+        </span>
+        <h2 className={styles.panelTitle}>Productos incompletos</h2>
+        {items.length > 0 && <span className="badge text-bg-warning rounded-pill">{items.length}</span>}
       </div>
 
       <div className="card-body p-0">
         {items.length === 0 ? (
-          <EmptyState title="Todo en orden" message="Ningún producto tiene datos pendientes." />
+          <EmptyState
+            title="Todo en orden"
+            message="Ningún producto tiene datos pendientes."
+            icon={<AdminIcon name="clipboardCheck" size={24} />}
+          />
         ) : (
           <ul className="list-group list-group-flush">
             {items.map((producto) => (

@@ -31,7 +31,11 @@ export function BrandShowcase({ showcase }) {
         <div className={styles.identity}>
           {showcase.image_url ? (
             <>
-              <img src={showcase.image_url} alt="" className={styles.logo} loading="lazy" />
+              {/* El recuadro blanco hace legible cualquier logotipo sobre
+                  tinta: la mayoría son oscuros y desaparecerían. */}
+              <span className={styles.logoTile}>
+                <img src={showcase.image_url} alt="" className={styles.logo} loading="lazy" />
+              </span>
               <h2 id={tituloId} className="visually-hidden">
                 {showcase.name}
               </h2>
@@ -42,10 +46,13 @@ export function BrandShowcase({ showcase }) {
             </h2>
           )}
 
-          {showcase.tagline && <p className={styles.tagline}>{showcase.tagline}</p>}
+          {/* La frase de la marca, como titular. Es un párrafo y no un
+              encabezado: el encabezado del bloque es el nombre de la marca. */}
+          {showcase.tagline && <p className={styles.headline}>{showcase.tagline}</p>}
 
-          <Link to={href} className={`${styles.action} ${styles.focusRing}`}>
+          <Link to={href} className={styles.action}>
             <span aria-hidden="true">Ver colección</span>
+            <span aria-hidden="true">→</span>
             <span className="visually-hidden">{`Ver la colección de ${showcase.name}`}</span>
           </Link>
         </div>
@@ -56,7 +63,7 @@ export function BrandShowcase({ showcase }) {
               <Link
                 key={pieza.position}
                 to={href}
-                className={styles.focusRing}
+                className={styles.frame}
                 tabIndex={-1}
                 aria-hidden="true"
               >

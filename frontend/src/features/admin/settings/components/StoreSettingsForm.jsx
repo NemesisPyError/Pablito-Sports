@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import { RATE_LIMIT_MESSAGE } from '../../../../shared/services/errorMessages.js';
 import { AutoResizeTextarea } from './AutoResizeTextarea.jsx';
 import { SocialLinksField } from './SocialLinksField.jsx';
 import { useUnsavedChangesWarning } from '../hooks/useUnsavedChangesWarning.js';
@@ -272,6 +273,7 @@ export function StoreSettingsForm({ settings, onSubmit, saving, saved, submitErr
 
 /** Traduce el código del contrato, nunca el mensaje del servidor (`ERR-04`). */
 function mensajeDeGuardado(error) {
+  if (error?.status === 429) return RATE_LIMIT_MESSAGE;
   if (error?.status === 422) {
     const campos = error.errors?.map((item) => item.field).filter(Boolean) ?? [];
     return campos.length > 0

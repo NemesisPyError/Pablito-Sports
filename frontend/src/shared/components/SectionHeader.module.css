@@ -46,6 +46,33 @@
 }
 
 /* --------------------------------------------------------------------------
+ * Aviso opcional debajo del título (símbolo + frase corta). Mismo tono
+ * apagado que `.eyebrow` y con su misma variable, así que se invierte solo
+ * en tono `inverse` sin reglas propias.
+ * ----------------------------------------------------------------------- */
+.hint {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-block: var(--spacing-1) var(--spacing-0);
+  color: var(--section-text-muted, var(--color-text-muted));
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+}
+
+.hintIcon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  background-color: currentColor;
+  /* Máscara, no `<img>`: el símbolo toma el color del texto que lo acompaña
+     en vez de venir fijo en negro, así funciona igual sobre sección clara
+     que sobre sección de tinta sin necesitar una segunda imagen. */
+  mask: url('/icons/tap-hold.png') center / contain no-repeat;
+  -webkit-mask: url('/icons/tap-hold.png') center / contain no-repeat;
+}
+
+/* --------------------------------------------------------------------------
  * Enlace de escape: lleva al catálogo completo con el mismo filtro de la
  * sección. El filete inferior aparece al pasar el puntero o al recibir foco.
  * ----------------------------------------------------------------------- */

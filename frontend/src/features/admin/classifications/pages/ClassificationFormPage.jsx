@@ -29,10 +29,12 @@ export function ClassificationFormPage({ recurso }) {
   const entidad = useClassification(recurso, entidadId);
   const guardar = useSaveClassification(recurso);
 
-  // Sólo lo que el recurso necesita: categorías para elegir padre, tipos de
-  // talle para los talles. Pedir todo siempre serían dos peticiones de más.
+  // Sólo lo que el recurso necesita: categorías para elegir padre, y los datos
+  // semilla para los talles (tipo de talle) y las categorías (sexos, `RN-83`).
+  // Pedir todo siempre serían dos peticiones de más.
   const categorias = useClassifications(config?.campoExtra === 'parent' ? 'categories' : null);
-  const semilla = useSeedData(config?.campoExtra === 'sizeType');
+  const necesitaSemilla = config?.campoExtra === 'sizeType' || Boolean(config?.tieneSexos);
+  const semilla = useSeedData(necesitaSemilla);
 
   if (!config) {
     return <ErrorState title="Sección desconocida" message="Esa clasificación no existe." />;
@@ -41,7 +43,7 @@ export function ClassificationFormPage({ recurso }) {
   const cargando =
     (esEdicion && entidad.isLoading) ||
     (config.campoExtra === 'parent' && categorias.isLoading) ||
-    (config.campoExtra === 'sizeType' && semilla.isLoading);
+    (necesitaSemilla && semilla.isLoading);
 
   if (cargando) return <LoadingState message="Cargando formulario…" />;
 
@@ -89,6 +91,7 @@ export function ClassificationFormPage({ recurso }) {
             config={config}
             categorias={categorias.data?.items}
             tiposDeTalle={semilla.sizeTypes}
+            sexos={semilla.genders}
             onSubmit={enviar}
             onCancel={() => navigate(`/admin/${config.ruta}`)}
             saving={guardar.isPending}

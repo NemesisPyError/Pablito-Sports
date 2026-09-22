@@ -9,7 +9,7 @@ from flask import Blueprint, request
 
 from ....core.utils.responses import success_response
 from ....schemas.promotion_schemas import parse_promotion
-from ....schemas.shared import parse_page_request
+from ....schemas.shared import json_body, parse_page_request
 from ....services.admin_auth_service import AdminAuthService
 from ....services.admin_promotion_service import AdminPromotionService
 
@@ -37,7 +37,7 @@ def list_promotions():
 def create_promotion():
     """POST /api/v1/admin/promotions (§9.10)."""
     administrator_id = _admin_required()
-    entrada = parse_promotion(request.get_json(silent=True) or {})
+    entrada = parse_promotion(json_body())
     dto = AdminPromotionService.create(entrada, administrator_id=administrator_id)
     return success_response(dto.to_dict(), status_code=201)
 
@@ -53,7 +53,7 @@ def get_promotion(promotion_id: int):
 def update_promotion(promotion_id: int):
     """PUT /api/v1/admin/promotions/{id} (§9.10)."""
     administrator_id = _admin_required()
-    entrada = parse_promotion(request.get_json(silent=True) or {})
+    entrada = parse_promotion(json_body())
     dto = AdminPromotionService.update(promotion_id, entrada, administrator_id=administrator_id)
     return success_response(dto.to_dict())
 

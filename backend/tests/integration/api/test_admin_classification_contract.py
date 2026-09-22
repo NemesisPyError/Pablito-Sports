@@ -24,6 +24,23 @@ CAMPOS_BASE = {"id", "name", "slug", "is_active", "created_at", "updated_at", "d
 
 PREFIJO = "ct"
 
+
+@pytest.fixture(autouse=True)
+def _sin_residuo_de_talles(schema_app):
+    """Retira los talles que crea este módulo (S-13).
+
+    La unicidad de `sizes` es `(name, size_type_id)`, **no** el slug: aunque cada
+    prueba genera un slug aleatorio, el `name` es fijo (`42`, `XL`, `Único`). Sin
+    esta limpieza el módulo pasa la primera vez y falla en todas las siguientes
+    con una violación de unicidad que se manifiesta como un 500 —lo que hace que
+    la suite completa no sea repetible—. Defecto de aislamiento anterior a S-13,
+    detectado al reejecutar la suite varias veces seguidas.
+    """
+    yield
+    with schema_app.app_context():
+        db.session.execute(text(f"DELETE FROM sizes WHERE slug LIKE '{PREFIJO}-%'"))
+        db.session.commit()
+
 # §10.13 y 04 §9.2. Un valor por encima debe ser `422`, no `500`.
 MAXIMOS = {"brands": 100, "categories": 100, "sports": 100, "sizes": 20}
 
@@ -78,9 +95,40 @@ def recursos(admin_client):
 def test_marcas_deportes_y_categorias_devuelven_los_campos_del_contrato(recursos):
     # §9.6 (v1.1.0): la marca suma sus campos de portada. El resto de las
     # clasificaciones no los tiene: no son piezas de la Home.
-    assert set(recursos("brands")) == CAMPOS_BASE | {"image_url", "tagline", "home_position"}
+    assert set(recursos("brands")) == CAMPOS_BASE | {
+        "image_url",
+        "tagline",
+        "home_position",
+        "show_in_strip",
+    }
     assert set(recursos("sports")) == CAMPOS_BASE
-    assert set(recursos("categories")) == CAMPOS_BASE | {"parent_id"}
+    # RN-83 (v2.10.0): la categoría es la única que declara sexos.
+    assert set(recursos("categories")) == CAMPOS_BASE | {"parent_id", "gender_ids"}
+
+
+def test_la_marca_nace_dentro_de_la_franja(recursos):
+    """La franja mostraba todas las marcas activas antes de existir el campo.
+
+    Que el defecto sea `True` es lo que hace que agregar la opción no vacíe la
+    franja ni obligue a tildar algo en cada alta para conservar lo de siempre.
+    """
+    assert recursos("brands")["show_in_strip"] is True
+
+
+def test_la_marca_puede_quedar_fuera_de_la_franja(recursos):
+    assert recursos("brands", show_in_strip=False)["show_in_strip"] is False
+
+
+def test_la_franja_es_independiente_del_bloque_de_portada(recursos):
+    """`show_in_strip` y `home_position` deciden cosas distintas.
+
+    Una marca puede estar en la franja sin tener bloque propio con collage en la
+    portada (§7.2c), que es justamente el estado de todas las marcas de hoy.
+    """
+    marca = recursos("brands", show_in_strip=True)
+
+    assert marca["home_position"] is None
+    assert marca["show_in_strip"] is True
 
 
 def test_talles_añaden_su_tipo(admin_client, recursos):
@@ -89,58 +137,89 @@ def test_talles_añaden_su_tipo(admin_client, recursos):
     assert set(dato) == CAMPOS_BASE | {"size_type_id", "size_type"}
 
 
-# Formato del talle según su tipo (RN-15b, v1.4.0)
+# El talle es texto libre, sin restricción de formato por tipo (RN-15b, v1.5.0)
 
 
-def test_calzado_exige_talle_numerico(admin_client):
+@pytest.mark.parametrize(
+    ("etiqueta", "nombre"),
+    [
+        ("num", "42"),
+        ("dec", "8.5"),
+        ("alfa", "XL"),
+        ("alfanum", "4T"),
+        ("alfanum2", "12Y"),
+        ("barra", "35/36"),
+        ("guion", "38-39"),
+        ("unico", "Único"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("tipo_corto", "slug_tipo"),
+    [("fw", "footwear_numeric"), ("ap", "apparel_alpha"), ("os", "one_size")],
+)
+def test_talle_acepta_cualquier_formato_en_cualquier_tipo(
+    admin_client, etiqueta, nombre, tipo_corto, slug_tipo
+):
+    tipo = _size_type_id_por_slug(admin_client, slug_tipo)
+    sufijo = uuid4().hex[:4]
+    slug = f"{PREFIJO}-{tipo_corto}-{etiqueta}-{sufijo}"
+
+    respuesta = admin_client.post(
+        "/api/v1/admin/sizes",
+        json={"name": nombre, "slug": slug, "size_type_id": tipo},
+    )
+
+    assert respuesta.status_code == 201, respuesta.get_json()
+    assert respuesta.get_json()["data"]["name"] == nombre
+    admin_client.delete(f"/api/v1/admin/sizes/{respuesta.get_json()['data']['id']}")
+
+
+def test_talle_rechaza_nombre_vacio_o_solo_espacios(admin_client):
     tipo = _size_type_id_por_slug(admin_client, "footwear_numeric")
-    sufijo = uuid4().hex[:6]
-
-    aceptado = admin_client.post(
-        "/api/v1/admin/sizes",
-        json={"name": "42", "slug": f"{PREFIJO}-num-{sufijo}", "size_type_id": tipo},
-    )
-    rechazado = admin_client.post(
-        "/api/v1/admin/sizes",
-        json={"name": "L", "slug": f"{PREFIJO}-alfa-{sufijo}", "size_type_id": tipo},
-    )
-
-    assert aceptado.status_code == 201, aceptado.get_json()
-    assert rechazado.status_code == 422
-    assert rechazado.get_json()["errors"][0]["field"] == "name"
-    admin_client.delete(f"/api/v1/admin/sizes/{aceptado.get_json()['data']['id']}")
-
-
-def test_indumentaria_rechaza_talle_puramente_numerico(admin_client):
-    tipo = _size_type_id_por_slug(admin_client, "apparel_alpha")
-    sufijo = uuid4().hex[:6]
-
-    aceptado = admin_client.post(
-        "/api/v1/admin/sizes",
-        json={"name": "XL", "slug": f"{PREFIJO}-alfa2-{sufijo}", "size_type_id": tipo},
-    )
-    rechazado = admin_client.post(
-        "/api/v1/admin/sizes",
-        json={"name": "42", "slug": f"{PREFIJO}-num2-{sufijo}", "size_type_id": tipo},
-    )
-
-    assert aceptado.status_code == 201, aceptado.get_json()
-    assert rechazado.status_code == 422
-    assert rechazado.get_json()["errors"][0]["field"] == "name"
-    admin_client.delete(f"/api/v1/admin/sizes/{aceptado.get_json()['data']['id']}")
-
-
-def test_talle_unico_no_tiene_restriccion_de_formato(admin_client):
-    tipo = _size_type_id_por_slug(admin_client, "one_size")
     sufijo = uuid4().hex[:6]
 
     respuesta = admin_client.post(
         "/api/v1/admin/sizes",
-        json={"name": "Único", "slug": f"{PREFIJO}-unico-{sufijo}", "size_type_id": tipo},
+        json={"name": "   ", "slug": f"{PREFIJO}-vacio-{sufijo}", "size_type_id": tipo},
+    )
+
+    assert respuesta.status_code == 422
+    assert respuesta.get_json()["errors"][0]["field"] == "name"
+
+
+def test_talle_conserva_espacios_internos_pero_recorta_extremos(admin_client):
+    tipo = _size_type_id_por_slug(admin_client, "apparel_alpha")
+    sufijo = uuid4().hex[:6]
+
+    respuesta = admin_client.post(
+        "/api/v1/admin/sizes",
+        json={"name": "  Único  ", "slug": f"{PREFIJO}-trim-{sufijo}", "size_type_id": tipo},
     )
 
     assert respuesta.status_code == 201, respuesta.get_json()
+    assert respuesta.get_json()["data"]["name"] == "Único"
     admin_client.delete(f"/api/v1/admin/sizes/{respuesta.get_json()['data']['id']}")
+
+
+def test_editar_un_talle_a_un_formato_alfanumerico(admin_client):
+    tipo = _size_type_id_por_slug(admin_client, "footwear_numeric")
+    sufijo = uuid4().hex[:6]
+
+    creado = admin_client.post(
+        "/api/v1/admin/sizes",
+        json={"name": "42", "slug": f"{PREFIJO}-edit-{sufijo}", "size_type_id": tipo},
+    )
+    assert creado.status_code == 201, creado.get_json()
+    id_talle = creado.get_json()["data"]["id"]
+
+    editado = admin_client.put(
+        f"/api/v1/admin/sizes/{id_talle}",
+        json={"name": "42.5", "slug": f"{PREFIJO}-edit-{sufijo}", "size_type_id": tipo},
+    )
+
+    assert editado.status_code == 200, editado.get_json()
+    assert editado.get_json()["data"]["name"] == "42.5"
+    admin_client.delete(f"/api/v1/admin/sizes/{id_talle}")
 
 
 def test_las_marcas_de_tiempo_son_iso(recursos):

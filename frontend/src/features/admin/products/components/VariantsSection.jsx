@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { AvailabilityBadge } from '../../../../shared/components/AvailabilityBadge.jsx';
 import { ConfirmDialog } from '../../../../shared/components/ConfirmDialog.jsx';
+import { RATE_LIMIT_MESSAGE } from '../../../../shared/services/errorMessages.js';
 import { EmptyState } from '../../../../shared/components/EmptyState.jsx';
 import { getStockStatus } from '../../../../shared/utils/stock.js';
 import {
@@ -236,6 +237,7 @@ function VariantRow({ productId, variante, onEliminar, eliminando }) {
 
 /** Traduce el código del contrato, nunca el mensaje del servidor (`ERR-04`). */
 function mensajeDeVenta(error) {
+  if (error?.status === 429) return RATE_LIMIT_MESSAGE;
   if (error?.status === 409) return 'No hay stock suficiente para esa cantidad.';
   if (error?.status === 422) return 'Ingresá una cantidad válida.';
   if (error?.status === 404) return 'La variante ya no existe. Recargá la página.';

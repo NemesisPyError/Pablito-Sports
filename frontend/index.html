@@ -4,16 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pablito Sports</title>
-    <!-- `--font-family-display` (tokens.css §6.2) nombra 'Archivo'/'Archivo
-         Narrow' pero, hasta ahora, nada la cargaba: sin @font-face ni enlace,
-         caía en silencio a la fuente del sistema. Se carga acá, no
-         autoalojada, porque no hay archivos de fuente en el repositorio. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Archivo+Narrow:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <meta name="description" content="Pablito Sports. Indumentaria y calzado deportivo." />
+    <meta name="theme-color" content="#0e1116" />
+    <!-- Íconos en `public/`. El SVG lo usan los navegadores modernos; el .ico
+         cubre a los que piden `/favicon.ico` por su cuenta y el PNG es el que
+         iOS guarda al agregar el sitio a la pantalla de inicio. Sin manifest a
+         propósito: la CSP de producción (`default-src 'none'`) lo bloquearía. -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Las tipografías (Archivo / Archivo Narrow) se alojan en el propio
+         sitio y se declaran en `src/shared/styles/fonts.css`. NO se enlazan a
+         `fonts.googleapis.com`: la CSP de producción declara `style-src 'self'`
+         y `font-src 'self'`, de modo que un enlace externo quedaría bloqueado y
+         la tipografía caería en silencio a la del sistema. -->
   </head>
   <body>
     <div id="root"></div>

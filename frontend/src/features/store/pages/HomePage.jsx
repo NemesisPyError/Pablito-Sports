@@ -6,7 +6,9 @@ import { usePreloadImage } from '../../../shared/seo/usePreloadImage.js';
 import { ProductRail } from '../../catalog/components/ProductRail.jsx';
 import { BannerRail } from '../components/BannerRail.jsx';
 import { BrandShowcase } from '../components/BrandShowcase.jsx';
-import { Hero } from '../components/Hero.jsx';
+import { HeroCarousel } from '../components/HeroCarousel.jsx';
+import { NewArrivalsCarousel } from '../components/NewArrivalsCarousel.jsx';
+import { ScrollingMessage } from '../components/ScrollingMessage.jsx';
 import { StoryBlock } from '../components/StoryBlock.jsx';
 import { TrustBar } from '../components/TrustBar.jsx';
 import { useBanners } from '../hooks/useBanners.js';
@@ -31,12 +33,13 @@ export function HomePage({ storeSettings }) {
   const showcasesQuery = useBrandShowcases();
 
   // La zona llega ordenada por `position`: la primera es la que el
-  // administrador puso adelante.
-  const heroBanner = bannersQuery.data?.[0] ?? null;
+  // administrador puso adelante y la que abre el carrusel.
+  const heroBanners = bannersQuery.data ?? [];
 
   useDocumentMeta(homeMeta(storeSettings), storeSettings);
-  // El banner de portada es el LCP de esta pantalla.
-  usePreloadImage(heroBanner?.image_url);
+  // Solo la primera pieza es el LCP de esta pantalla; el resto se precarga
+  // recién cuando el carrusel avanza hacia ellas.
+  usePreloadImage(heroBanners[0]?.image_url);
 
   const isLoading = bannersQuery.isLoading || featuredQuery.isLoading;
   // Solo se corta la portada si **todo** falló. Que una sección no cargue no
@@ -47,6 +50,7 @@ export function HomePage({ storeSettings }) {
   if (isError)
     return (
       <ErrorState
+        error={bannersQuery.error ?? featuredQuery.error}
         onRetry={() => {
           bannersQuery.refetch();
           featuredQuery.refetch();
@@ -63,13 +67,22 @@ export function HomePage({ storeSettings }) {
         {storeSettings?.store_name ?? 'Pablito Sports'} · Indumentaria y calzado deportivo
       </h1>
 
-      <Hero banner={heroBanner} />
+      <HeroCarousel banners={heroBanners} />
 
-      <BannerRail
+      {/* Banda editorial fija, justo debajo de la campaña. No depende de que
+          haya banners cargados: es un mensaje de la tienda, no de la zona. */}
+      <ScrollingMessage />
+
+      {/* Corrección (v2.3.0): Novedades pasó de ser un carril de banners
+          (`BannerRail placement="news"`) a una selección editorial de
+          productos, elegida a mano en el panel ("Agregar a novedades"). El
+          `href` de "ver todo" sigue apuntando al filtro `is_new` del
+          catálogo a propósito: es un atajo de navegación distinto, no la
+          fuente de esta sección (ver nota en `09_COMPONENTES.md`). */}
+      <NewArrivalsCarousel
         id="portada-novedades"
         eyebrow="Lo último"
         title="Novedades"
-        placement="news"
         href={catalogHref({ isNew: true })}
         tone="inverse"
       />

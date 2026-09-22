@@ -43,9 +43,11 @@ def upgrade():
             'inicial debe inyectarse por variable de entorno.'
         )
 
-    # §5.5: política mínima de 8 caracteres.
-    if len(password) < 8:
-        raise RuntimeError('ADMIN_INITIAL_PASSWORD debe tener al menos 8 caracteres (§5.5).')
+    # §5.5: política mínima de 12 caracteres. Es la misma que aplica el panel al
+    # crear cualquier administrador; el superadministrador inicial no puede ser
+    # la excepción, siendo la cuenta más privilegiada del sistema.
+    if len(password) < 12:
+        raise RuntimeError('ADMIN_INITIAL_PASSWORD debe tener al menos 12 caracteres (§5.5).')
 
     import bcrypt
 

@@ -24,7 +24,7 @@ export function ClassificationsPage({ recurso }) {
   const navigate = useNavigate();
   const config = getClassification(recurso);
 
-  const { data, isLoading, isError, refetch } = useClassifications(recurso);
+  const { data, isLoading, isError, error, refetch } = useClassifications(recurso);
   // Las categorías se usan para resolver el nombre del padre en la tabla.
   const categorias = useClassifications(config?.campoExtra === 'parent' ? 'categories' : null);
 
@@ -43,6 +43,7 @@ export function ClassificationsPage({ recurso }) {
       <ErrorState
         title={`No pudimos cargar ${config.etiqueta.toLowerCase()}`}
         message="Revisá tu conexión e intentá de nuevo."
+        error={error}
         onRetry={refetch}
       />
     );

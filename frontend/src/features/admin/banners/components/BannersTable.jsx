@@ -102,14 +102,24 @@ export function BannersTable({ banners, onDelete, busyId }) {
   );
 }
 
-/** `ratio` reserva el espacio y `object-fit-cover` recorta sin deformar. */
+/**
+ * `ratio-1x1` (v2.9.5, pedido explícito del usuario) solo reserva un marco
+ * cuadrado de tamaño consistente para la tabla — neutro a propósito, para no
+ * favorecer visualmente ninguna proporción. `object-fit-contain` muestra la
+ * imagen completa dentro, nunca la recorta: hasta v2.9.3 el marco era
+ * `ratio-21x9` con `object-fit-cover`, que además de recortar imponía una
+ * forma panorámica al contenedor mismo — un banner vertical o cuadrado se
+ * veía "aplastado" en una caja ancha aunque el recorte de datos ya no
+ * forzara 21:9. El administrador tiene que poder reconocer la imagen real
+ * —vertical, cuadrada o panorámica— tal como se subió.
+ */
 function Miniatura({ banner, className = '' }) {
   if (!banner.image_url) {
     return (
       // `d-flex` va en el hijo: `.ratio` posiciona su primer hijo en absoluto,
       // y aplicarlo al contenedor dejaría el centrado a merced del pseudo
       // elemento que le da la altura.
-      <div className={`ratio ratio-21x9 bg-light rounded ${className}`}>
+      <div className={`ratio ratio-1x1 bg-light rounded ${className}`}>
         <div className="d-flex align-items-center justify-content-center text-muted">
           <span className="small">Sin imagen</span>
         </div>
@@ -118,13 +128,13 @@ function Miniatura({ banner, className = '' }) {
   }
 
   return (
-    <div className={`ratio ratio-21x9 bg-light rounded overflow-hidden ${className}`}>
+    <div className={`ratio ratio-1x1 bg-light rounded overflow-hidden ${className}`}>
       <img
         src={banner.image_url}
         alt=""
         loading="lazy"
         decoding="async"
-        className="w-100 h-100 object-fit-cover"
+        className="w-100 h-100 object-fit-contain"
       />
     </div>
   );

@@ -6,12 +6,15 @@ import { SCOPE_LABELS, SCOPE_TYPES } from '../utils/promotionStatus.js';
 /**
  * Selector de alcance de la promoción (`RN-36`).
  *
- * `RN-36` exige **exactamente uno** de producto, categoría o marca, y el CHECK
+ * `RN-36` exige **como máximo uno** de producto, categoría o marca, y el CHECK
  * `scope_exclusive` de la tabla lo garantiza. Por eso la interfaz ofrece un
  * tipo y una entidad, no tres campos que podrían quedar poblados a la vez.
+ * "Todos los productos" (v1.6.0) no tiene entidad que elegir: oculta la
+ * búsqueda y el `<select>`.
  */
 export function ScopeSelector({ scopeType, scopeId, scopeSlug, onChange, error, disabled }) {
   const [busqueda, setBusqueda] = useState('');
+  const esTodos = scopeType === SCOPE_TYPES.ALL;
   const { options, isLoading, isError, supportsSearch } = useScopeOptions(scopeType, busqueda);
 
   // Al editar, el DTO identifica la entidad por `slug` (`NamedEntityDTO`); el
@@ -52,62 +55,73 @@ export function ScopeSelector({ scopeType, scopeId, scopeSlug, onChange, error, 
         ))}
       </div>
 
-      {supportsSearch && (
-        <div className="input-group input-group-sm mb-2">
-          <span className="input-group-text" aria-hidden="true">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </span>
-          <input
-            type="search"
-            className="form-control"
-            placeholder="Buscar producto por nombre o SKU"
-            value={busqueda}
-            onChange={(evento) => setBusqueda(evento.target.value)}
-          />
-        </div>
-      )}
-
-      <label htmlFor="scopeId" className="visually-hidden">
-        {SCOPE_LABELS[scopeType]}
-      </label>
-      <select
-        id="scopeId"
-        className={`form-select ${error ? 'is-invalid' : ''}`}
-        value={scopeId}
-        onChange={(evento) => onChange({ scopeId: evento.target.value })}
-        aria-describedby={error ? 'scopeId-error' : undefined}
-      >
-        <option value="">
-          {isLoading ? 'Cargando…' : `Elegí ${SCOPE_LABELS[scopeType].toLowerCase()}`}
-        </option>
-        {options.map((opcion) => (
-          <option key={opcion.id} value={opcion.id}>
-            {opcion.name}
-            {opcion.sku ? ` · ${opcion.sku}` : ''}
-          </option>
-        ))}
-      </select>
-
-      {isError && <p className="form-text text-danger mb-0">No pudimos cargar las opciones.</p>}
-      {error && (
-        <p className="invalid-feedback d-block mb-0" id="scopeId-error">
-          {error}
+      {esTodos ? (
+        <p className="form-text mb-0">
+          Se aplica al precio de todos los productos del catálogo, sin elegir ninguno en
+          particular.
         </p>
-      )}
-      {supportsSearch && !isLoading && options.length === 0 && (
-        <p className="form-text mb-0">Sin resultados. Probá con otro texto.</p>
+      ) : (
+        <>
+          {supportsSearch && (
+            <div className="input-group input-group-sm mb-2">
+              <span className="input-group-text" aria-hidden="true">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </span>
+              <input
+                type="search"
+                className="form-control"
+                placeholder="Buscar producto por nombre o SKU"
+                value={busqueda}
+                onChange={(evento) => setBusqueda(evento.target.value)}
+              />
+            </div>
+          )}
+
+          <label htmlFor="scopeId" className="visually-hidden">
+            {SCOPE_LABELS[scopeType]}
+          </label>
+          <select
+            id="scopeId"
+            className={`form-select ${error ? 'is-invalid' : ''}`}
+            value={scopeId}
+            onChange={(evento) => onChange({ scopeId: evento.target.value })}
+            aria-describedby={error ? 'scopeId-error' : undefined}
+          >
+            <option value="">
+              {isLoading ? 'Cargando…' : `Elegí ${SCOPE_LABELS[scopeType].toLowerCase()}`}
+            </option>
+            {options.map((opcion) => (
+              <option key={opcion.id} value={opcion.id}>
+                {opcion.name}
+                {opcion.sku ? ` · ${opcion.sku}` : ''}
+              </option>
+            ))}
+          </select>
+
+          {isError && (
+            <p className="form-text text-danger mb-0">No pudimos cargar las opciones.</p>
+          )}
+          {error && (
+            <p className="invalid-feedback d-block mb-0" id="scopeId-error">
+              {error}
+            </p>
+          )}
+          {supportsSearch && !isLoading && options.length === 0 && (
+            <p className="form-text mb-0">Sin resultados. Probá con otro texto.</p>
+          )}
+        </>
       )}
     </fieldset>
   );

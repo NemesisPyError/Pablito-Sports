@@ -2,8 +2,10 @@
  * Pie del catálogo (09_COMPONENTES.md §9.8 `PublicFooter`).
  *
  * Tinta a sangre: cierra la página con el mismo peso con el que la abre el
- * navbar. Es además donde viven «Nosotros» y «Contacto», que no ocupan lugar
- * en la navegación superior.
+ * navbar. v2.9.6 (pedido explícito del usuario, sobre referencia visual):
+ * tarjetas con borde, iconografía en línea y acento azul (`--color-volt-500`,
+ * azul desde `08_UI_SYSTEM.md` v2.2.0) en vez de la lista de texto plano de
+ * v2.9.2 — misma grilla de columnas, mismos datos, presentación más marcada.
  */
 
 .footer {
@@ -22,7 +24,7 @@
 .columns {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--spacing-6);
+  gap: var(--spacing-7);
 }
 
 @media (min-width: 576px) {
@@ -39,7 +41,7 @@
 }
 
 /* --------------------------------------------------------------------------
- * Marca
+ * Marca + CTA de WhatsApp
  * ----------------------------------------------------------------------- */
 .brand {
   margin-block-end: var(--spacing-2);
@@ -48,21 +50,78 @@
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-extrabold);
   letter-spacing: var(--letter-spacing-tighter);
+  line-height: 1;
   text-transform: uppercase;
+}
+
+/* Segunda palabra del nombre, un peso más liviano — mismo logotipo
+   tipográfico de siempre (`08_UI_SYSTEM.md`: sin logo de imagen todavía),
+   con el contraste de peso que ya usa la referencia. */
+.brandRest {
+  display: block;
+  margin-block-start: var(--spacing-0);
+  color: var(--color-text-inverse-muted);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-wide);
 }
 
 .claim {
   max-width: 34ch;
-  margin-block-end: var(--spacing-0);
+  margin-block: var(--spacing-3) var(--spacing-4);
   color: var(--color-text-inverse-muted);
   font-size: var(--font-size-sm);
 }
 
+.whatsappCta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  width: 100%;
+  max-width: 22rem;
+  padding: var(--spacing-3);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border-inverse);
+  border-radius: var(--radius-md);
+  color: var(--color-text-inverse);
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+.whatsappCta:hover,
+.whatsappCta:focus-visible {
+  border-color: var(--color-volt-500);
+}
+
+.whatsappIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-volt-500);
+  color: var(--color-volt-on);
+}
+
+.whatsappText {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  font-size: var(--font-size-sm);
+}
+
+.whatsappLabel {
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-xs);
+}
+
 /* --------------------------------------------------------------------------
- * Columnas de enlaces
+ * Encabezados de columna
  * ----------------------------------------------------------------------- */
 .heading {
-  margin-block-end: var(--spacing-3);
+  position: relative;
+  margin-block-end: var(--spacing-4);
+  padding-block-end: var(--spacing-2);
   color: var(--color-text-inverse);
   font-size: var(--font-size-2xs);
   font-weight: var(--font-weight-bold);
@@ -70,21 +129,48 @@
   text-transform: uppercase;
 }
 
-.list {
+/* Divisor corto bajo cada título, en el acento azul — el resto del pie usa
+   líneas completas (`.bottom`), este es deliberadamente corto para marcar
+   jerarquía sin repetir el mismo trazo en cada columna. */
+.heading::after {
+  content: '';
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  width: 2rem;
+  height: 2px;
+  background-color: var(--color-volt-500);
+}
+
+/* --------------------------------------------------------------------------
+ * Listas con ícono (Soporte, Formas de pago)
+ * ----------------------------------------------------------------------- */
+.iconList {
   display: flex;
   flex-direction: column;
-  /* El aire lo aporta el área táctil de cada enlace, no la separación: sumar
-     las dos dejaría la columna el doble de alta. */
-  gap: var(--spacing-0);
+  gap: var(--spacing-1);
   margin: var(--spacing-0);
   padding: var(--spacing-0);
   list-style: none;
 }
 
-.link {
+.iconBox {
   display: inline-flex;
   align-items: center;
-  /* §10.1: 44px de alto útil aunque el texto mida 19. */
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background-color: var(--color-ink-800);
+  color: var(--color-volt-500);
+}
+
+.iconLink {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  /* §10.1: 44px de alto útil aunque el texto mida menos. */
   min-height: var(--touch-target-min);
   color: var(--color-text-inverse-muted);
   font-size: var(--font-size-sm);
@@ -92,81 +178,260 @@
   transition: var(--transition-fast);
 }
 
-.link:hover,
-.link:focus-visible {
+.iconLink:hover,
+.iconLink:focus-visible {
   color: var(--color-text-inverse);
 }
 
-.data {
-  margin-block-end: var(--spacing-0);
-  color: var(--color-text-inverse-muted);
+.iconLink:hover .iconBox,
+.iconLink:focus-visible .iconBox {
+  color: var(--color-text-inverse);
+  background-color: var(--color-volt-500);
+}
+
+.iconRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  min-height: var(--touch-target-min);
+  padding-block: var(--spacing-1);
+}
+
+.itemLabel {
+  display: block;
+  color: var(--color-text-inverse);
   font-size: var(--font-size-sm);
-  line-height: var(--line-height-relaxed);
-  /* Dirección y horarios se cargan con saltos de línea desde el panel. */
+  font-weight: var(--font-weight-semibold);
+}
+
+.itemHint {
+  display: block;
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-xs);
+}
+
+.preLine {
   white-space: pre-line;
 }
 
-.dataLabel {
-  display: block;
-  color: var(--color-text-inverse);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--letter-spacing-wide);
-  text-transform: uppercase;
-}
-
-.dataRow + .dataRow {
-  margin-block-start: var(--spacing-3);
-}
-
 /* --------------------------------------------------------------------------
- * Redes. Sin biblioteca de íconos (§8), el nombre de la red **es** el enlace:
- * más legible que un glifo improvisado y sin dependencia nueva.
+ * Redes sociales + Ubicación (última columna, apiladas)
  * ----------------------------------------------------------------------- */
-.social {
+.lastCol {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-2);
+  flex-direction: column;
+  gap: var(--spacing-6);
 }
 
-.socialLink {
-  padding: var(--spacing-2) var(--spacing-3);
+.locationBlock {
+  margin-block-start: var(--spacing-1);
+}
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: var(--spacing-0);
+  padding: var(--spacing-0);
+  list-style: none;
+}
+
+.socialCard,
+.locationCard {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
   border: var(--border-width-thin) var(--border-style-default) var(--color-border-inverse);
-  border-radius: var(--radius-pill);
-  color: var(--color-text-inverse-muted);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--letter-spacing-wide);
+  border-radius: var(--radius-md);
+}
+
+.socialCard {
+  align-items: center;
+  color: inherit;
   text-decoration: none;
-  text-transform: uppercase;
   transition: var(--transition-fast);
 }
 
-.socialLink:hover,
-.socialLink:focus-visible {
+.socialCard:hover,
+.socialCard:focus-visible {
   border-color: var(--color-volt-500);
+}
+
+.socialCard > span:last-of-type {
+  flex-grow: 1;
+}
+
+.socialCard svg:last-child {
+  flex-shrink: 0;
+  color: var(--color-text-inverse-muted);
+}
+
+.mapsLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  margin-block-start: var(--spacing-2);
   color: var(--color-volt-500);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.mapsLink:hover,
+.mapsLink:focus-visible {
+  text-decoration: underline;
 }
 
 /* --------------------------------------------------------------------------
- * Cierre
+ * Bancos con reintegro (v2.9.7, pedido explícito del usuario, confirmado
+ * como real para Pablito Sports). Colores de banco literales a propósito
+ * (ver comentario en `PublicFooter.jsx` junto a `BANK_PROMOTIONS`): son la
+ * identidad de cada entidad, no del sistema visual de la tienda, así que no
+ * hay token que los represente.
+ * ----------------------------------------------------------------------- */
+.banks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  margin-block-start: var(--spacing-7);
+  padding: var(--spacing-5);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border-inverse);
+  border-radius: var(--radius-md);
+}
+
+@media (min-width: 768px) {
+  .banks {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.banksHeading {
+  flex-shrink: 0;
+}
+
+.banksTitle {
+  margin-block-end: var(--spacing-1);
+  color: var(--color-text-inverse);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-tight);
+  text-transform: uppercase;
+}
+
+/* Amarillo de la propia campaña ("Tenés Super Descuentos"), no del sistema
+   visual de la tienda — mismo criterio que los colores de banco de arriba. */
+.banksHighlight {
+  color: #ffd23f;
+}
+
+.banksSubtitle {
+  margin-block-end: var(--spacing-0);
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.bankList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-2);
+  margin: var(--spacing-0);
+  padding: var(--spacing-0);
+  list-style: none;
+}
+
+@media (min-width: 576px) {
+  .bankList {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 992px) {
+  .bankList {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.bankCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-0);
+  padding: var(--spacing-3) var(--spacing-2);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border-inverse);
+  border-radius: var(--radius-md);
+  color: var(--color-text-inverse);
+  text-align: center;
+}
+
+.bankLogo {
+  max-width: 100%;
+  height: 2.25rem;
+  object-fit: contain;
+}
+
+.bankPercent {
+  margin-block: var(--spacing-1);
+  color: var(--color-volt-500);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-extrabold);
+  line-height: 1;
+}
+
+.bankNote {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------------------------
+ * Cierre: copyright, ubicación corta, crédito del desarrollador
  * ----------------------------------------------------------------------- */
 .bottom {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--spacing-3);
+  gap: var(--spacing-3) var(--spacing-7);
   margin-block-start: var(--spacing-7);
   padding-block-start: var(--spacing-5);
   border-block-start: var(--border-width-thin) var(--border-style-default)
     var(--color-border-inverse);
 }
 
+/* Copyright, solo, centrado bien abajo (pedido explícito del usuario) —
+   separado de `.bottom` por su propio espacio, no comparte fila con
+   ubicación/horario. */
+.copyright {
+  margin-block: var(--spacing-4) var(--spacing-0);
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+
 .copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1);
   margin-block-end: var(--spacing-0);
   color: var(--color-text-inverse-muted);
   font-size: var(--font-size-xs);
+}
+
+.copy svg {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Separador entre dirección y horario, en la misma línea (pedido explícito
+   del usuario: el horario va al lado de la ubicación, no en un bloque aparte). */
+.copySeparator {
+  color: var(--color-text-inverse-muted);
 }
 
 .footer :focus-visible {

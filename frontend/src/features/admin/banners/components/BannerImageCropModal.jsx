@@ -1,26 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 
+import {
+  clampOffset,
+  coverScale,
+  cropRect,
+  imageRatio,
+  MAX_ZOOM,
+  MIN_ZOOM,
+  outputSize,
+} from '../utils/bannerCropMath.js';
 import styles from './BannerImageCropModal.module.css';
-
-// Igual a `ratio-21x9` que ya usan la vista previa del campo y la tabla de
-// banners (`BannerImageField`, `BannersTable`): el recorte debe coincidir con
-// lo que el admin ve después de guardar, no con un valor distinto.
-const RATIO = 21 / 9;
-const MIN_ZOOM = 1;
-const MAX_ZOOM = 3;
-// Techo del recorte exportado: coincide con el ancho más grande que el
-// pipeline de imágenes genera para banners (`wide`, 2400px). Pedir más no
-// aporta nada porque el servidor nunca lo va a servir.
-const MAX_OUTPUT_WIDTH = 2400;
-
-function recortar(offset, dispW, dispH, frameW, frameH) {
-  const minX = frameW - dispW;
-  const minY = frameH - dispH;
-  return {
-    x: Math.min(0, Math.max(minX, offset.x)),
-    y: Math.min(0, Math.max(minY, offset.y)),
-  };
-}
 
 // Nombre propio, no derivado del original: el backend rechaza cualquier
 // nombre con más de un punto como posible doble extensión (`foto.jpg.php`,
@@ -33,13 +22,27 @@ function nombreDeSalida() {
 }
 
 /**
- * Editor de recorte del banner: se abre al elegir un archivo y deja arrastrar
- * y hacer zoom dentro del marco 21:9 antes de subirlo.
+ * Editor de recorte del banner — modo "Ajustar / Recortar" (v2.9.4, pedido
+ * explícito del usuario). Deja arrastrar y hacer zoom dentro de un marco que
+ * respeta la **proporción real de la imagen elegida**, no un formato fijo:
+ * hasta v2.9.3 el marco era 21:9 siempre, forzando a toda imagen (vertical,
+ * cuadrada, panorámica) a esa forma. El marco ahora se calcula de
+ * `naturalSize` (ancho/alto del archivo) apenas se conoce — la matemática
+ * vive en `bannerCropMath.js`, separada para poder probarla sin montar React.
+ *
+ * Con zoom en 1 y sin arrastrar, el marco ya muestra la imagen completa —
+ * "recortar" acá es literalmente "acercarse", nunca cambia la forma del
+ * encuadre. No es un editor de crop libre con bordes redimensionables (pedido
+ * explícito del usuario: fuera de alcance).
+ *
+ * Esta pantalla es opcional: `BannerImageField` solo la abre si el
+ * administrador elige "Ajustar / Recortar". Si elige "Usar imagen completa"
+ * no pasa por acá — el archivo original se sube tal cual, sin canvas ni
+ * reconversión (ver nota en `BannerImageField.jsx`).
  *
  * El recorte se resuelve en el navegador (canvas) y se sube ya la imagen
  * final: el backend no recorta a propósito (`local_storage.py`, §17.1.2 —
- * decidir el encuadre es tarea de quien carga la foto), así que si el admin
- * no quiere recortar acá, no tiene otro lugar para ajustarlo.
+ * decidir el encuadre es tarea de quien carga la foto).
  */
 export function BannerImageCropModal({ file, onConfirm, onCancel }) {
   const frameRef = useRef(null);
@@ -55,6 +58,7 @@ export function BannerImageCropModal({ file, onConfirm, onCancel }) {
   const [procesando, setProcesando] = useState(false);
 
   const isOpen = Boolean(file);
+  const ratio = imageRatio(naturalSize);
 
   // Objeto URL del archivo elegido: se libera al cambiar de archivo y al
   // desmontar, igual que la vista previa de `BannerImageField`.
@@ -72,7 +76,9 @@ export function BannerImageCropModal({ file, onConfirm, onCancel }) {
   }, [file]);
 
   // Mide el marco al abrir y cuando cambia el tamaño de la ventana: el modal
-  // es responsive y el ancho disponible cambia el `scaleCover`.
+  // es responsive y el ancho disponible cambia el `scaleCover`. También
+  // depende de `ratio`: el marco cambia de alto apenas se conoce el tamaño
+  // real de la imagen, y hay que remedir tras ese cambio de layout.
   useEffect(() => {
     if (!isOpen) return undefined;
 
@@ -83,14 +89,14 @@ export function BannerImageCropModal({ file, onConfirm, onCancel }) {
     medir();
     window.addEventListener('resize', medir);
     return () => window.removeEventListener('resize', medir);
-  }, [isOpen]);
+  }, [isOpen, ratio]);
 
   // Centra la imagen la primera vez que se conocen su tamaño natural y el del
   // marco. Solo una vez por archivo: si se repite en cada medición de resize,
   // el zoom y el arrastre del admin se pierden cada vez que cambia el ancho.
   useEffect(() => {
     if (!naturalSize || !frameSize.width || inicializadoRef.current === file) return;
-    const cover = Math.max(frameSize.width / naturalSize.width, frameSize.height / naturalSize.height);
+    const cover = coverScale(frameSize, naturalSize);
     const dispW = naturalSize.width * cover;
     const dispH = naturalSize.height * cover;
     setOffset({ x: (frameSize.width - dispW) / 2, y: (frameSize.height - dispH) / 2 });
@@ -100,9 +106,7 @@ export function BannerImageCropModal({ file, onConfirm, onCancel }) {
   if (!isOpen) return null;
 
   const listo = Boolean(naturalSize && frameSize.width);
-  const scaleCover = listo
-    ? Math.max(frameSize.width / naturalSize.width, frameSize.height / naturalSize.height)
-    : 0;
+  const scaleCover = listo ? coverScale(frameSize, naturalSize) : 0;
   const scale = scaleCover * zoom;
   const dispW = listo ? naturalSize.width * scale : 0;
   const dispH = listo ? naturalSize.height * scale : 0;
@@ -128,7 +132,7 @@ export function BannerImageCropModal({ file, onConfirm, onCancel }) {
       x: startOffset.x + (evento.clientX - startX),
       y: startOffset.y + (evento.clientY - startY),
     };
-    setOffset(recortar(propuesto, dispW, dispH, frameSize.width, frameSize.height));
+    setOffset(clampOffset(propuesto, dispW, dispH, frameSize.width, frameSize.height));
   }
 
   function alSoltarPuntero() {
@@ -141,19 +145,16 @@ export function BannerImageCropModal({ file, onConfirm, onCancel }) {
     const nuevoDispW = naturalSize.width * nuevaScale;
     const nuevoDispH = naturalSize.height * nuevaScale;
     setZoom(nuevoZoom);
-    setOffset((actual) => recortar(actual, nuevoDispW, nuevoDispH, frameSize.width, frameSize.height));
+    setOffset((actual) =>
+      clampOffset(actual, nuevoDispW, nuevoDispH, frameSize.width, frameSize.height),
+    );
   }
 
   async function confirmar() {
     setProcesando(true);
     try {
-      const cropW = frameSize.width / scale;
-      const cropH = frameSize.height / scale;
-      const cropX = -offset.x / scale;
-      const cropY = -offset.y / scale;
-
-      const outW = Math.min(MAX_OUTPUT_WIDTH, Math.round(cropW));
-      const outH = Math.round(outW / RATIO);
+      const { cropW, cropH, cropX, cropY } = cropRect({ frameSize, scale, offset });
+      const { outW, outH } = outputSize({ cropW, cropH });
 
       const canvas = document.createElement('canvas');
       canvas.width = outW;
@@ -182,13 +183,14 @@ export function BannerImageCropModal({ file, onConfirm, onCancel }) {
           <div className="modal-content">
             <div className="modal-header">
               <h2 className="modal-title h6" id="bannerCropTitle">
-                Ajustar recorte
+                Ajustar / Recortar
               </h2>
             </div>
             <div className="modal-body">
               <div
                 ref={frameRef}
                 className={styles.frame}
+                style={{ aspectRatio: ratio }}
                 onPointerDown={alBajarPuntero}
                 onPointerMove={alMoverPuntero}
                 onPointerUp={alSoltarPuntero}
@@ -232,8 +234,8 @@ export function BannerImageCropModal({ file, onConfirm, onCancel }) {
               </div>
 
               <p className="form-text mb-0">
-                Arrastrá la imagen para ubicarla y usá el zoom para acercar. El recorte queda en
-                formato panorámico (21:9), igual que se ve en el carril.
+                Arrastrá la imagen para ubicarla y usá el zoom para acercar. El marco respeta la
+                proporción de tu imagen — sin zoom, se ve completa.
               </p>
             </div>
             <div className="modal-footer">
@@ -251,7 +253,7 @@ export function BannerImageCropModal({ file, onConfirm, onCancel }) {
                 onClick={confirmar}
                 disabled={!listo || procesando}
               >
-                {procesando ? 'Recortando…' : 'Usar esta imagen'}
+                {procesando ? 'Aplicando…' : 'Aplicar recorte'}
               </button>
             </div>
           </div>

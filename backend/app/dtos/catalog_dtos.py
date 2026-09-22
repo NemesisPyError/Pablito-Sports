@@ -14,6 +14,11 @@ class BrandDTO(BaseDTO):
     slug: str
     name: str
     image_url: str | None = None
+    # `GET /brands` lo comparten tres consumidores: el filtro de marca del
+    # catálogo, el mega-menú y la franja deslizante. Los dos primeros necesitan
+    # TODAS las marcas, así que el endpoint no se filtra — viaja la bandera y
+    # solo la franja la usa para decidir qué muestra.
+    show_in_strip: bool = True
 
 
 @dataclass(frozen=True)
@@ -42,12 +47,31 @@ class SizeDTO(BaseDTO):
 
 
 @dataclass(frozen=True)
+class CategoryNodeDTO(BaseDTO):
+    """Subcategoría del árbol (`AD-24`).
+
+    Es `NamedEntityDTO` más los sexos: una hija puede restringirse por su cuenta
+    —«Vestidos» dentro de «Indumentaria»— sin que la madre lo esté. No se
+    reutiliza `NamedEntityDTO` porque marcas, deportes y talles comparten ese
+    DTO y no tienen sexo propio.
+    """
+
+    slug: str
+    name: str
+    genders: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class CategoryTreeDTO(BaseDTO):
     """Two-level tree (AD-24)."""
 
     slug: str
     name: str
-    children: list[NamedEntityDTO] = field(default_factory=list)
+    children: list[CategoryNodeDTO] = field(default_factory=list)
+    # RN-83, AD-41: sexos a los que aplica la categoría, por slug — `AD-12`
+    # prohíbe publicar identificadores. Lista vacía = sin restricción: la
+    # navegación la ofrece en todos los ejes.
+    genders: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -89,6 +113,15 @@ class BannerDTO(BaseDTO):
     button_label: str | None
     placement: str
     position: int
+
+
+@dataclass(frozen=True)
+class BankDTO(BaseDTO):
+    """Superdescuentos: tarjeta pública de banco. No id is exposed (AD-12)."""
+
+    name: str
+    discount_percentage: int
+    image_url: str | None
 
 
 @dataclass(frozen=True)

@@ -89,6 +89,37 @@ def test_categoria_con_subcategorias_da_409_con_envoltura(admin_client, categori
     assert error["rule"] == "RN-68"
 
 
+def test_una_subcategoria_ya_borrada_no_bloquea_a_la_madre(
+    admin_client, categoria_cleanup, outside
+):
+    """RN-68 cuenta dependencias reales, no fantasmas.
+
+    `Category.children` no filtra el borrado lógico, así que una hija ya
+    eliminada seguía bloqueando a la madre: para el administrador esa
+    subcategoría no existe, pero el 409 aparecía igual y dejaba la categoría
+    imposible de borrar desde el panel.
+    """
+    padre_id = _crear(admin_client, slug="cat-contrato-padre")
+    hija = admin_client.post(
+        "/api/v1/admin/categories",
+        json={"name": "Hija", "slug": "cat-contrato-hija", "parent_id": padre_id},
+    )
+    hija_id = hija.get_json()["data"]["id"]
+    assert admin_client.delete(f"/api/v1/admin/categories/{hija_id}").status_code == 204
+
+    response = admin_client.delete(f"/api/v1/admin/categories/{padre_id}")
+
+    assert response.status_code == 204
+
+    # La hija sigue borrada y la madre también: RN-68 no dejó nada a medias.
+    with outside.connect() as connection:
+        borrados = connection.execute(
+            text("SELECT id, deleted_at FROM categories WHERE id IN (:padre, :hija)"),
+            {"padre": padre_id, "hija": hija_id},
+        ).all()
+    assert all(deleted_at is not None for _, deleted_at in borrados)
+
+
 def test_restaurar_categoria_sigue_devolviendo_el_recurso(admin_client, categoria_cleanup):
     """`restore` no está tipificado como 204: devuelve la entidad restaurada."""
     category_id = _crear(admin_client)

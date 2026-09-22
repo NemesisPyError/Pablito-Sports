@@ -1,0 +1,275 @@
+# Pablito Sports — PRODUCCIÓN (Fase 0, 12_DEPLOY.md §6, DPL-05, DPL-07).
+#
+# Diferencias con docker-compose.yml (desarrollo), que NO se toca:
+#   - sin Vite dev server: Nginx sirve el build estático de frontend/dist/
+#   - sin `gunicorn --reload`: comando explícito con 1 worker (decisión Fase 0)
+#   - sin bind-mounts de código: la imagen del backend es inmutable
+#   - Nginx publica 80 y 443 con TLS
+#   - servicio `migrate` one-shot (profiles: tools) — nunca automático
+#   - servicio `frontend-build` one-shot (profiles: build) — compila el SPA
+#
+# --- Privilegios (S-12, 12_DEPLOY.md §18) -----------------------------------
+# Todos los servicios llevan `no-new-privileges:true` y `cap_drop: [ALL]`; las
+# capabilities que se devuelven se midieron una por una arrancando el servicio.
+# Usuario efectivo: backend y migrate `appuser`(1000); frontend-build `node`
+# (1000); nginx workers `nginx`(101); postgres y redis bajan de privilegios en
+# su entrypoint. El detalle y las excepciones están en `docker-compose.yml`.
+#
+# Uso:
+#   docker compose -f docker-compose.prod.yml --env-file .env.production --profile build run --rm frontend-build
+#   docker compose -f docker-compose.prod.yml --env-file .env.production build
+#   docker compose -f docker-compose.prod.yml --env-file .env.production run --rm migrate
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#
+# NUNCA `down -v` en producción: borra postgres_data y uploads_data.
+
+name: pablito-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pablito_prod_postgres
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    # Las necesita el ENTRYPOINT para dejar el volumen en condiciones y bajar de
+    # privilegios; el daemon ya arrancado queda con CapEff=0 (medido).
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?falta POSTGRES_USER en .env.production}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?falta POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # 03_SEGURIDAD.md §17.2: PostgreSQL NO publica ningún puerto. Se accede
+      # solo por la red interna de Compose (`postgres:5432`).
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # 03_SEGURIDAD.md §14.4: almacén compartido del contador de rate limiting.
+  # A diferencia de desarrollo, acá SÍ persiste (`--appendonly yes`): un
+  # reinicio del contenedor no debe regalar cupo nuevo a quien esté probando
+  # contraseñas. `--maxmemory-policy noeviction` evita que Redis descarte
+  # contadores bajo presión de memoria; son datos pequeños y de vida corta.
+  redis:
+    image: redis:7-alpine
+    container_name: pablito_prod_redis
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    # Las necesita el ENTRYPOINT para dejar el volumen en condiciones y bajar de
+    # privilegios; el daemon ya arrancado queda con CapEff=0 (medido).
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory-policy
+      - noeviction
+    # §17.2: sin puerto publicado. Solo la red interna de Compose.
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        REQUIREMENTS: requirements/prod.txt
+    image: pablito-backend:${IMAGE_TAG:-latest}
+    container_name: pablito_prod_backend
+    restart: unless-stopped
+    # Gunicorn corre como `appuser` (1000) y no necesita ninguna capability.
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    # Sistema de archivos de sólo lectura. Se verificó cuáles son TODAS las
+    # rutas de escritura antes de activarlo, no al revés:
+    #   · `${UPLOAD_FOLDER}` -> volumen con nombre, montado escribible;
+    #   · `/tmp` -> Werkzeug vuelca ahí las subidas que superan el buffer en
+    #     memoria (MAX_CONTENT_LENGTH = 5 MB) y Gunicorn guarda el latido de sus
+    #     workers. Por eso el tmpfs, y no por si acaso.
+    # No aplica en desarrollo: allí `/app` es un bind mount donde pytest y ruff
+    # escriben sus cachés.
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    environment:
+      FLASK_ENV: production
+      FLASK_APP: wsgi:application
+      DATABASE_URL: ${DATABASE_URL:?falta DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY:?falta SECRET_KEY}
+      UPLOAD_FOLDER: ${UPLOAD_FOLDER:-/var/lib/pablito/uploads}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # 03_SEGURIDAD.md §14.2 / auditoría Cloudflare §C7: SE QUEDA EN 1
+      # (Nginx -> Gunicorn). Pasa a 2 SOLO en la fase Cloudflare.
+      TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-1}
+      # §14.4: obligatoria en producción. `ProductionConfig.validate` se niega a
+      # arrancar si falta o si apunta a un almacén dentro del proceso.
+      RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-redis://redis:6379/0}
+      SITE_BASE_URL: ${SITE_BASE_URL:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      # SESSION_COOKIE_SECURE lo fuerza ProductionConfig a True; no se pasa aquí.
+    volumes:
+      - uploads_data:${UPLOAD_FOLDER:-/var/lib/pablito/uploads}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Comando explícito: sin --reload, 1 worker (Fase 0, 03_SEGURIDAD.md §14.4).
+    # RequestLoggingMiddleware emite el registro estructurado -> sin --access-logfile.
+    command:
+      - gunicorn
+      - --bind=0.0.0.0:8000
+      - --workers=${GUNICORN_WORKERS:-1}
+      - --error-logfile=-
+      - wsgi:application
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: pablito_prod_nginx
+    restart: unless-stopped
+    # Excepción documentada: el master necesita root para ligar 80/443 y leer la
+    # clave TLS; los workers ya bajan a `nginx` (101). Sin `read_only`: en
+    # producción `envsubst` escribe la plantilla renderizada en
+    # /etc/nginx/conf.d al arrancar.
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    # Mínimo medido: sin CHOWN falla con «chown(/var/cache/nginx/...) failed».
+    # DAC_OVERRIDE se probó y NO hace falta.
+    cap_add: [CHOWN, SETGID, SETUID, NET_BIND_SERVICE]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # S-13: obligatoria. La redirección HTTP->HTTPS apunta a este nombre en
+      # vez de al `Host` recibido, así que un valor ausente no puede quedar en
+      # un silencioso `https://_/`.
+      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:?falta NGINX_SERVER_NAME en .env.production}
+      # Solo se sustituyen variables NGINX_* en las plantillas: las variables
+      # propias de Nginx ($host, $uri, ...) quedan intactas.
+      NGINX_ENVSUBST_FILTER: "^NGINX_"
+      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx/conf.d
+    volumes:
+      - ./nginx/prod:/etc/nginx/templates:ro
+      - ./nginx/proxy_params:/etc/nginx/proxy_params:ro
+      - ./nginx/security_headers:/etc/nginx/security_headers:ro
+      # Solo producción: HSTS únicamente tiene sentido sobre TLS (§12.1).
+      - ./nginx/hsts:/etc/nginx/hsts:ro
+      # S-13: la CSP pasa a archivo propio para poder re-incluirla donde la
+      # herencia de `add_header` la descarta (ver `nginx/csp`).
+      - ./nginx/csp:/etc/nginx/csp:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - uploads_data:/var/lib/pablito/uploads:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-check-certificate
+        - -q
+        - -O
+        - /dev/null
+        - https://127.0.0.1/health/live
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # One-shot: migraciones. NO arranca con `up` (profiles). Se invoca a mano
+  # dentro del flujo de deploy: `... run --rm migrate`.
+  # ---------------------------------------------------------------------------
+  migrate:
+    build:
+      context: ./backend
+      args:
+        REQUIREMENTS: requirements/prod.txt
+    image: pablito-backend:${IMAGE_TAG:-latest}
+    profiles: ["tools"]
+    # Hereda `appuser` de la imagen: Alembic no escribe en disco, sólo en la
+    # base, así que el sólo-lectura no le quita nada.
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    environment:
+      FLASK_ENV: production
+      FLASK_APP: wsgi:application
+      DATABASE_URL: ${DATABASE_URL:?falta DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY:?falta SECRET_KEY}
+      UPLOAD_FOLDER: ${UPLOAD_FOLDER:-/var/lib/pablito/uploads}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ADMIN_INITIAL_USERNAME: ${ADMIN_INITIAL_USERNAME:-admin}
+      ADMIN_INITIAL_EMAIL: ${ADMIN_INITIAL_EMAIL:-admin@pablitosports.local}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+      # `flask db upgrade` construye la aplicación, así que pasa por
+      # `ProductionConfig.validate` y necesita el mismo almacén que el backend:
+      # sin esta variable la migración no arrancaría (§14.4).
+      RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-redis://redis:6379/0}
+    volumes:
+      - uploads_data:${UPLOAD_FOLDER:-/var/lib/pablito/uploads}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["flask", "db", "upgrade"]
+
+  # ---------------------------------------------------------------------------
+  # One-shot: compila el SPA a frontend/dist/. NO arranca con `up` (profiles).
+  # `... --profile build run --rm frontend-build`
+  # ---------------------------------------------------------------------------
+  frontend-build:
+    image: node:20-alpine
+    profiles: ["build"]
+    # S-12: sin esto el build corría como root. `node` es uid 1000 en la imagen.
+    # Escribe `frontend/dist` en el HOST por bind mount: si el usuario que
+    # despliega no es uid 1000, ajustar con FRONTEND_BUILD_UID/GID.
+    user: "${FRONTEND_BUILD_UID:-1000}:${FRONTEND_BUILD_GID:-1000}"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    working_dir: /app
+    environment:
+      # Mismo-origen en producción: el fallback `/api/v1` de apiClient.js alcanza.
+      VITE_API_BASE_URL: /api/v1
+      # Con un uid arbitrario, HOME sería `/` y npm no podría escribir su caché.
+      HOME: /tmp
+      npm_config_cache: /tmp/.npm
+    volumes:
+      # Sin volumen con nombre para `node_modules`, a propósito (S-12). Un
+      # volumen montado en una ruta que la imagen NO tiene se crea vacío y
+      # **propiedad de root**, y entonces un proceso no privilegiado no puede
+      # inicializarlo: `npm ci` moría con
+      # «EACCES: permission denied, rmdir '/app/node_modules/.bin'».
+      # Comprobado también con el volumen recién creado, así que no era residuo.
+      # Con el bind mount, `npm ci` escribe en el checkout —que ya está en
+      # .gitignore— y el contenedor puede correr como usuario normal.
+      - ./frontend:/app
+    command: ["sh", "-c", "npm ci && npm run build"]
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:

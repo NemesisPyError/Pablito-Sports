@@ -1,0 +1,83 @@
+/**
+ * Pantalla de carga del panel administrativo (`App.jsx`, `Suspense` de
+ * `AdminRoutes`).
+ *
+ * No importa el CSS Module de `AdminLoginPage` a propósito: este componente
+ * se carga en el bundle público (es el *fallback* de un `lazy()`, tiene que
+ * estar listo antes de que el trozo perezoso del panel llegue), y el panel
+ * existe justamente para no sumarle peso a esa carga (ver comentario de
+ * `App.jsx`). Repetir acá el puñado de reglas que hacen falta —no todo el
+ * módulo de la pantalla de acceso— mantiene esa frontera intacta.
+ *
+ * Misma identidad que `AdminLoginPage`: es la otra pantalla de tránsito
+ * hacia el panel, y comparte su superficie azul profunda.
+ */
+
+.page {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-6);
+  background-color: var(--color-auth-background);
+  background-image: radial-gradient(ellipse at 50% 0%, var(--color-auth-glow), transparent 60%);
+}
+
+.brand {
+  text-align: center;
+}
+
+.brandName {
+  display: block;
+  color: var(--color-text-inverse);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-tighter);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.brandMark {
+  margin-inline-start: var(--spacing-2);
+  color: var(--color-volt-500);
+}
+
+/* --------------------------------------------------------------------------
+ * Indicador de carga: anillo que gira, no la barra genérica del navegador.
+ * Un solo elemento con un arco de color — nada de logos duplicados ni texto
+ * en movimiento, que es lo que vuelve "molesta" a una pantalla de carga.
+ * ----------------------------------------------------------------------- */
+.spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: var(--border-width-thick) var(--border-style-default) var(--color-auth-border);
+  border-radius: var(--radius-circle);
+  border-block-start-color: var(--color-volt-500);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .spinner {
+    animation: girar 900ms linear infinite;
+  }
+}
+
+/* Con movimiento reducido, `base.css` ya fuerza `animation-duration: 0` de
+   forma global: el anillo queda quieto en el primer cuadro (el arco de
+   acento arriba) en lugar de animarse. No hace falta repetir la condición
+   acá. */
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.label {
+  margin-block: 0;
+  color: var(--color-text-inverse-muted);
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

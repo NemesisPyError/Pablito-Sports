@@ -116,9 +116,38 @@ class ProductService:
             resolved, now, offset=page_request.offset, limit=page_request.limit
         )
 
-        thumbnails, secondary_thumbnails = ProductRepository.thumbnail_and_secondary_paths_for(
-            [product.id for product, _ in rows]
+        return Page(
+            items=cls._build_list_items(rows),
+            page=page_request.page,
+            per_page=page_request.per_page,
+            total=total,
         )
+
+    @classmethod
+    def list_home_new(cls, moment: datetime | None = None) -> list:
+        """§7.2d: Novedades es lo que el administrador sumó a mano, en su orden.
+
+        Sin paginar: es la misma vidriera curada que `list_brand_showcases`,
+        no un listado que el cliente recorre página por página.
+        """
+        now = moment or datetime.now(UTC)
+        rows = ProductRepository.list_home_new_showcases(now)
+        return cls._build_list_items(rows)
+
+    @classmethod
+    def _build_list_items(cls, rows: list[tuple]) -> list:
+        """De filas `(product, effective_price)` a `ProductListItemDTO`.
+
+        Compartido por el listado paginado y por Novedades: ambos arman la
+        misma tarjeta pública y necesitan las mismas consultas en lote de
+        miniaturas y talles con stock (sin esto, N productos serían N+1
+        consultas en vez de dos).
+        """
+        product_ids = [product.id for product, _ in rows]
+        thumbnails, secondary_thumbnails = ProductRepository.thumbnail_and_secondary_paths_for(
+            product_ids
+        )
+        available_sizes = ProductRepository.available_sizes_for(product_ids)
 
         items = []
         for product, effective_price in rows:
@@ -130,12 +159,10 @@ class ProductService:
                     discount_percentage=discount,
                     thumbnail_path=thumbnails.get(product.id),
                     secondary_thumbnail_path=secondary_thumbnails.get(product.id),
+                    available_sizes=available_sizes.get(product.id),
                 )
             )
-
-        return Page(
-            items=items, page=page_request.page, per_page=page_request.per_page, total=total
-        )
+        return items
 
     @classmethod
     def facets(cls, query: ProductListQuery, moment: datetime | None = None) -> dict:
@@ -188,6 +215,7 @@ class ProductService:
             discount_percentage=discount,
             categories=cls._visible(product.categories),
             sports=cls._visible(product.sports),
+            genders=cls._visible(product.genders),
             sizes=cls._visible(product.sizes),
             images=ProductRepository.list_active_images(product.id),
             variants=ProductRepository.list_live_variants(product.id),

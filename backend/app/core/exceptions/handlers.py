@@ -6,16 +6,33 @@ application. No route catches exceptions on its own.
 
 import logging
 
-from flask import Flask, has_app_context
+from flask import Flask, g, has_app_context
 from flask_wtf.csrf import CSRFError
 from werkzeug.exceptions import HTTPException
 
 from ...extensions import db
+from ..logging.request_context import get_request_id, new_request_id
 from ..utils.responses import error_response
 from .base import AppException
 from .validation import RequestValidationError
 
 logger = logging.getLogger("app.errors")
+
+
+def _ensure_request_id() -> None:
+    """Garantiza `g.request_id` para errores que abortan antes del middleware.
+
+    `CSRFProtect` valida el token en un `before_request` que se registra antes
+    que el de `request_context` (orden del factory), de modo que un `403` de
+    token puede llegar al handler sin identificador de correlación asignado.
+    Aquí se genera uno de emergencia con el mismo formato (OA-09), para que
+    `meta.request_id` nunca sea `null` y el `X-Request-Id` se pueda emitir.
+
+    No altera el caso normal: si el middleware ya corrió, `get_request_id()`
+    devuelve un valor y esto no hace nada.
+    """
+    if has_app_context() and get_request_id() is None:
+        g.request_id = new_request_id()
 
 
 def _discard_pending_writes() -> None:
@@ -66,6 +83,7 @@ def handle_csrf_error(error: CSRFError):
     en vez de tratarlo como un error de sintaxis.
     """
     _discard_pending_writes()
+    _ensure_request_id()
     _log(403, "csrf_token_invalid", "csrf token missing or invalid")
     return error_response(
         [
@@ -110,6 +128,12 @@ def handle_unexpected_exception(error: Exception):
     ERR-05: logged at error level with the full stacktrace and the correlation id.
     """
     _discard_pending_writes()
+    # S-13: también acá. Un fallo que ocurre ANTES del middleware de
+    # `request_context` —el `before_request` del rate limiter se registra antes,
+    # ver el orden en `create_app`— llegaba con `meta.request_id: null`, y era
+    # justo el caso en que la correlación más falta hace: reproducido dejando
+    # Redis fuera de servicio, donde todo respondía 500 sin identificador.
+    _ensure_request_id()
     logger.exception("unhandled exception", extra={"error_type": type(error).__name__})
     return error_response(
         [

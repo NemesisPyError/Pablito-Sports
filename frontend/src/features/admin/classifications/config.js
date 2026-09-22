@@ -32,6 +32,12 @@ export const CLASSIFICATIONS = {
     maxLength: 100,
     // `AD-24`: jerarquía de dos niveles como máximo.
     campoExtra: 'parent',
+    // `RN-83` (v2.10.0): la categoría declara a qué sexos aplica. Es lo que
+    // decide en qué ejes del menú aparece, para que el administrador ordene la
+    // navegación desde el panel y no con una lista de slugs en el código.
+    // Es la única clasificación con sexos: marcas, deportes y talles no los
+    // tienen, y por eso no es un campo compartido.
+    tieneSexos: true,
     bloqueoDeBorrado: 'Tiene productos asignados o subcategorías activas.',
     // §9.5 responde 204 al borrar, a diferencia de las otras cuatro.
     borradoSinCuerpo: true,

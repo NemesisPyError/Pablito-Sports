@@ -8,6 +8,7 @@ Fase 6 of the roadmap.
 from flask import Blueprint
 
 from .auth import auth_bp
+from .banks import banks_bp
 from .banners import banners_bp
 from .classifications import (
     brands_bp,
@@ -20,6 +21,7 @@ from .classifications import (
 from .dashboard import dashboard_bp
 from .products import products_bp
 from .promotions import promotions_bp
+from .sales import sales_bp
 from .settings import settings_bp
 from .trails import trails_bp
 from .users import users_bp
@@ -38,7 +40,9 @@ for blueprint in (
     genders_bp,
     size_types_bp,
     promotions_bp,
+    sales_bp,
     banners_bp,
+    banks_bp,
     settings_bp,
     users_bp,
     trails_bp,

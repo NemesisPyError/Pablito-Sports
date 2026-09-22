@@ -6,20 +6,12 @@
  * añade reglas propias.
  */
 
-const SOLO_DIGITOS = /^\d+$/;
-
 /**
- * Ejemplo y ayuda del campo "Nombre" según el tipo de talle elegido
- * (v1.4.0, `RN-15b`). `null` para `one_size`: sin restricción de formato.
+ * Ejemplo y ayuda del campo "Nombre" (v1.5.0, `RN-15b`): el talle es texto
+ * libre, sin restricción de formato por tipo.
  */
-export function sizeNameHint(sizeTypeSlug) {
-  if (sizeTypeSlug === 'footwear_numeric') {
-    return { placeholder: 'Ej: 35, 36, 42', ayuda: 'Un talle de Calzado es numérico.' };
-  }
-  if (sizeTypeSlug === 'apparel_alpha') {
-    return { placeholder: 'Ej: XS, S, M, L, XL', ayuda: 'Un talle de Indumentaria no es un número.' };
-  }
-  return null;
+export function sizeNameHint() {
+  return { placeholder: 'Ej: 8.5, M, 35/36, Único', ayuda: 'Escribí el talle tal como se muestra al cliente.' };
 }
 
 /** 04 §9.2.3 (v1.1.0). */
@@ -43,7 +35,13 @@ export function slugify(texto) {
   );
 }
 
-export function toFormValues(entidad) {
+/**
+ * Estado inicial del formulario.
+ *
+ * @param entidad DTO a editar, o `null` en el alta.
+ * @param sexosDisponibles Lista de sexos (`useSeedData`), solo para categorías.
+ */
+export function toFormValues(entidad, sexosDisponibles = []) {
   return {
     name: entidad?.name ?? '',
     slug: entidad?.slug ?? '',
@@ -54,15 +52,39 @@ export function toFormValues(entidad) {
     // Vacío significa «sin bloque propio en la portada», que no es lo mismo
     // que la posición 0: esa es la primera marca destacada.
     home_position: entidad?.home_position != null ? String(entidad.home_position) : '',
+    // Franja de marcas bajo la navegación. Una marca nueva nace dentro: es lo
+    // que la franja hacía con todas hasta ahora, y así el alta no obliga a
+    // acordarse de tildar algo para que la marca aparezca donde siempre
+    // apareció. Independiente de `home_position`.
+    show_in_strip: entidad ? Boolean(entidad.show_in_strip) : true,
+    // `RN-83`. Una categoría nueva nace con los cinco sexos tildados: es el
+    // comportamiento que el menú tenía antes de existir este campo, así que el
+    // alta no obliga a acordarse de tildar algo para que la categoría aparezca
+    // donde siempre apareció. El administrador va destildando lo que no
+    // corresponda. Se guardan como texto porque el `value` de un checkbox lo es.
+    gender_ids: entidad
+      ? (entidad.gender_ids ?? []).map(String)
+      : (sexosDisponibles ?? []).map((sexo) => String(sexo.id)),
   };
+}
+
+/**
+ * Alterna un sexo dentro de la selección (`RN-83`).
+ *
+ * Aislada del componente por lo mismo que el resto de este archivo: se puede
+ * probar sin montar React.
+ */
+export function toggleGender(seleccionados, sexoId) {
+  const id = String(sexoId);
+  const actuales = seleccionados ?? [];
+  return actuales.includes(id) ? actuales.filter((item) => item !== id) : [...actuales, id];
 }
 
 /**
  * @param values Estado del formulario.
  * @param config Entrada de `CLASSIFICATIONS`: aporta el máximo y el campo extra.
- * @param tiposDeTalle Lista de `SizeTypeAdminDTO` (solo para el recurso "sizes").
  */
-export function validate(values, config, tiposDeTalle) {
+export function validate(values, config) {
   const errores = {};
   const maximo = config?.maxLength ?? 100;
 
@@ -70,15 +92,6 @@ export function validate(values, config, tiposDeTalle) {
   if (!nombre) errores.name = 'El nombre es obligatorio.';
   else if (nombre.length > maximo) {
     errores.name = `No puede superar los ${maximo} caracteres.`;
-  } else if (config?.campoExtra === 'sizeType' && values.size_type_id) {
-    // RN-15b: el nombre debe ser coherente con el tipo de talle elegido.
-    const tipo = (tiposDeTalle ?? []).find((t) => String(t.id) === String(values.size_type_id));
-    const esNumerico = SOLO_DIGITOS.test(nombre);
-    if (tipo?.slug === 'footwear_numeric' && !esNumerico) {
-      errores.name = 'Un talle de Calzado debe ser numérico, ej: 35, 42.';
-    } else if (tipo?.slug === 'apparel_alpha' && esNumerico) {
-      errores.name = 'Un talle de Indumentaria no puede ser puramente numérico, ej: XS, M, XL.';
-    }
   }
 
   const slug = values.slug?.trim();
@@ -125,11 +138,17 @@ export function toPayload(values, config) {
   if (config?.campoExtra === 'sizeType') {
     payload.size_type_id = Number.parseInt(values.size_type_id, 10);
   }
+  if (config?.tieneSexos) {
+    // `AD-41`: la lista vacía es válida y significa «sin restricción». El
+    // backend la acepta tal cual, así que no hay nada que omitir.
+    payload.gender_ids = (values.gender_ids ?? []).map((id) => Number.parseInt(id, 10));
+  }
 
   if (config?.esPiezaDePortada) {
     payload.tagline = values.tagline?.trim() || null;
     const posicion = values.home_position?.toString().trim();
     payload.home_position = posicion ? Number.parseInt(posicion, 10) : null;
+    payload.show_in_strip = Boolean(values.show_in_strip);
   }
 
   return payload;

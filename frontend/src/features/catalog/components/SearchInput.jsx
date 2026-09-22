@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+import styles from './SearchInput.module.css';
+
 /**
  * Campo de búsqueda con debounce.
  *
@@ -27,7 +29,7 @@ export function SearchInput({
     <div className="input-group" role="search">
       <input
         type="search"
-        className="form-control"
+        className={`form-control ${styles.field}`}
         placeholder={placeholder}
         value={internalValue}
         onChange={(event) => setInternalValue(event.target.value)}
@@ -36,7 +38,7 @@ export function SearchInput({
       {internalValue && (
         <button
           type="button"
-          className="btn btn-outline-secondary"
+          className={`btn ${styles.clear}`}
           onClick={() => {
             setInternalValue('');
             onChange('');

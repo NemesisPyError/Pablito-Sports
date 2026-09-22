@@ -74,6 +74,7 @@ def test_item_shape_matches_the_contract(catalog_client):
         "discount_percentage",
         "availability",
         "quantity",
+        "available_quantity",
     }
     assert set(payload["data"]["items"][0]["product"]) == {"slug", "name", "thumbnail_url"}
 
@@ -261,3 +262,128 @@ def test_prices_sent_by_the_client_are_ignored(catalog_client):
 
     assert response.status_code == 200
     assert response.get_json()["data"]["items"][0]["sale_price"] == 585000
+
+
+# --------------------------------------------------------------------------
+# Stock por talle (RN-54b)
+#
+# El carrito vive en el navegador (AD-06) y este endpoint es el único lugar
+# donde el servidor lo ve (AD-32): si la cantidad no se comprueba acá, no se
+# comprueba en ninguna parte. Los tests mandan la cantidad a mano, que es
+# exactamente lo que haría un carrito manipulado o desactualizado.
+#
+# Stock de la fixture: `botin-adidas-predator` talle 42 = 3 y talle 44 = 6;
+# `botin-nike-mercurial` talle 40 = 10 y talle 42 = 0.
+# --------------------------------------------------------------------------
+
+
+def _variant_por_talle(catalog_client, product_slug, size_slug):
+    from app.models import Size
+
+    with catalog_client.application.app_context():
+        return db.session.execute(
+            select(Variant.id)
+            .join(Product, Product.id == Variant.product_id)
+            .join(Size, Size.id == Variant.size_id)
+            .where(
+                Product.slug == product_slug,
+                Size.slug == size_slug,
+                Variant.deleted_at.is_(None),
+            )
+        ).scalar_one()
+
+
+def _item(response, indice=0):
+    return response.get_json()["data"]["items"][indice]
+
+
+def test_una_cantidad_menor_al_stock_se_acepta(catalog_client):
+    variante = _variant_por_talle(catalog_client, "botin-adidas-predator", "42")  # stock 3
+
+    assert _item(_post(catalog_client, [{"variant_id": variante, "quantity": 2}]))["status"] == "ok"
+
+
+def test_la_cantidad_igual_al_stock_se_acepta(catalog_client):
+    """El borde exacto: 3 de 3 es una compra válida, no un exceso."""
+    variante = _variant_por_talle(catalog_client, "botin-adidas-predator", "42")  # stock 3
+
+    assert _item(_post(catalog_client, [{"variant_id": variante, "quantity": 3}]))["status"] == "ok"
+
+
+def test_una_cantidad_mayor_al_stock_se_rechaza_y_dice_cuanto_hay(catalog_client):
+    variante = _variant_por_talle(catalog_client, "botin-adidas-predator", "42")  # stock 3
+
+    item = _item(_post(catalog_client, [{"variant_id": variante, "quantity": 4}]))
+
+    assert item["status"] == "insufficient_stock"
+    # El número es lo que permite al cliente recortar la línea y explicar por qué.
+    assert item["available_quantity"] == 3
+
+
+def test_un_talle_agotado_acepta_una_unidad_para_consultar(catalog_client):
+    """RN-40: sin stock la consulta sigue valiendo, y el carrito es de consulta."""
+    variante = _variant_por_talle(catalog_client, "botin-nike-mercurial", "42")  # stock 0
+
+    item = _item(_post(catalog_client, [{"variant_id": variante, "quantity": 1}]))
+
+    assert item["status"] == "ok"
+    # Se informa que no hay unidades: la consulta se permite, el stock no se miente.
+    assert item["available_quantity"] == 0
+
+
+def test_un_talle_agotado_no_acepta_mas_de_una_unidad(catalog_client):
+    """El piso de RN-40 es una unidad, no una excepción sin techo."""
+    variante = _variant_por_talle(catalog_client, "botin-nike-mercurial", "42")  # stock 0
+
+    item = _item(_post(catalog_client, [{"variant_id": variante, "quantity": 2}]))
+
+    assert item["status"] == "insufficient_stock"
+    assert item["available_quantity"] == 0
+
+
+def test_dos_talles_del_mismo_producto_se_evaluan_por_separado(catalog_client):
+    """El stock es de la variante, no del producto: un talle no habilita al otro."""
+    talle_42 = _variant_por_talle(catalog_client, "botin-adidas-predator", "42")  # stock 3
+    talle_44 = _variant_por_talle(catalog_client, "botin-adidas-predator", "44")  # stock 6
+
+    respuesta = _post(
+        catalog_client,
+        [
+            {"variant_id": talle_42, "quantity": 4},
+            {"variant_id": talle_44, "quantity": 4},
+        ],
+    )
+
+    assert _item(respuesta, 0)["status"] == "insufficient_stock"
+    assert _item(respuesta, 0)["available_quantity"] == 3
+    assert _item(respuesta, 1)["status"] == "ok"
+
+
+def test_el_stock_holgado_no_publica_la_cantidad_exacta(catalog_client):
+    """Divulgación acotada: por encima del umbral el número no sale."""
+    variante = _variant_por_talle(catalog_client, "botin-nike-mercurial", "40")  # stock 10
+
+    item = _item(_post(catalog_client, [{"variant_id": variante, "quantity": 2}]))
+
+    assert item["status"] == "ok"
+    assert item["available_quantity"] is None
+
+
+def test_el_stock_bajo_si_publica_la_cantidad_exacta(catalog_client):
+    """Debajo del umbral el número sirve para frenar el `+` antes de frustrar."""
+    variante = _variant_por_talle(catalog_client, "botin-adidas-predator", "42")  # stock 3
+
+    item = _item(_post(catalog_client, [{"variant_id": variante, "quantity": 1}]))
+
+    assert item["status"] == "ok"
+    assert item["available_quantity"] == 3
+
+
+def test_el_exceso_no_altera_el_stock_guardado(catalog_client):
+    """Revalidar es de solo lectura: rechazar no puede tocar el inventario."""
+    variante = _variant_por_talle(catalog_client, "botin-adidas-predator", "42")
+
+    _post(catalog_client, [{"variant_id": variante, "quantity": 99}])
+
+    with catalog_client.application.app_context():
+        assert db.session.get(Variant, variante).quantity == 3

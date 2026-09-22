@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Python
 __pycache__/
@@ -33,9 +34,18 @@ backups/
 .DS_Store
 Thumbs.db
 
+# Artefacto residual de Windows (nombre reservado de dispositivo, no se puede borrar)
+nul
+
 # Certificados locales de inspección TLS (no se versionan)
 backend/certs/*.crt
 frontend/certs/*.crt
+
+# Certificados TLS de producción — NUNCA al repo (Fase 0, 12_DEPLOY.md §G).
+# En un VPS real van certs de Let's Encrypt o el Origin Certificate de Cloudflare.
+nginx/certs/*.pem
+nginx/certs/*.key
+nginx/certs/*.crt
 
 # Uploads al correr el backend fuera de Docker (.vscode/launch.json)
 .local-uploads/

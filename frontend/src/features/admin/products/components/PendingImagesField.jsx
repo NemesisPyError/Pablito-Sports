@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * Fotos a subir en el alta rápida (07_PANEL_ADMIN.md §14.3, pedido del
+ * Fotos a subir al crear un producto (07_PANEL_ADMIN.md §14.3, pedido del
  * administrador, 2026-08-19): el producto todavía no existe, así que acá solo
  * se juntan archivos con una vista previa local — la subida real pasa recién
- * después de crear el producto, contra `POST /admin/products/<id>/images`.
+ * después de crear el producto, contra `POST /admin/products/<id>/images`
+ * (`ProductForm`, modo alta).
  *
  * Sin recorte y sin galería (reordenar, marcar principal): eso vive en
- * `ImagesSection.jsx`, una vez que el producto y sus imágenes ya existen.
+ * `ImagesSection.jsx`, que `ProductForm` usa en su lugar al editar, una vez
+ * que el producto y sus imágenes ya existen.
  */
 export function PendingImagesField({ files, onChange, disabled, fallidos = [] }) {
   const inputRef = useRef(null);
@@ -102,6 +104,7 @@ export function PendingImagesField({ files, onChange, disabled, fallidos = [] })
 
 /** Traduce el código del contrato, nunca el mensaje del servidor (`ERR-04`). */
 function mensajeDeCarga(error) {
+  if (error?.status === 429) return 'hay demasiadas solicitudes, esperá un momento y volvé a intentar';
   if (error?.status === 422) return 'formato o dimensiones no admitidos';
   if (error?.status === 413) return 'el archivo supera el tamaño máximo';
   if (error?.isNetworkFailure) return 'no pudimos conectar con el servidor';

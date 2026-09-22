@@ -94,13 +94,14 @@ export function PromotionsTable({ promotions, onDelete, busyId }) {
   );
 }
 
-/** `RN-36`: el alcance es exactamente uno de producto, categoría o marca. */
+/** `RN-36`: el alcance es como máximo uno de producto, categoría o marca. */
 function Alcance({ promocion }) {
   const tipo = promocion.scope?.type;
+  const entidad = promocion.scope?.entity?.name;
   return (
     <>
       <span className="badge text-bg-light border me-1">{SCOPE_LABELS[tipo] ?? tipo}</span>
-      {promocion.scope?.entity?.name ?? '—'}
+      {entidad ?? (tipo === 'all' ? null : '—')}
     </>
   );
 }

@@ -1,6 +1,8 @@
+import { AdminIcon } from '../../layout/AdminIcon.jsx';
 import { EmptyState } from '../../../../shared/components/EmptyState.jsx';
 import { formatDateTime } from '../../../../shared/formatters/date.js';
 import { formatGuaranies } from '../../../../shared/formatters/currency.js';
+import styles from './DashboardPanel.module.css';
 
 /**
  * Últimos cambios de precio (`RN-70`, 05_API.md §10.8 y §10.12).
@@ -13,9 +15,12 @@ export function RecentPriceChangesCard({ changes }) {
   const items = changes ?? [];
 
   return (
-    <section className="card h-100">
-      <div className="card-header bg-white">
-        <h2 className="h6 mb-0">Cambios de precio recientes</h2>
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <span className={styles.panelIcon}>
+          <AdminIcon name="trendingUp" size={18} />
+        </span>
+        <h2 className={styles.panelTitle}>Cambios de precio recientes</h2>
       </div>
 
       <div className="card-body p-0">
@@ -23,6 +28,7 @@ export function RecentPriceChangesCard({ changes }) {
           <EmptyState
             title="Sin cambios recientes"
             message="Todavía no se registraron cambios de precio."
+            icon={<AdminIcon name="trendingUp" size={24} />}
           />
         ) : (
           <ul className="list-group list-group-flush">

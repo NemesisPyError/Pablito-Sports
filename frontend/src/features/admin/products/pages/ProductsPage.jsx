@@ -6,21 +6,22 @@ import { EmptyState } from '../../../../shared/components/EmptyState.jsx';
 import { ErrorState } from '../../../../shared/components/ErrorState.jsx';
 import { LoadingState } from '../../../../shared/components/LoadingState.jsx';
 import { Pagination } from '../../../../shared/components/Pagination.jsx';
+import { ManualSaleDialog } from '../components/ManualSaleDialog.jsx';
 import { ProductsFilters } from '../components/ProductsFilters.jsx';
 import { ProductsTable } from '../components/ProductsTable.jsx';
 import { useAdminProductFilters, useAdminProducts } from '../hooks/useAdminProducts.js';
 import {
   useDeleteProduct,
   useFilterOptions,
-  useRestoreProduct,
   useSetProductActive,
+  useSetProductHomeNew,
 } from '../hooks/useProductActions.js';
 
 /**
  * Listado de productos del panel (07_PANEL_ADMIN.md §14.2, 05_API.md §9.3).
  *
- * `PADP-02`: los eliminados se ven con el filtro `deleted=true` dentro de este
- * mismo listado, con acción de restaurar; no tienen pantalla aparte.
+ * `PADP-02`: la eliminación es un borrado lógico (`AD-18`); el panel no
+ * muestra ni restaura los productos eliminados.
  *
  * El alta y la edición no están disponibles: el backend exige `sku` y
  * `size_type_id`, y no hay endpoint que entregue los identificadores de sexo ni
@@ -28,19 +29,23 @@ import {
  */
 export function ProductsPage() {
   const { filters, setFilters, reset, hasActiveFilters } = useAdminProductFilters();
-  const { data, isLoading, isError, isFetching, refetch } = useAdminProducts(filters);
+  const { data, isLoading, isError, error, isFetching, refetch } = useAdminProducts(filters);
   const options = useFilterOptions();
 
   const setActive = useSetProductActive();
+  const setHomeNew = useSetProductHomeNew();
   const eliminar = useDeleteProduct();
-  const restaurar = useRestoreProduct();
 
   const [confirmacion, setConfirmacion] = useState(null);
+  const [ventaAbierta, setVentaAbierta] = useState(false);
   const [errorAccion, setErrorAccion] = useState(null);
 
   const productos = data?.items ?? [];
   const meta = data?.meta ?? {};
-  const enCurso = setActive.variables?.productId ?? eliminar.variables ?? restaurar.variables;
+  const enCurso =
+    setActive.variables?.productId ??
+    setHomeNew.variables?.productId ??
+    eliminar.variables;
 
   function ejecutar(mutacion, argumento) {
     setErrorAccion(null);
@@ -53,7 +58,7 @@ export function ProductsPage() {
   function pedirEliminar(producto) {
     setConfirmacion({
       title: 'Eliminar producto',
-      message: `"${producto.name}" dejará de estar visible en el catálogo. Podés restaurarlo después.`,
+      message: `"${producto.name}" se eliminará del catálogo. Esta acción no se puede deshacer desde el panel.`,
       confirmLabel: 'Eliminar',
       variant: 'danger',
       onConfirm: () => ejecutar(eliminar, producto.id),
@@ -75,11 +80,21 @@ export function ProductsPage() {
     });
   }
 
+  // Reversible e inmediato, mismo criterio que activar: no interrumpe nada
+  // en el catálogo público, así que no pide confirmación.
+  function alternarNovedades(producto) {
+    ejecutar(setHomeNew, {
+      productId: producto.id,
+      selected: producto.home_new_position == null,
+    });
+  }
+
   if (isError) {
     return (
       <ErrorState
         title="No pudimos cargar los productos"
         message="Revisá tu conexión e intentá de nuevo."
+        error={error}
         onRetry={refetch}
       />
     );
@@ -100,6 +115,16 @@ export function ProductsPage() {
               Actualizando…
             </span>
           )}
+          {/* §9.19: la venta manual vive acá y no dentro de la ficha porque
+              una venta puede tocar varios productos. La de una sola variante
+              sigue estando en la ficha, sin cambios. */}
+          <button
+            type="button"
+            className="btn btn-outline-primary btn-sm"
+            onClick={() => setVentaAbierta(true)}
+          >
+            Registrar venta
+          </button>
           <Link to="/admin/products/new" className="btn btn-primary btn-sm">
             Nuevo producto
           </Link>
@@ -139,8 +164,8 @@ export function ProductsPage() {
             products={productos}
             busyId={enCurso}
             onToggleActive={pedirOcultar}
+            onToggleHomeNew={alternarNovedades}
             onDelete={pedirEliminar}
-            onRestore={(producto) => ejecutar(restaurar, producto.id)}
           />
           <Pagination
             page={meta.page ?? 1}
@@ -151,13 +176,15 @@ export function ProductsPage() {
         </>
       )}
 
+      <ManualSaleDialog isOpen={ventaAbierta} onClose={() => setVentaAbierta(false)} />
+
       <ConfirmDialog
         isOpen={Boolean(confirmacion)}
         title={confirmacion?.title ?? ''}
         message={confirmacion?.message ?? ''}
         confirmLabel={confirmacion?.confirmLabel}
         variant={confirmacion?.variant}
-        busy={setActive.isPending || eliminar.isPending || restaurar.isPending}
+        busy={setActive.isPending || eliminar.isPending}
         onConfirm={() => confirmacion?.onConfirm()}
         onCancel={() => setConfirmacion(null)}
       />

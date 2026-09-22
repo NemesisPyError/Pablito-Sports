@@ -24,7 +24,29 @@ export const EXPIRY_DAYS = 30;
 export const CART_ERRORS = {
   TOO_MANY_ITEMS: 'too_many_items',
   INVALID_QUANTITY: 'invalid_quantity',
+  // RN-54b: se pidieron más unidades de las que hay de ese talle.
+  INSUFFICIENT_STOCK: 'insufficient_stock',
 };
+
+/**
+ * Tope de unidades que el carrito acepta para una variante.
+ *
+ * Espeja `max_orderable_units` del backend (`core/utils/stock.py`), y la
+ * duplicación es deliberada: acá se limita para no frustrar al cliente —el `+`
+ * se apaga antes de que pase nada— y allá se limita para no vender lo que no
+ * hay. El servidor no confía en este número, lo vuelve a calcular al revalidar.
+ *
+ * `stock` en `null` significa «hay de sobra y el número exacto no se publica»
+ * (divulgación acotada del backend): ahí manda `MAX_QUANTITY`, y el servidor
+ * sigue siendo quien corta si el cliente se pasa.
+ *
+ * El piso de 1 es `RN-40`: un talle agotado se puede agregar igual, porque el
+ * carrito es de consulta y termina en WhatsApp. Una unidad, no más.
+ */
+export function maxOrderable(stock) {
+  if (stock == null) return MAX_QUANTITY;
+  return Math.min(Math.max(stock, 1), MAX_QUANTITY);
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -59,8 +81,17 @@ export const useCartStore = create(
     (set, get) => ({
       ...emptyState,
 
-      /** RN-53: la unidad del carrito es la variante. */
-      addItem(variantId, quantity, snapshot) {
+      /**
+       * RN-53: la unidad del carrito es la variante.
+       *
+       * `stock` es la cantidad real del talle (`available_quantity` del DTO);
+       * `null` cuando el backend no publica el número. Agregar algo que ya
+       * está en el carrito **suma** sobre lo que había, así que el tope se
+       * mide contra el total resultante y no contra lo que se agrega ahora:
+       * sin eso, agregar de a uno permitía superar el stock a fuerza de
+       * repetir la acción.
+       */
+      addItem(variantId, quantity, snapshot, stock = null) {
         if (!Number.isInteger(quantity) || quantity < MIN_QUANTITY || quantity > MAX_QUANTITY) {
           return { ok: false, error: CART_ERRORS.INVALID_QUANTITY };
         }
@@ -73,11 +104,15 @@ export const useCartStore = create(
           return { ok: false, error: CART_ERRORS.TOO_MANY_ITEMS, limit: MAX_DISTINCT_ITEMS };
         }
 
+        const tope = maxOrderable(stock);
+        const total = (existing?.quantity ?? 0) + quantity;
+        if (total > tope) {
+          return { ok: false, error: CART_ERRORS.INSUFFICIENT_STOCK, available: stock, limit: tope };
+        }
+
         const items = existing
           ? state.items.map((item) =>
-              item.variant_id === variantId
-                ? { ...item, quantity: Math.min(item.quantity + quantity, MAX_QUANTITY), snapshot }
-                : item,
+              item.variant_id === variantId ? { ...item, quantity: total, snapshot } : item,
             )
           : [...state.items, { variant_id: variantId, quantity, snapshot }];
 
@@ -85,10 +120,18 @@ export const useCartStore = create(
         return { ok: true };
       },
 
-      updateQuantity(variantId, quantity) {
+      updateQuantity(variantId, quantity, stock = null) {
         if (!Number.isInteger(quantity) || quantity < MIN_QUANTITY || quantity > MAX_QUANTITY) {
           return { ok: false, error: CART_ERRORS.INVALID_QUANTITY };
         }
+
+        const tope = maxOrderable(stock);
+        if (quantity > tope) {
+          // Cubre tanto el botón `+` como la cantidad escrita a mano: los dos
+          // terminan acá, así que no hay un camino que se salte el límite.
+          return { ok: false, error: CART_ERRORS.INSUFFICIENT_STOCK, available: stock, limit: tope };
+        }
+
         const state = get();
         set(
           mutate(
@@ -139,11 +182,39 @@ export const useCartStore = create(
         const items = state.items
           .filter((item) => {
             const result = byId.get(item.variant_id);
-            return !result || result.status === 'ok';
+            // `insufficient_stock` no saca la línea del carrito: el talle sigue
+            // existiendo y a la venta, solo hay menos unidades. Se recorta más
+            // abajo. Lo que sí desaparece es lo que ya no se puede comprar
+            // (variante eliminada, producto oculto o borrado).
+            return !result || result.status === 'ok' || result.status === 'insufficient_stock';
           })
           .map((item) => {
             const result = byId.get(item.variant_id);
-            if (!result || result.status !== 'ok') return item;
+            if (!result) return item;
+
+            // `insufficient_stock`: el servidor manda. Pudo venderse stock
+            // entre que se armó el carrito y se revisó, así que la línea se
+            // recorta a lo que realmente hay —nunca por debajo de una unidad,
+            // RN-40— en lugar de desaparecer: el cliente sigue pudiendo
+            // consultar por ese talle.
+            if (result.status === 'insufficient_stock') {
+              return {
+                ...item,
+                quantity: Math.max(result.available_quantity ?? 1, 1),
+                snapshot: {
+                  ...item.snapshot,
+                  name: result.product.name,
+                  slug: result.product.slug,
+                  thumbnail_url: result.product.thumbnail_url,
+                  list_price: result.list_price,
+                  sale_price: result.sale_price,
+                  availability: result.availability,
+                  available_quantity: result.available_quantity ?? null,
+                },
+              };
+            }
+
+            if (result.status !== 'ok') return item;
             return {
               ...item,
               snapshot: {
@@ -154,6 +225,7 @@ export const useCartStore = create(
                 list_price: result.list_price,
                 sale_price: result.sale_price,
                 availability: result.availability,
+                available_quantity: result.available_quantity ?? null,
               },
             };
           });

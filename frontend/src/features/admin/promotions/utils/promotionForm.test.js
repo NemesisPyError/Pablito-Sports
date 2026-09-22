@@ -58,6 +58,10 @@ describe('validate', () => {
   it('exige un alcance (RN-36)', () => {
     expect(validate(valores({ scopeId: '' }))).toHaveProperty('scopeId');
   });
+
+  it('"todos los productos" no exige scopeId (RN-36, v1.6.0)', () => {
+    expect(validate(valores({ scopeType: 'all', scopeId: '' }))).not.toHaveProperty('scopeId');
+  });
 });
 
 describe('toPayload', () => {
@@ -88,6 +92,14 @@ describe('toPayload', () => {
     // La cadena del control es hora local; lo que viaja lleva zona.
     expect(payload.starts_at).toMatch(/Z$/);
     expect(new Date(payload.starts_at).getTime()).toBe(new Date('2026-06-14T09:00').getTime());
+  });
+
+  it('"todos los productos" no manda ningún campo de alcance (RN-36, v1.6.0)', () => {
+    const payload = toPayload(valores({ scopeType: 'all', scopeId: '' }));
+
+    expect(payload).not.toHaveProperty('brand_id');
+    expect(payload).not.toHaveProperty('category_id');
+    expect(payload).not.toHaveProperty('product_id');
   });
 });
 
@@ -130,5 +142,19 @@ describe('toFormValues', () => {
     expect(valores.discount_percentage).toBe('30');
     expect(valores.is_active).toBe(false);
     expect(valores.ends_at).toBe('');
+  });
+
+  it('toma el alcance "all" sin entidad (v1.6.0)', () => {
+    const valores = toFormValues({
+      name: 'Promo global',
+      discount_percentage: 15,
+      starts_at: '2026-06-14T09:00:00Z',
+      ends_at: null,
+      is_active: true,
+      scope: { type: 'all', entity: null },
+    });
+
+    expect(valores.scopeType).toBe('all');
+    expect(valores.scopeSlug).toBe('');
   });
 });

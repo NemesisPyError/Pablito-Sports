@@ -6,6 +6,7 @@ import {
   EXPIRY_DAYS,
   MAX_DISTINCT_ITEMS,
   isExpired,
+  maxOrderable,
   useCartStore,
 } from './cartStore.js';
 
@@ -163,5 +164,125 @@ describe('aplicación de la revalidación', () => {
     expect(items).toHaveLength(1);
     expect(items[0].snapshot.sale_price).toBe(500000);
     expect(items[0].snapshot.availability).toBe('low_stock');
+  });
+});
+
+
+/*
+ * Límite por stock del talle (RN-54b).
+ *
+ * El tercer argumento de `addItem`/`updateQuantity` es el stock real de la
+ * variante (`available_quantity`); `null` significa «hay de sobra y el backend
+ * no publica el número».
+ */
+describe('límite por stock de la variante', () => {
+  beforeEach(() => {
+    useCartStore.setState({ items: [], content_version: 0, last_modified_at: null });
+  });
+
+  const agregar = (cantidad, stock) =>
+    useCartStore.getState().addItem(1, cantidad, snapshot, stock);
+
+  it('acepta una cantidad menor al stock', () => {
+    expect(agregar(2, 3).ok).toBe(true);
+    expect(useCartStore.getState().items[0].quantity).toBe(2);
+  });
+
+  it('acepta la cantidad exactamente igual al stock', () => {
+    expect(agregar(3, 3).ok).toBe(true);
+  });
+
+  it('rechaza una cantidad mayor al stock e informa cuánto hay', () => {
+    const resultado = agregar(4, 3);
+
+    expect(resultado.ok).toBe(false);
+    expect(resultado.error).toBe(CART_ERRORS.INSUFFICIENT_STOCK);
+    expect(resultado.available).toBe(3);
+  });
+
+  it('no deja acumular por encima del stock agregando de a uno', () => {
+    // El caso de "agregar de nuevo un talle que ya está en el carrito": el tope
+    // se mide contra el total resultante, no contra lo que se suma ahora.
+    expect(agregar(3, 3).ok).toBe(true);
+    const segundo = agregar(1, 3);
+
+    expect(segundo.ok).toBe(false);
+    expect(segundo.error).toBe(CART_ERRORS.INSUFFICIENT_STOCK);
+    expect(useCartStore.getState().items[0].quantity).toBe(3);
+  });
+
+  it('con stock 0 deja una unidad para consultar, pero no dos (RN-40)', () => {
+    expect(agregar(1, 0).ok).toBe(true);
+
+    const segundo = agregar(1, 0);
+    expect(segundo.ok).toBe(false);
+    expect(segundo.available).toBe(0);
+  });
+
+  it('sin número publicado no limita en el cliente: corta el servidor', () => {
+    expect(agregar(50, null).ok).toBe(true);
+  });
+
+  it('updateQuantity aplica el mismo tope que addItem', () => {
+    agregar(1, 3);
+
+    expect(useCartStore.getState().updateQuantity(1, 3, 3).ok).toBe(true);
+    const excedido = useCartStore.getState().updateQuantity(1, 4, 3);
+
+    expect(excedido.ok).toBe(false);
+    expect(excedido.error).toBe(CART_ERRORS.INSUFFICIENT_STOCK);
+    // La cantidad rechazada no se escribe: el estado no queda inconsistente.
+    expect(useCartStore.getState().items[0].quantity).toBe(3);
+  });
+
+  it('maxOrderable espeja la regla del backend', () => {
+    expect(maxOrderable(3)).toBe(3);
+    expect(maxOrderable(0)).toBe(1); // RN-40: piso de una unidad para consultar
+    expect(maxOrderable(null)).toBe(99); // sin número publicado, manda MAX_QUANTITY
+  });
+});
+
+describe('revalidación con stock insuficiente', () => {
+  beforeEach(() => {
+    useCartStore.setState({ items: [], content_version: 0, last_modified_at: null });
+  });
+
+  it('recorta la línea a lo que hay en lugar de eliminarla', () => {
+    useCartStore.getState().addItem(1, 5, snapshot, null);
+
+    useCartStore.getState().applyRevalidation([
+      {
+        variant_id: 1,
+        status: 'insufficient_stock',
+        product: { slug: 'p', name: 'Producto', thumbnail_url: '/x.webp' },
+        list_price: 650000,
+        sale_price: 585000,
+        availability: 'low_stock',
+        available_quantity: 2,
+      },
+    ]);
+
+    const items = useCartStore.getState().items;
+    expect(items).toHaveLength(1);
+    expect(items[0].quantity).toBe(2);
+    expect(items[0].snapshot.available_quantity).toBe(2);
+  });
+
+  it('agotado durante la sesión: queda una unidad para consultar', () => {
+    useCartStore.getState().addItem(1, 4, snapshot, null);
+
+    useCartStore.getState().applyRevalidation([
+      {
+        variant_id: 1,
+        status: 'insufficient_stock',
+        product: { slug: 'p', name: 'Producto', thumbnail_url: '/x.webp' },
+        list_price: 650000,
+        sale_price: 585000,
+        availability: 'out_of_stock',
+        available_quantity: 0,
+      },
+    ]);
+
+    expect(useCartStore.getState().items[0].quantity).toBe(1);
   });
 });

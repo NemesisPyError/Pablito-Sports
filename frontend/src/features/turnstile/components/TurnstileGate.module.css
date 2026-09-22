@@ -1,0 +1,100 @@
+/**
+ * Pantalla de verificación de Cloudflare Turnstile, previa a la tienda.
+ *
+ * Vive por encima de `PublicLayout` (`App.jsx`): antes de esto no existe
+ * `data-store-theme`, así que usa los tokens claros de siempre — mismo
+ * criterio que `AdminLoginPage`, su propia superficie fija, sin depender de
+ * un tema que todavía no se montó.
+ */
+
+.page {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-4);
+  background-color: var(--color-background);
+}
+
+.card {
+  width: 100%;
+  max-width: 26rem;
+  padding: var(--spacing-6);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-background);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+
+.brand {
+  margin-block-end: var(--spacing-4);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-tighter);
+  text-transform: uppercase;
+}
+
+.brandMark {
+  color: var(--color-volt-500);
+}
+
+.title {
+  margin-block-end: var(--spacing-2);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.description {
+  margin-block-end: var(--spacing-5);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.widget {
+  display: flex;
+  min-height: 65px;
+  align-items: center;
+  justify-content: center;
+  margin-block-end: var(--spacing-4);
+}
+
+.status {
+  margin-block-end: var(--spacing-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.error {
+  margin-block-end: var(--spacing-4);
+  padding: var(--spacing-3);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-danger);
+  border-radius: var(--radius-md);
+  background-color: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.retry {
+  padding: var(--spacing-2) var(--spacing-4);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-action-secondary-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-action-secondary-bg);
+  color: var(--color-action-secondary-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.retry:hover {
+  border-color: var(--color-action-primary-bg);
+}
+
+.retry:focus-visible {
+  outline: var(--focus-ring-width) var(--border-style-default) var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}

@@ -10,9 +10,9 @@
 | **Sistema** | Plataforma de Catálogo Comercial |
 | **Documento** | Panel Administrativo |
 | **Código** | 07 |
-| **Versión** | 1.8.0 |
+| **Versión** | 1.17.0 |
 | **Estado** | 🟡 EN REVISIÓN |
-| **Fecha** | 18/08/2026 |
+| **Fecha** | 22/09/2026 |
 | **Documentos previos** | [00_VISION_PROYECTO.md](00_VISION_PROYECTO.md) ✅ · [01_ANALISIS_NEGOCIO.md](01_ANALISIS_NEGOCIO.md) ✅ · [02_ARQUITECTURA.md](02_ARQUITECTURA.md) ✅ · [02.1_DECISIONES_ARQUITECTONICAS.md](02.1_DECISIONES_ARQUITECTONICAS.md) ✅ · [04_BASE_DATOS.md](04_BASE_DATOS.md) ✅ · [05_API.md](05_API.md) ✅ · [06_FRONTEND.md](06_FRONTEND.md) ✅ · [07.0_PANEL_ADMIN_ANALISIS_PREVIO.md](07.0_PANEL_ADMIN_ANALISIS_PREVIO.md) ✅ |
 | **Documentos dependientes** | `08_UI_SYSTEM.md`, `09_COMPONENTES.md`, `11_TESTING.md`, `99_AI_DEVELOPMENT_GUIDE.md` |
 
@@ -113,7 +113,7 @@ Este documento no introduce nuevas reglas de negocio `RN-xx` ni decisiones arqui
 | ID | Descripción | Resolución en v1.0.0 |
 |---|---|---|
 | `PADP-01` | ¿El dashboard incluye gráficos o solo métricas? | **Solo tarjetas de métricas y alertas.** No se incluyen gráficos en v1. |
-| `PADP-02` | ¿Productos eliminados como filtro o pantalla aparte? | **Filtro `deleted=true` dentro del listado de productos**, con acción de restaurar. |
+| `PADP-02` | ¿Productos eliminados como filtro o pantalla aparte? | **Revertida (v1.14.0, 02/09/2026, pedido del usuario):** el panel no expone los productos eliminados ni permite restaurarlos. La eliminación es un borrado lógico (`AD-18`) sin vuelta atrás desde el panel. |
 | `PADP-03` | ¿Historial de precios solo como pantalla o también en ficha de producto? | **Ambas:** widget de últimos cambios en la ficha de producto y pantalla completa con filtros. |
 
 ---
@@ -134,6 +134,15 @@ AdminLayout
 ├── ToastContainer          # Notificaciones temporales
 └── ModalProvider           # Contenedor de diálogos modales
 ```
+
+> **v1.12.3 — rediseño visual del panel** (pedido explícito del usuario,
+> sobre una referencia de composición): sidebar oscura con los mismos
+> tokens que ya usa el catálogo público (`--color-surface-inverse`,
+> acento `--color-volt-500`), tarjetas con borde suave y sombra sutil,
+> iconografía SVG en línea (`AdminIcon`, sin librería) en vez de los
+> glifos Unicode que tenía la sidebar. **Ninguna región, ruta, permiso ni
+> comportamiento cambió** — es exclusivamente CSS y composición sobre las
+> mismas ocho secciones de la sidebar y las mismas tres piezas del header.
 
 ## 5.2 Responsabilidad de cada región
 
@@ -188,13 +197,13 @@ AdminLayout
 | **Productos** | CRUD | CU-A-04 a CU-A-12 | Gestión completa del catálogo. |
 | **Variantes** | Submódulo de Productos | Derivado de CU-A-04 / CU-A-05 | Vista diagnóstica, carga de cantidad real (v1.4.0, `RN-38b`), registro de ventas con descuento automático (v1.8.0, `RN-82`) y eliminación manual de variantes. |
 | **Imágenes** | Submódulo de Productos | CU-A-13, CU-A-14 | Galería, reordenamiento y definición de imagen principal. |
-| **Categorías** | CRUD | CU-A-16 | Jerarquía de dos niveles. |
+| **Categorías** | CRUD | CU-A-16 | Jerarquía de dos niveles. Sexos por categoría (`RN-83`). |
 | **Marcas** | CRUD | CU-A-15 | ABM de marcas; desde v1.1.0 incluye logotipo, frase, orden en portada y collage. |
 | **Collage de marca** | Submódulo de Marcas | Derivado de CU-A-15 (v1.1.0) | Carga, reordenamiento y baja de las imágenes del bloque de portada. |
 | **Deportes** | CRUD | CU-A-17 | ABM de deportes. |
 | **Talles** | CRUD | CU-A-20 | ABM de talles; tipos de talle de solo lectura. |
 | **Promociones** | CRUD | CU-A-21 | Promociones por producto, categoría o marca. |
-| **Banners** | CRUD | CU-A-22 | Piezas gráficas de la portada. Desde v1.1.0 cada pieza declara su zona: hero, novedades o promociones. |
+| **Banners** | CRUD | CU-A-22 | Piezas gráficas de la portada. Desde v1.1.0 cada pieza declara su zona: hero, novedades o promociones. **v1.10.0:** la zona "novedades" (`placement="news"`) ya no tiene consumidor público — la Home la reemplazó por la selección editorial de productos (§14.2, "Agregar a Novedades"). El CRUD y la zona siguen existiendo en el panel por si se reutilizan más adelante; no se retira nada. |
 | **Configuración** | Formulario | CU-A-23 | Datos globales de la tienda; desde v1.1.0 incluye correo e historia con su foto. |
 | **Usuarios** | CRUD | CU-A-26 | Gestión de administradores; solo Superadministrador. |
 | **Auditoría** | Solo lectura | Habilitado por AD-20 | Registro inmutable de escrituras. |
@@ -220,12 +229,26 @@ AdminLayout
 > se retira del menú **Datos del sistema** (no forma parte de este
 > inventario formal; es la pantalla de solo lectura de sexos y tipos de
 > talle).
+>
+> **Nota (09/09/2026):** **Configuración** vuelve al menú y a
+> `AdminRoutes.jsx` (`/admin/settings`). La retirada de v1.6.0 dejó un efecto
+> que no se había previsto: al ser la única pantalla que edita dirección,
+> horarios, WhatsApp, redes y el texto y la foto de "Nuestra historia", esos
+> contenidos quedaron sin forma de administrarse desde el panel — solo
+> escribiendo en la base a mano. El usuario lo detectó por el camino más
+> directo: la página pública "Nosotros" invitaba a editarla «desde
+> Configuración → Nuestra historia», y esa entrada no existía. El código
+> seguía intacto, tal como v1.6.0 lo había dejado a propósito, así que la
+> reincorporación fue solo volver a conectar ruta e ítem de sidebar.
+> **Plantilla WhatsApp** y **Datos del sistema** siguen fuera del menú: no
+> se reincorporan porque nadie las pidió, y Configuración ya no enlaza a la
+> primera (el enlace se quitó en v1.6.0, así que no queda ninguno muerto).
 
 ## 7.2 Entidades no administrables
 
 | Entidad | Origen | Cómo se presentan en el panel |
 |---|---|---|
-| **Sexo** | `RN-09`, v2.5.0 | Selector en la ficha de producto; sin pantalla propia. |
+| **Sexo** | `RN-09`, v2.5.0 | Casillas en la ficha de producto (v1.11.0: un producto admite varios sexos a la vez, era un selector de uno solo); sin pantalla propia. |
 | **Tipo de talle** | v2.5.0 | Selector/filtro en el módulo Talles; sin ABM. |
 
 ---
@@ -241,6 +264,7 @@ AdminLayout
 | | Crear | ✅ | ✅ | — |
 | | Editar | ✅ | ✅ | — |
 | | Activar / Desactivar | ✅ | ✅ | — |
+| | Agregar / Quitar de Novedades (v1.10.0) | ✅ | ✅ | — |
 | | Eliminar (lógico) | ✅ | ✅ | `RN-69` |
 | | Restaurar | ✅ | ✅ | — |
 | | Cambiar precio | ✅ | ✅ | `RN-70` |
@@ -280,6 +304,7 @@ AdminLayout
 | Banners | `/admin/banners` | `manage_banners` | Administrador |
 | Configuración | `/admin/configuracion` | `manage_store_settings` | Administrador |
 | Usuarios | `/admin/usuarios` | `super_administrator` | Superadministrador |
+| Mi cuenta | `/admin/cuenta` | `authenticated_admin` | Administrador |
 | Auditoría | `/admin/auditoria` | `view_audit_logs` | Administrador |
 | Historial de precios | `/admin/historial-precios` | `view_price_history` | Administrador |
 
@@ -289,6 +314,8 @@ AdminLayout
 - El backend impone la autorización real en cada endpoint (`PA-06`).
 - Un Administrador no ve el ítem "Usuarios" en el Sidebar.
 - Si un Administrador accede manualmente a `/admin/usuarios`, el backend devuelve `403` y el frontend muestra **Sin permisos**.
+- **Rutas implementadas en inglés** (el código quedó así desde v1.0.0): `/admin/users` y `/admin/account`. Las rutas en español de esta tabla son las del diseño original; la implementación no las siguió y se documentan aquí como referencia histórica.
+- **Mi cuenta** (`/admin/account`) la alcanza cualquier administrador autenticado: es donde cambia su propia contraseña (`CU-A-27`), lo único de la matriz de "Usuarios" abierto a ambos roles.
 
 ---
 
@@ -323,8 +350,7 @@ Toda operación de esta tabla requiere un `ConfirmDialog` antes de ejecutarse.
 
 | Operación | Módulo / Pantalla | Consecuencia | Detalle del modal |
 |---|---|---|---|
-| Eliminar producto | Productos | Soft delete (`RN-69`). | "El producto **{nombre}** dejará de verse en el catálogo." |
-| Restaurar producto | Productos (filtrado eliminados) | Vuelve a estar gestionable. | "El producto **{nombre}** será restaurado." |
+| Eliminar producto | Productos | Soft delete (`RN-69`). No es reversible desde el panel. | "El producto **{nombre}** se eliminará del catálogo. Esta acción no se puede deshacer desde el panel." |
 | Eliminar variante | Ficha de producto → Variantes | El talle desaparece. | "La variante **{talle}** será eliminada." |
 | Cargar cantidad de variante | Ficha de producto → Variantes | Recalcula la disponibilidad del producto (v1.4.0). | No requiere confirmación: no es destructiva. |
 | Registrar venta de variante | Ficha de producto → Variantes | Descuenta `quantity` y recalcula disponibilidad (v1.8.0, `RN-82`). | No usa `ConfirmDialog`: el formulario inline de "Registrar venta" ya exige un paso explícito ("Confirmar") separado del botón que lo abre, y el servidor rechaza con `409` si la cantidad supera el stock cargado. |
@@ -344,6 +370,7 @@ Toda operación de esta tabla requiere un `ConfirmDialog` antes de ejecutarse.
 
 - Guardar formulario (usa Toast de éxito).
 - Activar / desactivar producto (usa toggle con feedback visual inmediato).
+- Agregar / quitar de Novedades (v1.10.0, reversible e inmediato, mismo criterio que activar/desactivar).
 - Cambiar imagen principal (acción reversible inmediata).
 - Reordenar imágenes (auto-guardado con feedback).
 
@@ -437,7 +464,7 @@ Toda operación de esta tabla requiere un `ConfirmDialog` antes de ejecutarse.
 |---|---|
 | `ImageUploader` | Subida con validación de formato, peso y dimensiones (`RF-32`). |
 | `ImageGallery` | Galería con reordenamiento y definición de principal. |
-| `VariantMatrix` | Vista de combinaciones color/talle de un producto, con cantidad y estado derivado (v1.4.0). |
+| `VariantMatrix` | Vista de las variantes (por talle) de un producto, con cantidad y estado derivado (v1.4.0). |
 | `PriceHistoryWidget` | Últimos cambios de precio en ficha de producto. |
 
 ---
@@ -462,13 +489,13 @@ Toda operación de esta tabla requiere un `ConfirmDialog` antes de ejecutarse.
 
 | Pantalla | Método | Endpoint | Notas |
 |---|---|---|---|
-| Listado | `GET` | `/api/v1/admin/products` | Filtros: `q`, `brand`, `category`, `availability`, `is_active`, `deleted`, `sort`, `page`, `per_page` |
+| Listado | `GET` | `/api/v1/admin/products` | Filtros: `q`, `brand`, `category`, `availability`, `is_active`, `sort`, `page`, `per_page` |
 | Crear | `POST` | `/api/v1/admin/products` | `ProductCreateDTO` |
 | Editar (carga) | `GET` | `/api/v1/admin/products/{id}` | `ProductAdminDTO` |
 | Editar (guardar) | `PUT` | `/api/v1/admin/products/{id}` | `ProductUpdateDTO` |
-| Eliminar | `DELETE` | `/api/v1/admin/products/{id}` | Soft delete |
-| Restaurar | `POST` | `/api/v1/admin/products/{id}/restore` | — |
+| Eliminar | `DELETE` | `/api/v1/admin/products/{id}` | Soft delete (`AD-18`); no reversible desde el panel |
 | Activar/Desactivar | `POST` | `/api/v1/admin/products/{id}/set-active` | `{ "is_active": boolean }` |
+| Agregar/Quitar de Novedades (v1.10.0) | `POST` | `/api/v1/admin/products/{id}/set-home-new` | `{ "selected": boolean }` |
 
 ### Variantes (subpestaña de producto)
 
@@ -517,9 +544,7 @@ Toda operación de esta tabla requiere un `ConfirmDialog` antes de ejecutarse.
 
 ## 13.7 Colores
 
-| Pantalla | Método | Endpoint |
-|---|---|---|
-| CRUD | `GET` / `POST` / `PUT` / `DELETE` | `/api/v1/admin/colors` / `/api/v1/admin/colors/{id}` |
+*Sección retirada el 19/08/2026 (`01_ANALISIS_NEGOCIO.md` 2.7.0, pedido del administrador): ya no existe la clasificación "color", y con ella desaparece el CRUD bajo `/api/v1/admin/colors`. El número de sección se conserva sin contenido para no correr la numeración de §13.8 en adelante, citada desde varios puntos de este documento.*
 
 ## 13.8 Talles
 
@@ -608,6 +633,13 @@ Ofrecer una vista rápida del estado del catálogo y destacar productos que requ
 
 - **No se incluyen gráficos en v1** (resolución de `PADP-01`).
 - Las tarjetas son el componente principal del dashboard.
+- **v1.12.3 — rediseño visual** (pedido explícito del usuario): cada
+  tarjeta suma un ícono en una caja de color (`MetricCard`, tono según la
+  métrica — verde para Activos/Disponibles, ámbar para Stock bajo, rojo
+  para No disponibles, el acento de la marca para En oferta, neutro para
+  Productos/Ocultos) y el número principal creció de tipografía. El color
+  es apoyo visual, nunca el único portador del dato — la etiqueta de texto
+  sigue ahí siempre. Las siete métricas y sus siete valores no cambiaron.
 
 ## 14.2 Listado de productos
 
@@ -618,7 +650,7 @@ Permitir buscar, filtrar y gestionar el catálogo completo.
 ### Controles
 
 - Búsqueda por nombre, SKU o slug.
-- Filtros: marca, categoría, disponibilidad, activo/inactivo, eliminados.
+- Filtros: marca, categoría, disponibilidad, activo/inactivo.
 - Ordenamiento por nombre, fecha de creación, fecha de actualización, precio.
 - Paginación.
 
@@ -626,29 +658,74 @@ Permitir buscar, filtrar y gestionar el catálogo completo.
 
 - Editar.
 - Activar / Desactivar.
+- Agregar a Novedades / Quitar de Novedades (v1.10.0) — el estado actual se distingue con un badge "Novedades" junto a los de Destacado/Nuevo.
 - Eliminar (modal de confirmación).
-- Restaurar (solo si está eliminado).
 
 ### Productos eliminados
 
-- Se acceden mediante el filtro `deleted=true` dentro del mismo listado (resolución de `PADP-02`).
-- La fila eliminada se distingue visualmente (opacidad reducida, badge "Eliminado").
+- El borrado de producto es lógico (`AD-18`): marca `deleted_at` y mantiene la fila por integridad referencial.
+- El panel **no** los lista ni ofrece restaurarlos (`PADP-02` revertida, v1.14.0). Revertir un borrado exige intervención directa en la base de datos.
 
 ## 14.3 Ficha de producto (crear / editar)
 
+**v1.12.0 — un solo formulario para los dos modos** (pedido explícito del
+usuario). Hasta v1.11.0 "Nuevo producto" y "Editar producto" eran pantallas
+distintas: el alta era un formulario reducido (`QuickAddProductForm`, sin
+navegar al guardar, para cargar productos en serie) y la edición era el
+formulario completo, pero sin imágenes ni cantidad por talle — eso vivía
+aparte, en la ficha de solo lectura. Ahora los dos modos usan el mismo
+`ProductForm`: mismos campos, mismo orden, mismas validaciones. La única
+diferencia es si el formulario recibe un producto existente (edición,
+precargado) o no (alta, vacío).
+
 ### Secciones del formulario
 
-1. **Información general:** nombre, SKU, descripción, marca, categorías (principal y secundarias), deportes, sexo. El **slug** lo genera el backend a partir del nombre al crear el producto y no se vuelve a tocar, aunque el nombre cambie después — ver `05_API.md` §10.4, nota de v1.3.2. Dejó de mostrarse en el panel (v1.6.0): es un detalle técnico que no aporta a la gestión del catálogo; sigue siendo el identificador real de la URL pública, solo se ocultó de la interfaz.
-2. **Precio y oferta:** precio de lista, precio de oferta, fechas de vigencia.
-3. **Estado:** activo/inactivo, destacado, nuevo. La **disponibilidad** ya no
-   se elige acá (v1.4.0, `RN-38b`): se deriva de la cantidad cargada por
-   variante en la ficha, y un producto recién creado nace "No disponible"
-   hasta que se cargan cantidades.
-4. **Variantes:** selección de colores y talles; matriz de combinaciones
-   generadas, con cantidad editable y estado derivado por variante (v1.4.0),
-   más un botón "Registrar venta" por variante que descuenta la cantidad
-   automáticamente (v1.8.0, `RN-82`).
-5. **Imágenes:** galería con subida, reordenamiento y definición de principal.
+1. **Identificación:** nombre (ocupa toda la fila, v1.12.1), descripción. El
+   **nombre** se normaliza a formato título al perder el foco del campo
+   (v1.12.0, pedido explícito del usuario): "nike air" → "Nike Air",
+   "NIKE AIR MAX" → "Nike Air Max". El **SKU no se muestra ni se edita**
+   (v1.12.1, pedido explícito del usuario: "el administrador no debe ver ni
+   poder editar el SKU") — sigue existiendo en el modelo y el contrato
+   (`_product_fields` lo exige), pero el formulario ya no lo pide: se
+   autogenera siempre a partir del nombre normalizado al crear
+   (`toPayload`/`generarSku`), y al editar viaja intacto con el valor que ya
+   tenía el producto, precargado por `toFormValues` sin que haya campo para
+   tocarlo. El **slug** lo genera el backend a partir del nombre normalizado
+   al crear el producto y no se vuelve a tocar, aunque el nombre cambie
+   después — ver `05_API.md` §10.4, nota de v1.3.2. No se muestra en el
+   panel (v1.6.0): sigue siendo el identificador real de la URL pública,
+   solo se ocultó de la interfaz.
+2. **Precio:** precio de lista, precio de oferta, fechas de vigencia.
+3. **Clasificación:** marca, categoría principal, tipo de talle, sexo
+   (varios), categorías adicionales, deportes. **Categorías adicionales no
+   ofrece la categoría principal** (v1.12.2, pedido explícito del usuario):
+   ya se incluye sola, así que no se muestra como opción — ni al crear ni al
+   editar, y al cambiar la principal varias veces no quedan restos de una
+   selección anterior. Si un producto ya guardado tenía la misma categoría
+   en las dos partes (dato de antes de esta regla), se limpia sola al cargar
+   el formulario. Ninguna categoría se borra ni se modifica: es solo qué
+   opciones ofrece este selector.
+4. **Talles y stock** (v1.12.0): selección de talles, con un campo de
+   cantidad junto a cada talle marcado — la carga inicial de stock ya no
+   exige entrar a "Ver" después de crear. La variante y su `id` recién
+   existen después de guardar (`AD-15`), así que la cantidad se reconcilia
+   en un segundo paso, automático, contra `PATCH .../variants/{id}`, después
+   de que el `POST`/`PUT` principal confirma.
+5. **Imágenes** (v1.12.0): al crear, se juntan localmente y se suben recién
+   después de que el producto existe (mismo mecanismo que tenía el alta
+   rápida). Al editar, es la galería real y en vivo (subir, reordenar,
+   marcar principal, eliminar), embebida en el propio formulario.
+6. **Publicación:** activo/inactivo, destacado, nuevo. La **disponibilidad**
+   no se elige acá (v1.4.0, `RN-38b`): se deriva de la cantidad cargada por
+   variante, y un producto recién creado nace "No disponible" hasta que se
+   carga stock.
+
+> **La ficha de solo lectura conserva su propia gestión.** `ImagesSection` y
+> `VariantsSection` siguen viviendo en la ficha del producto (decisión
+> explícita al unificar el formulario, v1.12.0): además de la carga inicial
+> del formulario, la ficha sigue siendo el lugar para reordenar imágenes,
+> marcar principal, **registrar venta** y **eliminar una variante** — acciones
+> operativas sobre un producto que ya existe, no datos de este formulario.
 
 > **Imágenes derivadas.** Las dimensiones, los formatos y la convención de
 > nombres de los tres derivados de `02_ARQUITECTURA.md` §15.5 están fijados en
@@ -656,15 +733,21 @@ Permitir buscar, filtrar y gestionar el catálogo completo.
 > muestra la Miniatura de 400 px; el catálogo público usa Catálogo (800 px) y la
 > ficha usa Detalle (1600 px).
 
+> **El alta sigue sin navegar al guardar** (pedido explícito del
+> administrador, 2026-08-16, conservado en la unificación v1.12.0): limpia el
+> formulario y queda lista para el siguiente producto. Editar sí navega, de
+> vuelta a la ficha.
+
 ### Validaciones del frontend
 
-- SKU obligatorio.
 - Nombre obligatorio.
+- SKU: sin campo en el formulario; se autogenera siempre al crear, y al
+  editar se conserva el valor existente sin pedirlo (v1.12.1).
 - Precio de lista mayor a cero.
-- Al menos una categoría.
-- Si se definen colores o talles, la combinación genera variantes (`RN-13`, `RN-14`, `RN-15`).
+- Marca, categoría principal y tipo de talle obligatorios; al menos un sexo.
+- Si se definen talles, la selección genera variantes (`RN-13`, `RN-14`, `RN-15`).
 
-## 14.4 Módulos de catálogo simples (Categorías, Marcas, Deportes, Colores, Talles)
+## 14.4 Módulos de catálogo simples (Categorías, Marcas, Deportes, Talles)
 
 ### Patrón común
 
@@ -673,31 +756,59 @@ Permitir buscar, filtrar y gestionar el catálogo completo.
 - Formulario modal o página de edición.
 - Eliminación con validación de dependencias (`RN-68`).
 
+### Categorías
+
+- Incluye selector de **Categoría padre** (`AD-24`: dos niveles como máximo).
+- Incluye **Sexos de esta categoría** (v1.15.0, `RN-83`): cinco casillas
+  —Hombre, Mujer, Unisex, Niño, Niña— que deciden en qué secciones del menú de
+  la tienda aparece la categoría, y qué se lista en el filtro del catálogo
+  cuando el cliente ya filtró por sexo. El menú **Hombres** muestra las de
+  Hombre o Unisex, **Mujeres** las de Mujer o Unisex, e **Infantil** las de
+  Niño o Niña.
+- **No tildar ninguna significa «sin restricción»**, no «ninguno» (`AD-41`): la
+  categoría aparece en todas las secciones. Es como se comportaban todas antes
+  de que el campo existiera, de modo que las categorías ya cargadas no
+  necesitan tocarse.
+- Una categoría nueva nace con las cinco tildadas. No cambia el resultado
+  —tildar todo y no tildar nada se ven igual— pero le muestra al administrador
+  que el campo existe y qué puede quitar. Mismo criterio que "Mostrar en la
+  franja de marcas" (§14.4, Marcas).
+- Para esconder una categoría de toda la tienda está **Activo**, que ya existe
+  y significa exactamente eso.
+
 ### Talles
 
 - Incluye selector de **Tipo de talle** (solo lectura).
 - El listado puede filtrarse por tipo de talle.
-- El campo "Nombre" cambia su ejemplo/ayuda según el tipo de talle elegido
-  (v1.4.0): "Ej: 35, 36, 42" para Calzado (`footwear_numeric`), "Ej: XS, S,
-  M, L, XL" para Indumentaria (`apparel_alpha`). El backend valida el mismo
-  formato — un talle puramente numérico no puede pertenecer a
-  `apparel_alpha` ni uno con letras a `footwear_numeric` (`RN-15b`).
+- El campo "Nombre" es **texto libre** (v1.5.0, `RN-15b` revisada, pedido
+  explícito del usuario): admite cualquier valor alfanumérico razonable —
+  numérico ("42"), decimal ("8.5"), alfabético ("XL"), alfanumérico ("4T",
+  "12Y"), con "/" ("35/36"), con "-" ("38-39") o "Único" — sin restricción
+  según el tipo de talle elegido. El backend solo exige que no quede vacío
+  tras recortar espacios ("8.5, M, 35/36, Único"); ya no rechaza un valor
+  puramente numérico en Indumentaria ni uno no numérico en Calzado.
 
 ## 14.5 Promociones
 
 ### Formulario
 
 - Nombre y descripción.
-- Tipo de aplicación: producto, categoría o marca.
-- Selección del objetivo según tipo.
+- Tipo de aplicación: producto, categoría, marca o **todos los productos**
+  (v1.17.0, pedido explícito del usuario).
+- Selección del objetivo según tipo — sin selector cuando el tipo es "todos
+  los productos".
 - Porcentaje de descuento.
 - Fechas de inicio y fin.
 - Estado activo/inactivo.
 
 ### Reglas
 
-- Una promoción aplica a exactamente uno de los tres tipos (`RN-36`).
+- Una promoción aplica a como máximo uno de los tres tipos con entidad, o a
+  todos los productos (`RN-36`, revisada v1.17.0).
 - El descuento se expresa como porcentaje entero.
+- Una promoción "todos los productos" participa igual que cualquier otra en
+  `RN-37`: si coincide con una promoción más específica sobre el mismo
+  producto, el catálogo aplica la de mayor descuento.
 
 ## 14.6 Banners
 
@@ -722,6 +833,37 @@ Permitir buscar, filtrar y gestionar el catálogo completo.
   (`RN-73`).
 - Un banner sin vigencia definida es permanente mientras esté activo (`RN-74`).
 
+## 14.6b Bancos — Superdescuentos (nuevo, v1.16.0)
+
+Panel administrativo para los bancos que se muestran en la sección pública
+"Superdescuentos" del pie del catálogo, antes hardcodeados en el frontend sin
+ningún campo administrable (pedido explícito del usuario).
+
+### Formulario
+
+- Nombre del banco.
+- Porcentaje de descuento (entero, 1 a 99).
+- Posición de orden.
+- Mini banner (imagen): subir, reemplazar o quitar.
+- Estado activo/inactivo.
+
+> El panel consume `BankAdminDTO` (`05_API.md` §10.3b). La sección pública
+> "Superdescuentos" consume `BankDTO` (sin `id` ni estado, `AD-12`) y solo
+> muestra los bancos activos, ordenados por posición. La imagen se almacena
+> según `99_AI_DEVELOPMENT_GUIDE.md` §17.1, espacio de nombres propio `banks`.
+
+### Reglas
+
+- Campos mínimos, por pedido explícito: no hay nota, detalle ni color por
+  banco — la tarjeta pública usa un estilo visual único para todos. Un caso
+  comercial con más de un porcentaje por banco (p. ej. débito/crédito
+  distintos) se carga como dos bancos separados, no como un campo compuesto.
+- El borrado es lógico (`AD-18`); el banco deja de mostrarse en
+  Superdescuentos de inmediato. El archivo del mini banner solo se retira del
+  disco si ningún otro banco vivo lo sigue usando.
+- No existe ningún endpoint público de escritura: solo lectura (`GET
+  /api/v1/banks`).
+
 ## 14.7 Configuración de la tienda
 
 ### Campos
@@ -745,12 +887,12 @@ Permitir buscar, filtrar y gestionar el catálogo completo.
 
 - **Listado de variables disponibles**, junto a cada plantilla: `{{tienda}}`,
   `{{items}}`, `{{total}}` y `{{codigo_consulta}}` para el mensaje;
-  `{{numero}}`, `{{producto}}`, `{{marca}}`, `{{talle}}`, `{{color}}`,
+  `{{numero}}`, `{{producto}}`, `{{marca}}`, `{{talle}}`,
   `{{cantidad}}`, `{{precio_unitario}}`, `{{subtotal}}` y `{{disponibilidad}}`
   para el ítem (`01_ANALISIS_NEGOCIO.md` §12.2).
 - **Vista previa**, compuesta con el mismo motor de sustitución que arma el
   mensaje real (`02_ARQUITECTURA.md` §13.8) y dos productos de ejemplo, uno
-  de ellos sin color, para mostrar la omisión de etiqueta y valor juntos
+  de ellos sin talle, para mostrar la omisión de etiqueta y valor juntos
   (§13.9).
 - **Restaurar plantilla por defecto**, con confirmación: reemplaza las dos
   plantillas por `whatsapp_defaults.py` (`RN-61`) y descarta cualquier cambio
@@ -770,17 +912,35 @@ Permitir buscar, filtrar y gestionar el catálogo completo.
 
 ### Restricciones
 
-- Solo Superadministrador accede.
-- No se puede eliminar al último superadministrador activo (`RN-71`).
-- Un usuario no puede eliminarse a sí mismo (`RN-72`).
+- Solo Superadministrador accede (`RN-67`). Ruta real: `/admin/users`.
+- No se puede eliminar, desactivar ni degradar de rol al último superadministrador activo (`RN-71`). La UI deshabilita esas acciones cuando lo detecta en el listado ya traído, con el motivo a la vista; el backend es la autoridad.
+- Un usuario no puede eliminarse a sí mismo (`RN-72`). La UI marca su propia fila con «vos» y deshabilita «Eliminar».
 
-### Formulario
+### Listado
 
-- Nombre completo.
-- Nombre de usuario.
-- Rol.
-- Estado activo/inactivo.
-- Contraseña (solo en creación o cambio explícito).
+- Columnas: nombre de usuario, correo, rol, estado (Activo/Inactivo), último acceso.
+- Acciones por fila: Editar · Contraseña · Eliminar.
+
+### Formulario de alta / edición
+
+- Nombre de usuario (obligatorio, único; el modelo **no** tiene «nombre completo», ver `03_SEGURIDAD.md` §5.7.3).
+- Correo (obligatorio, único, formato de dirección).
+- Rol (`administrator` / `super_administrator`).
+- Estado activo/inactivo — **solo en edición**; el alta siempre crea activo. Desactivar cierra las sesiones abiertas de ese usuario (§7.3).
+- Contraseña inicial — **solo en el alta**. En edición la contraseña tiene su propio botón «Contraseña».
+
+### Cambio de contraseña
+
+- Diálogo aparte con confirmación (§10). Pide la nueva contraseña dos veces.
+- Si el objetivo es la **propia** cuenta (desde el listado o desde «Mi cuenta»), pide además la contraseña actual (`05_API.md` §9.14) y, al terminar, cierra la sesión y lleva al login (§7.3).
+- Si un superadministrador cambia la de **otro**, no se pide la actual; se cierran las sesiones de ese usuario.
+- Límite: 3 intentos cada 15 minutos por sesión (`03_SEGURIDAD.md` §14.1); el `429` se traduce a "Demasiados intentos. Esperá unos minutos.".
+
+### Mi cuenta (`/admin/account`)
+
+- La alcanza **cualquier** administrador desde el nombre de usuario del topbar.
+- Muestra usuario, correo, rol y último acceso (solo lectura) y el formulario de cambio de contraseña propia.
+- Un administrador común no puede cambiar su usuario ni su correo: eso lo hace el superadministrador desde «Usuarios».
 
 ## 14.10 Auditoría
 
@@ -866,7 +1026,6 @@ Permitir buscar, filtrar y gestionar el catálogo completo.
 | `manage_categories` | Puede gestionar categorías. |
 | `manage_brands` | Puede gestionar marcas. |
 | `manage_sports` | Puede gestionar deportes. |
-| `manage_colors` | Puede gestionar colores. |
 | `manage_sizes` | Puede gestionar talles. |
 | `manage_promotions` | Puede gestionar promociones. |
 | `manage_banners` | Puede gestionar banners. |
@@ -881,6 +1040,14 @@ Permitir buscar, filtrar y gestionar el catálogo completo.
 
 | Versión | Fecha | Estado | Descripción |
 |---|---|---|---|
+| **1.17.0** | 22/09/2026 | 🟡 EN REVISIÓN | **Promoción "todos los productos" (`01_ANALISIS_NEGOCIO.md` v2.9.0, `04_BASE_DATOS.md` v1.9.0, `05_API.md` v1.12.0, pedido explícito del usuario).** §14.5: el selector "Se aplica a" suma un cuarto tipo, "Todos los productos", sin selector de entidad. `RN-36` revisada: como máximo uno de producto/categoría/marca, o ninguno para aplicar a todo el catálogo. |
+| **1.16.0** | 22/09/2026 | 🟡 EN REVISIÓN | **Tanda funcional (pedido explícito del usuario, 4 cambios).** (1) §14.4 Talles: el nombre pasa a ser texto libre (`RN-15b` revisada, `01_ANALISIS_NEGOCIO.md`, `05_API.md`) — ya no valida numérico/alfabético según el tipo. (2) §14.7 Configuración: el horario de atención y el número de WhatsApp se actualizan al horario y teléfono oficiales vigentes; sin cambio de arquitectura, siguen siendo la única fuente de verdad ya existente. (3) Corrige un bug encontrado durante la implementación: la página de Contacto armaba su enlace de WhatsApp sin sanear el número (a diferencia del pie y "Nuestra historia"), lo que podía romper el enlace `wa.me` con un número que llevara espacios. (4) **Nuevo §14.6b Bancos (Superdescuentos)** (`04_BASE_DATOS.md` v1.8.0, `05_API.md` v1.11.0): panel administrativo nuevo para los bancos que antes vivían hardcodeados en el pie del catálogo — nombre, porcentaje de descuento, mini banner y estado activo/inactivo, siguiendo el mismo patrón que Banners (CRUD, `multipart/form-data`, borrado lógico). |
+| **1.15.0** | 10/09/2026 | 🟡 EN REVISIÓN | **Sexos por categoría (`RN-83` nueva, `04_BASE_DATOS.md` v1.7.0, `05_API.md` v1.10.0, pedido explícito del usuario: *"que al crear una categoria nueva aparezca la opcion de a que sexo permitir cada categoria, para de esta forma ordenar un poco mas el navbar"*).** §14.4: el formulario de categoría suma **Sexos de esta categoría**, cinco casillas que deciden en qué secciones del menú aparece. Hasta ahora la única forma de sacar una categoría del menú era una lista de slugs escrita en el código del frontend. **No tildar ninguna significa «sin restricción»** (`AD-41`), así que ninguna categoría ya cargada necesita tocarse y el menú se ve igual hasta que el administrador empiece a quitar. |
+| **1.14.0** | 02/09/2026 | 🟡 EN REVISIÓN | **Se retira la vista y la restauración de productos eliminados** (`PADP-02` revertida, `05_API.md` v1.9.0, pedido explícito del usuario: *"elimina esa opcion"*). §4.3, §10, §13.3, §14.2: desaparece el filtro "Ver eliminados" del listado de productos, la acción "Restaurar" por fila y la operación crítica asociada. El borrado de producto sigue siendo lógico (`AD-18`) pero deja de ser reversible desde el panel. Los CRUD de marcas, categorías, deportes, talles y promociones conservan su filtro de eliminados y su acción de restaurar. |
+| **1.13.0** | 28/08/2026 | 🟡 EN REVISIÓN | **Módulo Usuarios implementado en el panel** (05_API.md §9.14, ya existente; 03_SEGURIDAD.md §5.7). §7.1: la sidebar suma «Usuarios» — visible **solo** para el superadministrador (`RN-67`); un administrador común no lo ve y, si entra a mano, la guarda de ruta muestra «Sin permisos» y el backend responde `403` (§8.2). Pantalla de listado (usuario, correo, rol, estado, último acceso) con alta, edición (usuario/correo/rol/estado), eliminación lógica y cambio de contraseña propia o de terceros, cada uno con su confirmación (§10). Nueva pantalla **«Mi cuenta»** (`/admin/account`), accesible a cualquier administrador desde el nombre de usuario del topbar, para cambiar la propia contraseña (`CU-A-27`); exige la contraseña actual e invalida la sesión al terminar (§7.3). **Rutas reales:** `/admin/users`, `/admin/users/new`, `/admin/users/:id`, `/admin/account` — en inglés, como el resto de rutas ya implementadas (§8.2 documenta las rutas en español; el código quedó en inglés desde v1.0.0). Sin migraciones ni cambios de contrato. |
+| **1.11.0** | 24/08/2026 | 🟡 EN REVISIÓN | **Sexo pasa de selector único a casillas (`RN-09` revisada, `04_BASE_DATOS.md` v1.6.0, `05_API.md` v1.8.0, pedido explícito del usuario).** §7.1, §14.3: la ficha de producto deja de pedir un solo sexo y pasa a casillas — mismo patrón que categorías adicionales y deportes, un producto puede ser de varios sexos a la vez. El alta rápida (§14.4) no cambia: sigue pidiendo un solo sexo con selector, por diseño (formulario reducido), y lo envuelve en una lista de uno al guardar. |
+| **1.10.0** | 24/08/2026 | 🟡 EN REVISIÓN | **Novedades como selección editorial de productos** (`04_BASE_DATOS.md` v1.5.0, `05_API.md` v1.7.0, `09_COMPONENTES.md` v2.7.0, pedido explícito del usuario). §13.3 y §14.2: nueva acción "Agregar a Novedades" / "Quitar de Novedades" por fila del listado de productos, junto a Ver/Editar/Activar-Desactivar/Eliminar, reversible e inmediata (sin `ConfirmDialog`, mismo criterio que Activar/Desactivar). El estado se ve en el listado con un badge "Novedades". §8.1 suma la fila de permisos correspondiente (administrador y superadministrador, sin restricciones). §7.1: la zona "novedades" de Banners (`placement="news"`) deja de tener consumidor público en la Home, pero el CRUD y la zona no se retiran del panel. |
+| **1.9.0** | 19/08/2026 | 🟡 EN REVISIÓN | **Eliminación completa de "color"** (`01_ANALISIS_NEGOCIO.md` 2.7.0, pedido del administrador). Supera a v1.7.0: ya no es que el CRUD de colores siga existiendo sin entrada de menú — el CRUD desaparece del todo (§13.7, retirada). §14.3: el paso "Variantes" del formulario de producto pasa a ser solo selección de talles. §14.4 pierde "Colores" de los módulos de catálogo simples. §14.8: la plantilla de WhatsApp pierde la variable `{{color}}`. Se retira el permiso documentado `manage_colors` (§19) — ya era aspiracional, sin enforcement propio en el backend. |
 | **1.8.0** | 18/08/2026 | 🟡 EN REVISIÓN | **Registro de ventas (`RN-82`, `05_API.md` v1.5.0).** §13.3 y §14.3 (Variantes): nuevo botón "Registrar venta" junto a cada variante, que abre un formulario inline con la cantidad vendida y un botón "Confirmar" — no usa `ConfirmDialog` (§10). Descuenta `quantity` de la variante y recalcula la disponibilidad del producto en el mismo `POST`; el botón se deshabilita si la variante ya está en 0. El servidor rechaza con `409` una venta que supere el stock cargado, traducido en pantalla a "No hay stock suficiente para esa cantidad." (`ERR-04`); un chequeo del lado del cliente evita el viaje obvio antes de eso. Pedido explícito del usuario: *"agregar opcion de registrar ventas para que de esta manera reduzca en el stock desded el panel admin"*, confirmado como funcionalidad nueva y no como alias de "cargar cantidad" (18/08/2026). |
 | **1.7.0** | 18/08/2026 | 🟡 EN REVISIÓN | **Ajustes de panel.** Se retira **Colores** del menú (§7.1) — mismo patrón reversible que v1.6.0, pedido explícito del usuario porque no le encuentra uso hoy; el CRUD de colores sigue existiendo, solo sin entrada de sidebar ni ruta. §14.5 (Promociones): el buscador de producto por nombre o SKU en "Se aplica a" ya existía (`ScopeSelector`, búsqueda server-side); se le agrega un ícono de lupa para que sea visualmente evidente, sin cambiar el comportamiento. |
 | **1.6.0** | 17/08/2026 | 🟡 EN REVISIÓN | **Diseño visual de la Home.** Se retiran del menú del panel **Plantilla WhatsApp**, **Configuración** y **Datos del sistema** (§7.1) — pedido explícito del usuario, en la misma tanda que el rediseño de la Home. A diferencia de la retirada de v1.4.0, el código de las tres pantallas no se borra: solo se quitan la entrada de sidebar y la ruta, de modo que siguen reversibles. §14.3: el campo **slug** deja de mostrarse en la ficha de producto (ya no era editable desde v1.3.2, ahora tampoco se muestra); las tablas de Categorías, Marcas, Deportes, Colores y Talles dejan de mostrar la columna Slug. Sigue siendo el identificador real de la URL pública — solo se ocultó de las pantallas de solo lectura del panel. |

@@ -25,6 +25,7 @@ from ..models import (
     Sport,
     Variant,
     product_categories,
+    product_genders,
     product_sizes,
     product_sports,
 )
@@ -75,7 +76,9 @@ class ProductRepository:
     def _best_promotion_percentage(moment: datetime):
         """RN-37: among concurrent promotions the largest discount wins.
 
-        RN-36 scopes a promotion to one product, one category or one brand.
+        RN-36 scopes a promotion to at most one of product, category or
+        brand; with none of the three set, it applies to every product
+        (v1.6.0, pedido explícito del usuario).
         """
         return (
             select(func.max(Promotion.discount_percentage))
@@ -91,6 +94,11 @@ class ProductRepository:
                         select(product_categories.c.category_id).where(
                             product_categories.c.product_id == Product.id
                         )
+                    ),
+                    and_(
+                        Promotion.product_id.is_(None),
+                        Promotion.category_id.is_(None),
+                        Promotion.brand_id.is_(None),
                     ),
                 ),
             )
@@ -164,7 +172,17 @@ class ProductRepository:
         if query.brand_ids:
             statement = statement.where(Product.brand_id.in_(query.brand_ids))
         if query.gender_ids:
-            statement = statement.where(Product.gender_id.in_(query.gender_ids))
+            # RN-09 (v2.9.0): `genders` es M:N, mismo patrón que `category_ids`/
+            # `sport_ids` acá abajo — ya no es una columna propia de `products`.
+            statement = statement.where(
+                select(product_genders.c.product_id)
+                .where(
+                    product_genders.c.product_id == Product.id,
+                    product_genders.c.gender_id.in_(query.gender_ids),
+                )
+                .correlate(Product)
+                .exists()
+            )
         if query.category_ids:
             statement = statement.where(
                 select(product_categories.c.product_id)
@@ -246,6 +264,23 @@ class ProductRepository:
         return list(db.session.execute(statement.offset(offset).limit(limit)).all())
 
     @classmethod
+    def list_home_new_showcases(cls, moment: datetime) -> list[tuple]:
+        """Novedades: selección editorial de productos, no un filtro (§10.4).
+
+        `home_new_position` no nulo es lo que distingue un producto en
+        Novedades de cualquier otro (mismo criterio que
+        `BrandRepository.list_home_showcases` con `home_position`). No se
+        pagina: es un conjunto curado por el administrador.
+        """
+        statement = (
+            select(Product, cls._effective_price(moment).label("effective_price"))
+            .where(cls._visible(), Product.home_new_position.isnot(None))
+            .options(joinedload(Product.brand), joinedload(Product.primary_category))
+            .order_by(Product.home_new_position.asc(), Product.id.asc())
+        )
+        return list(db.session.execute(statement).all())
+
+    @classmethod
     def matching_ids(cls, query: ProductQuery, moment: datetime):
         """Subquery of the ids the current selection yields, used for facets."""
         return cls._apply_filters(select(Product.id), query, moment).subquery()
@@ -293,10 +328,10 @@ class ProductRepository:
             .options(
                 joinedload(Product.brand),
                 joinedload(Product.primary_category),
-                joinedload(Product.gender),
                 joinedload(Product.size_type),
                 selectinload(Product.categories),
                 selectinload(Product.sports),
+                selectinload(Product.genders),
                 selectinload(Product.sizes).joinedload(Size.size_type),
             )
         )
@@ -373,7 +408,9 @@ class ProductRepository:
         return thumbnails
 
     @classmethod
-    def thumbnail_and_secondary_paths_for(cls, product_ids) -> tuple[dict[int, str], dict[int, str]]:
+    def thumbnail_and_secondary_paths_for(
+        cls, product_ids
+    ) -> tuple[dict[int, str], dict[int, str]]:
         """Como `thumbnail_paths_for`, pero además se queda con la segunda imagen
         de cada producto (para el hover del `ProductCard`).
 
@@ -405,6 +442,32 @@ class ProductRepository:
             elif product_id not in secondary:
                 secondary[product_id] = file_path
         return thumbnails, secondary
+
+    @classmethod
+    def available_sizes_for(cls, product_ids) -> dict[int, list[Size]]:
+        """Talles con stock real de cada producto, para el compacto del LIST.
+
+        Mismo criterio que `derive_availability` (RN-18/RN-38b): cantidad 0 no
+        es un talle que se pueda comprar, así que ni siquiera entra en la
+        lista — no se expone "sin stock" como una opción más (§10.4).
+        """
+        if not product_ids:
+            return {}
+        statement = (
+            select(Variant.product_id, Size)
+            .join(Size, Size.id == Variant.size_id)
+            .where(
+                Variant.product_id.in_(list(product_ids)),
+                Variant.deleted_at.is_(None),
+                Variant.quantity > 0,
+            )
+            .options(joinedload(Size.size_type))
+            .order_by(Variant.product_id.asc(), Size.id.asc())
+        )
+        sizes_by_product: dict[int, list[Size]] = {}
+        for product_id, size in db.session.execute(statement).unique():
+            sizes_by_product.setdefault(product_id, []).append(size)
+        return sizes_by_product
 
     # ------------------------------------------------------------------
     # Dependency checks for admin classification delete (RN-68)
@@ -461,7 +524,7 @@ class ProductRepository:
 # lo que rompía el arranque con ImportError.
 FACET_SPECS = {
     "brand": ("direct", Brand, Product.brand_id),
-    "gender": ("direct", Gender, Product.gender_id),
+    "gender": ("association", Gender, product_genders, product_genders.c.gender_id),
     "category": ("association", Category, product_categories, product_categories.c.category_id),
     "sport": ("association", Sport, product_sports, product_sports.c.sport_id),
     "size": ("association", Size, product_sizes, product_sizes.c.size_id),

@@ -91,6 +91,7 @@ describe('toPayload', () => {
       'home_position',
       'is_active',
       'name',
+      'show_in_strip',
       'slug',
       'tagline',
     ]);
@@ -168,6 +169,26 @@ describe('campos de portada de la marca', () => {
     expect(validate(valores({ home_position: '' }), MARCA).home_position).toBeUndefined();
   });
 
+  it('una marca nueva nace dentro de la franja', () => {
+    // Es lo que la franja hacía con todas las marcas hasta ahora: el alta no
+    // debe obligar a tildar algo para que la marca aparezca donde siempre.
+    expect(toFormValues(null).show_in_strip).toBe(true);
+  });
+
+  it('respeta la marca que fue sacada de la franja', () => {
+    expect(toFormValues({ show_in_strip: false }).show_in_strip).toBe(false);
+    expect(toPayload(valores({ show_in_strip: false }), MARCA).show_in_strip).toBe(false);
+  });
+
+  it('la franja es independiente del bloque propio de portada', () => {
+    // Sin `home_position` la marca no tiene bloque, pero sí puede estar en la
+    // franja: son dos decisiones distintas sobre la misma marca.
+    const payload = toPayload(valores({ home_position: '', show_in_strip: true }), MARCA);
+
+    expect(payload.home_position).toBeNull();
+    expect(payload.show_in_strip).toBe(true);
+  });
+
   it('rechaza una frase demasiado larga', () => {
     const larga = 'x'.repeat(256);
 
@@ -192,41 +213,33 @@ describe('campos de portada de la marca', () => {
   });
 });
 
-// RN-15b (v1.4.0): coherencia entre el nombre del talle y su tipo.
-describe('validate — formato de talle según su tipo', () => {
+// RN-15b (v1.5.0): el talle es texto libre, sin restricción de formato por
+// tipo — cualquier valor alfanumérico razonable es válido para cualquier
+// `size_type_id`.
+describe('validate — talle como texto libre', () => {
   const TIPOS = [
     { id: 1, slug: 'footwear_numeric' },
     { id: 2, slug: 'apparel_alpha' },
     { id: 3, slug: 'one_size' },
   ];
 
-  it('rechaza un talle no numérico en Calzado', () => {
-    const errores = validate(valores({ name: 'L', size_type_id: '1' }), TALLE, TIPOS);
-
-    expect(errores.name).toBeDefined();
+  it.each([
+    ['numérico', '42'],
+    ['decimal', '8.5'],
+    ['alfabético', 'XL'],
+    ['alfanumérico', '4T'],
+    ['alfanumérico con letra final', '12Y'],
+    ['con barra', '35/36'],
+    ['con guion', '38-39'],
+    ['talle único', 'Único'],
+  ])('acepta un talle %s en cualquier tipo', (_caso, nombre) => {
+    expect(validate(valores({ name: nombre, size_type_id: '1' }), TALLE, TIPOS).name).toBeUndefined();
+    expect(validate(valores({ name: nombre, size_type_id: '2' }), TALLE, TIPOS).name).toBeUndefined();
+    expect(validate(valores({ name: nombre, size_type_id: '3' }), TALLE, TIPOS).name).toBeUndefined();
   });
 
-  it('acepta un talle numérico en Calzado', () => {
-    const errores = validate(valores({ name: '42', size_type_id: '1' }), TALLE, TIPOS);
-
-    expect(errores.name).toBeUndefined();
-  });
-
-  it('rechaza un talle puramente numérico en Indumentaria', () => {
-    const errores = validate(valores({ name: '42', size_type_id: '2' }), TALLE, TIPOS);
-
-    expect(errores.name).toBeDefined();
-  });
-
-  it('acepta un talle alfabético en Indumentaria', () => {
-    const errores = validate(valores({ name: 'XL', size_type_id: '2' }), TALLE, TIPOS);
-
-    expect(errores.name).toBeUndefined();
-  });
-
-  it('Talle único no impone ningún formato', () => {
-    expect(validate(valores({ name: '42', size_type_id: '3' }), TALLE, TIPOS).name).toBeUndefined();
-    expect(validate(valores({ name: 'XL', size_type_id: '3' }), TALLE, TIPOS).name).toBeUndefined();
+  it('rechaza un talle vacío o solo espacios', () => {
+    expect(validate(valores({ name: '   ', size_type_id: '1' }), TALLE, TIPOS).name).toBeDefined();
   });
 
   it('sin la lista de tipos, no rompe ni inventa un error', () => {
@@ -235,16 +248,7 @@ describe('validate — formato de talle según su tipo', () => {
 });
 
 describe('sizeNameHint', () => {
-  it('da ejemplo numérico para Calzado', () => {
-    expect(sizeNameHint('footwear_numeric')).toMatchObject({ placeholder: 'Ej: 35, 36, 42' });
-  });
-
-  it('da ejemplo alfabético para Indumentaria', () => {
-    expect(sizeNameHint('apparel_alpha')).toMatchObject({ placeholder: 'Ej: XS, S, M, L, XL' });
-  });
-
-  it('no da pista para Talle único ni para un tipo desconocido', () => {
-    expect(sizeNameHint('one_size')).toBeNull();
-    expect(sizeNameHint(undefined)).toBeNull();
+  it('da un ejemplo genérico de texto libre', () => {
+    expect(sizeNameHint()).toMatchObject({ placeholder: 'Ej: 8.5, M, 35/36, Único' });
   });
 });

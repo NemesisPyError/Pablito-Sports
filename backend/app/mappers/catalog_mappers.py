@@ -6,10 +6,12 @@ database (10_BACKEND.md §8.8).
 
 from ..core.utils.urls import public_file_url
 from ..dtos.catalog_dtos import (
+    BankDTO,
     BannerDTO,
     BrandDTO,
     BrandImageDTO,
     BrandShowcaseDTO,
+    CategoryNodeDTO,
     CategoryTreeDTO,
     GenderDTO,
     SizeDTO,
@@ -26,7 +28,12 @@ def to_named_entity(entity) -> NamedEntityDTO:
 
 
 def brand_to_dto(brand) -> BrandDTO:
-    return BrandDTO(slug=brand.slug, name=brand.name, image_url=public_file_url(brand.image_path))
+    return BrandDTO(
+        slug=brand.slug,
+        name=brand.name,
+        image_url=public_file_url(brand.image_path),
+        show_in_strip=brand.show_in_strip,
+    )
 
 
 def brand_image_to_dto(image) -> BrandImageDTO:
@@ -67,11 +74,33 @@ def size_to_dto(size) -> SizeDTO:
     return SizeDTO(slug=size.slug, name=size.name, size_type=to_named_entity(size.size_type))
 
 
+def _gender_slugs(category) -> list[str]:
+    """RN-83: sexos de la categoría, ordenados para que la respuesta sea estable.
+
+    Solo los sexos vivos: uno desactivado dejaría de existir para el catálogo y
+    no debe seguir restringiendo la navegación.
+    """
+    return sorted(
+        genero.slug
+        for genero in category.genders
+        if genero.is_active and genero.deleted_at is None
+    )
+
+
+def category_to_node_dto(category) -> CategoryNodeDTO:
+    return CategoryNodeDTO(
+        slug=category.slug,
+        name=category.name,
+        genders=_gender_slugs(category),
+    )
+
+
 def category_to_tree_dto(category, children) -> CategoryTreeDTO:
     return CategoryTreeDTO(
         slug=category.slug,
         name=category.name,
-        children=[to_named_entity(child) for child in children],
+        children=[category_to_node_dto(child) for child in children],
+        genders=_gender_slugs(category),
     )
 
 
@@ -84,6 +113,14 @@ def banner_to_dto(banner) -> BannerDTO:
         button_label=banner.button_label,
         placement=banner.placement,
         position=banner.position,
+    )
+
+
+def bank_to_dto(bank) -> BankDTO:
+    return BankDTO(
+        name=bank.name,
+        discount_percentage=bank.discount_percentage,
+        image_url=public_file_url(bank.image_path),
     )
 
 

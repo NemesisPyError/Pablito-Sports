@@ -7,5 +7,12 @@ export { CartPage } from './pages/CartPage.jsx';
 export { useCart } from './hooks/useCart.js';
 export { useCartRevalidation, REVALIDATION_STATE } from './hooks/useCartRevalidation.js';
 export { useCartSync } from './hooks/useCartSync.js';
-export { MAX_DISTINCT_ITEMS, MAX_QUANTITY, MIN_QUANTITY, CART_ERRORS } from './stores/cartStore.js';
+export {
+  MAX_DISTINCT_ITEMS,
+  MAX_QUANTITY,
+  MIN_QUANTITY,
+  CART_ERRORS,
+  maxOrderable,
+} from './stores/cartStore.js';
+export { mensajeDeRechazo, mensajeDeRevalidacion } from './utils/stockMessages.js';
 export { buildInquiry, MESSAGE_WORKING_LIMIT } from './whatsapp/index.js';

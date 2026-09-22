@@ -11,7 +11,19 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-fileConfig(config.config_file_name)
+#
+# `disable_existing_loggers=False` (S-10). El valor por defecto de `fileConfig`
+# es `True`, y eso pone `disabled = True` en TODOS los loggers que ya existan:
+# `app`, `app.request` y `app.errors` incluidos. Es decir, ejecutar las
+# migraciones dentro de un proceso deja a la aplicación **sin ningún registro**,
+# en silencio y sin error — se perdería el log de peticiones, que es el que
+# sirve para investigar un abuso (§16).
+#
+# Hoy no afecta al despliegue, porque `migrate` es un contenedor aparte de un
+# solo uso; sí afectaba a la suite, y lo haría a cualquier futura orden que
+# migre en el mismo proceso. Alembic sigue configurando sus propios loggers
+# desde el archivo: lo único que cambia es que deja de apagar los ajenos.
+fileConfig(config.config_file_name, disable_existing_loggers=False)
 logger = logging.getLogger('alembic.env')
 
 

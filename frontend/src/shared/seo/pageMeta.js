@@ -13,6 +13,12 @@
 
 export const DEFAULT_STORE_NAME = 'Pablito Sports';
 
+/**
+ * Imagen de marca (1200×630, en `public/`) para las páginas sin imagen propia.
+ * Es la misma que usa el backend en `/_seo/*` (`DEFAULT_SHARE_IMAGE`).
+ */
+export const DEFAULT_SHARE_IMAGE = '/og-default.png';
+
 /** §17.3: rutas que no deben indexarse. */
 const NEVER_INDEXED = ['/carrito', '/admin'];
 
@@ -130,15 +136,13 @@ export function simplePageMeta(titulo, descripcion, storeSettings) {
  * Reúne lo específico de la pantalla con lo que depende de la URL.
  *
  * `image` se absolutiza porque Open Graph exige URL absoluta: una ruta relativa
- * la ignoran tanto Facebook como Twitter.
+ * la ignoran tanto Facebook como Twitter. Sin imagen propia se usa la de marca,
+ * así que toda página compartida lleva una y la tarjeta nunca sale sin imagen.
  */
 export function resolveMeta(meta, { pathname, search, origin, storeName }) {
   const canonical = buildCanonical(pathname, search, origin);
-  const imagen = meta.image
-    ? meta.image.startsWith('http')
-      ? meta.image
-      : `${origin}${meta.image}`
-    : null;
+  const imagenPropia = meta.image || DEFAULT_SHARE_IMAGE;
+  const imagen = imagenPropia.startsWith('http') ? imagenPropia : `${origin}${imagenPropia}`;
 
   return {
     title: meta.title,
@@ -156,8 +160,7 @@ export function resolveMeta(meta, { pathname, search, origin, storeName }) {
       siteName: storeName || DEFAULT_STORE_NAME,
     },
     twitter: {
-      // `summary_large_image` sólo si hay imagen; si no, la tarjeta sale rota.
-      card: imagen ? 'summary_large_image' : 'summary',
+      card: 'summary_large_image',
       title: meta.title,
       description: meta.description,
       image: imagen,

@@ -1,10 +1,17 @@
-import { translateGender } from '../../../shared/config/labels.js';
+import { GENDER_FILTER_OPTIONS } from '../hooks/useCatalogFilters.js';
+import styles from './ActiveFilters.module.css';
+
+/** Mismas etiquetas que ofrece el `<select>` de Género (`FiltersPanel`): el
+ * chip activo tiene que decir lo mismo que la opción que lo generó. */
+const GENDER_CHIP_LABELS = Object.fromEntries(
+  GENDER_FILTER_OPTIONS.map((option) => [option.value, option.label]),
+);
 
 const FILTER_LABELS = {
   q: 'Búsqueda',
   brand: 'Marca',
   category: 'Categoría',
-  gender: 'Sexo',
+  gender: 'Género',
   sport: 'Deporte',
   size: 'Talle',
   min_price: 'Precio mínimo',
@@ -18,7 +25,10 @@ const FILTER_LABELS = {
 function formatValue(key, value) {
   if (value === true) return 'Sí';
   if (key === 'gender') {
-    return String(value).split(',').map(translateGender).join(', ');
+    return String(value)
+      .split(',')
+      .map((slug) => GENDER_CHIP_LABELS[slug] ?? slug)
+      .join(', ');
   }
   return value;
 }
@@ -52,11 +62,7 @@ export function ActiveFilters({ filters, onRemove, onReset }) {
           </button>
         </span>
       ))}
-      <button
-        type="button"
-        className="btn btn-link btn-sm p-0 text-decoration-none"
-        onClick={onReset}
-      >
+      <button type="button" className={styles.clearAll} onClick={onReset}>
         Limpiar todo
       </button>
     </div>

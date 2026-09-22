@@ -4,7 +4,7 @@ The effective price is computed by the service (AD-03); the mapper only receives
 the resulting numbers and shapes them (10_BACKEND.md §8.8).
 """
 
-from ..core.utils.stock import derive_availability
+from ..core.utils.stock import derive_availability, public_available_quantity
 from ..core.utils.urls import public_file_url
 from ..dtos.product_dtos import ImageDTO, ProductDetailDTO, ProductListItemDTO, VariantDTO
 from .catalog_mappers import size_to_dto, to_named_entity
@@ -27,6 +27,7 @@ def variant_to_dto(variant) -> VariantDTO:
         id=variant.id,
         size=size_to_dto(variant.size) if variant.size else None,
         availability=derive_availability(variant.quantity),
+        available_quantity=public_available_quantity(variant.quantity),
     )
 
 
@@ -37,6 +38,7 @@ def product_to_list_item_dto(
     discount_percentage: int | None,
     thumbnail_path: str | None,
     secondary_thumbnail_path: str | None = None,
+    available_sizes: list | None = None,
 ) -> ProductListItemDTO:
     return ProductListItemDTO(
         slug=product.slug,
@@ -51,6 +53,7 @@ def product_to_list_item_dto(
         is_featured=product.is_featured,
         thumbnail_url=public_file_url(thumbnail_path),
         secondary_thumbnail_url=public_file_url(secondary_thumbnail_path),
+        available_sizes=[size_to_dto(size) for size in available_sizes or []],
     )
 
 
@@ -61,6 +64,7 @@ def product_to_detail_dto(
     discount_percentage: int | None,
     categories,
     sports,
+    genders,
     sizes,
     images,
     variants,
@@ -73,7 +77,7 @@ def product_to_detail_dto(
         primary_category=to_named_entity(product.primary_category),
         categories=[to_named_entity(category) for category in categories],
         sports=[to_named_entity(sport) for sport in sports],
-        gender=to_named_entity(product.gender),
+        genders=[to_named_entity(gender) for gender in genders],
         size_type=to_named_entity(product.size_type),
         sizes=[size_to_dto(size) for size in sizes],
         list_price=product.list_price,

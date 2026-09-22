@@ -2,9 +2,11 @@
 
 Reglas que materializa:
 
-- `RN-36` — una promoción aplica a **exactamente uno** de producto, categoría o
-  marca. La forma la valida el schema; que la entidad exista, este servicio; y
-  la integridad real la garantiza el CHECK `scope_exclusive` de la tabla.
+- `RN-36` — una promoción aplica a **como máximo uno** de producto, categoría o
+  marca; sin ninguno de los tres, aplica a todos los productos (v1.6.0, pedido
+  explícito del usuario). La forma la valida el schema; que la entidad exista,
+  este servicio (cuando hay una); y la integridad real la garantiza el CHECK
+  `scope_exclusive` de la tabla.
 - `RN-33` — sin fecha de fin, la promoción rige indefinidamente.
 - `DN-03` / `RN-38b` — descuentos simples. No hay 2x1, combos, topes ni cupones,
   y este servicio no debe adquirirlos.
@@ -182,8 +184,13 @@ class AdminPromotionService:
         declara `product_id`/`category_id`/`brand_id` como validaciones del DTO
         y §11 exige que todo 409 cite un `RN-xx`: la existencia de la entidad no
         tiene regla de negocio propia.
+
+        Sin campo de alcance poblado, la promoción aplica a todos los
+        productos: no hay entidad que comprobar.
         """
         campo = entrada.scope_field
+        if campo is None:
+            return
         repositorio = _SCOPE_REPOSITORIES[campo]
         if repositorio.find_by_id(entrada.scope_id) is None:
             raise RequestValidationError(

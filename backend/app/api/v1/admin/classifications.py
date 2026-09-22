@@ -6,6 +6,7 @@ from ....core.exceptions import RequestValidationError
 from ....core.utils.pagination import parse_page_request
 from ....core.utils.responses import success_response
 from ....infrastructure.storage.local_storage import LocalStorage
+from ....schemas.shared import json_body
 from ....services.admin_auth_service import AdminAuthService
 from ....services.admin_brand_image_service import AdminBrandImageService
 from ....services.admin_classification_service import (
@@ -57,9 +58,7 @@ def list_brands():
 @brands_bp.post("/brands")
 def create_brand():
     administrator_id = _admin_required()
-    item = AdminBrandService.create(
-        request.get_json(silent=True) or {}, administrator_id=administrator_id
-    )
+    item = AdminBrandService.create(json_body(), administrator_id=administrator_id)
     return success_response(item, status_code=201)
 
 
@@ -73,9 +72,7 @@ def get_brand(brand_id: int):
 def update_brand(brand_id: int):
     administrator_id = _admin_required()
     return success_response(
-        AdminBrandService.update(
-            brand_id, request.get_json(silent=True) or {}, administrator_id=administrator_id
-        )
+        AdminBrandService.update(brand_id, json_body(), administrator_id=administrator_id)
     )
 
 
@@ -161,7 +158,7 @@ def add_brand_image(brand_id: int):
 def reorder_brand_images(brand_id: int):
     """PUT /api/v1/admin/brands/{id}/images/order (§9.6)."""
     administrator_id = _admin_required()
-    payload = request.get_json(silent=True) or {}
+    payload = json_body()
     return success_response(
         AdminBrandImageService.reorder(
             brand_id, payload.get("image_ids"), administrator_id=administrator_id
@@ -191,9 +188,7 @@ def list_categories():
 @categories_bp.post("/categories")
 def create_category():
     administrator_id = _admin_required()
-    item = AdminCategoryService.create(
-        request.get_json(silent=True) or {}, administrator_id=administrator_id
-    )
+    item = AdminCategoryService.create(json_body(), administrator_id=administrator_id)
     return success_response(item, status_code=201)
 
 
@@ -207,9 +202,7 @@ def get_category(category_id: int):
 def update_category(category_id: int):
     administrator_id = _admin_required()
     return success_response(
-        AdminCategoryService.update(
-            category_id, request.get_json(silent=True) or {}, administrator_id=administrator_id
-        )
+        AdminCategoryService.update(category_id, json_body(), administrator_id=administrator_id)
     )
 
 
@@ -245,9 +238,7 @@ def list_sports():
 @sports_bp.post("/sports")
 def create_sport():
     administrator_id = _admin_required()
-    item = AdminSportService.create(
-        request.get_json(silent=True) or {}, administrator_id=administrator_id
-    )
+    item = AdminSportService.create(json_body(), administrator_id=administrator_id)
     return success_response(item, status_code=201)
 
 
@@ -261,9 +252,7 @@ def get_sport(sport_id: int):
 def update_sport(sport_id: int):
     administrator_id = _admin_required()
     return success_response(
-        AdminSportService.update(
-            sport_id, request.get_json(silent=True) or {}, administrator_id=administrator_id
-        )
+        AdminSportService.update(sport_id, json_body(), administrator_id=administrator_id)
     )
 
 
@@ -293,9 +282,7 @@ def list_sizes():
 @sizes_bp.post("/sizes")
 def create_size():
     administrator_id = _admin_required()
-    item = AdminSizeService.create(
-        request.get_json(silent=True) or {}, administrator_id=administrator_id
-    )
+    item = AdminSizeService.create(json_body(), administrator_id=administrator_id)
     return success_response(item, status_code=201)
 
 
@@ -309,9 +296,7 @@ def get_size(size_id: int):
 def update_size(size_id: int):
     administrator_id = _admin_required()
     return success_response(
-        AdminSizeService.update(
-            size_id, request.get_json(silent=True) or {}, administrator_id=administrator_id
-        )
+        AdminSizeService.update(size_id, json_body(), administrator_id=administrator_id)
     )
 
 

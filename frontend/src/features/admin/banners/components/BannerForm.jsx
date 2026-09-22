@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { RATE_LIMIT_MESSAGE } from '../../../../shared/services/errorMessages.js';
 import { BannerImageField } from './BannerImageField.jsx';
 import {
   MAX_BUTTON_LABEL_LENGTH,
@@ -263,6 +264,7 @@ export function BannerForm({ banner, onSubmit, onCancel, saving, submitError }) 
 
 /** Traduce el código del contrato, nunca el mensaje del servidor (`ERR-04`). */
 function mensajeDeGuardado(error) {
+  if (error?.status === 429) return RATE_LIMIT_MESSAGE;
   if (error?.status === 422) {
     const campos = error.errors?.map((item) => item.field).filter(Boolean) ?? [];
     // 03_SEGURIDAD.md §11.1: la imagen también se rechaza por formato,

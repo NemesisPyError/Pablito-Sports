@@ -9,6 +9,8 @@
  * siendo quien decide.
  */
 
+import { safeHref } from '../../../../shared/utils/safeLink.js';
+
 // 04_BASE_DATOS.md §9.2.12, replicado en `banner_schemas`.
 export const MAX_TITLE_LENGTH = 255;
 export const MAX_SUBTITLE_LENGTH = 255;
@@ -91,19 +93,19 @@ export function toFormValues(banner) {
  * el `Link` del router: además de una URL absoluta, admite una ruta interna
  * («/productos/...»). Se aceptan las dos y se rechaza el resto, que incluye
  * esquemas como `javascript:`.
+ *
+ * La comprobación de esquema **no se repite acá**: la resuelve `safeHref`, el
+ * mismo módulo que aplica la tienda al renderizar el enlace. Antes estaba
+ * escrita por duplicado, y una divergencia habría dejado al panel aceptando un
+ * destino que la tienda después se niega a mostrar.
+ *
+ * Lo único propio de este formulario es que **el campo es opcional**: vacío no
+ * es un error, aunque tampoco sea un destino.
  */
 export function isValidLink(valor) {
-  const enlace = valor?.trim();
+  const enlace = typeof valor === 'string' ? valor.trim() : valor;
   if (!enlace) return true;
-  if (enlace.startsWith('//')) return false;
-  if (enlace.startsWith('/')) return true;
-
-  try {
-    const url = new URL(enlace);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
+  return safeHref(valor) !== null;
 }
 
 /**

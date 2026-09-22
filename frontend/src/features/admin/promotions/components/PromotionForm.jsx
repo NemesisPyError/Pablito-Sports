@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 
+import { RATE_LIMIT_MESSAGE } from '../../../../shared/services/errorMessages.js';
 import { ScopeSelector } from './ScopeSelector.jsx';
 import {
   MAX_DISCOUNT,
@@ -180,6 +181,7 @@ export function PromotionForm({ promotion, onSubmit, onCancel, saving, submitErr
 
 /** Traduce el código del contrato, nunca el mensaje del servidor (`ERR-04`). */
 function mensajeDeGuardado(error) {
+  if (error?.status === 429) return RATE_LIMIT_MESSAGE;
   if (error?.status === 422) {
     const campos = error.errors?.map((item) => item.field).filter(Boolean) ?? [];
     return campos.length > 0

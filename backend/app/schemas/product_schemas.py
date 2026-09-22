@@ -75,8 +75,9 @@ def parse_product_list_query(args) -> ProductListQuery:
 class AdminProductListQuery:
     """Entrada validada del listado del panel (05_API.md §9.3).
 
-    A diferencia del catálogo público, incluye inactivos y eliminados: el panel
-    los ve cuando los pide explícitamente (02_ARQUITECTURA.md §12.6).
+    A diferencia del catálogo público, incluye los inactivos: el panel los ve
+    cuando los pide explícitamente. Los eliminados (`deleted_at`) nunca se
+    listan (`AD-18`, 02_ARQUITECTURA.md §12.6).
     """
 
     search: str | None = None
@@ -84,7 +85,6 @@ class AdminProductListQuery:
     category_slugs: list[str] = field(default_factory=list)
     availability: list[str] = field(default_factory=list)
     is_active: bool | None = None
-    deleted: bool | None = None
     sort: str = ADMIN_DEFAULT_SORT
     page: PageRequest = field(default_factory=PageRequest)
 
@@ -101,7 +101,6 @@ def parse_admin_product_list_query(args) -> AdminProductListQuery:
         category_slugs=parse_slug_list(args, "category"),
         availability=parse_slug_list(args, "availability"),
         is_active=parse_bool(args, "is_active"),
-        deleted=parse_bool(args, "deleted"),
         sort=sort,
         page=parse_page_request(args),
     )

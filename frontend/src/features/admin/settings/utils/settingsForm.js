@@ -9,6 +9,8 @@
  * sigue siendo quien decide.
  */
 
+import { safeExternalHref } from '../../../../shared/utils/safeLink.js';
+
 // 04_BASE_DATOS.md §9.2.14, replicado en el schema del backend.
 export const MAX_STORE_NAME_LENGTH = 255;
 export const MAX_WHATSAPP_LENGTH = 50;
@@ -53,17 +55,12 @@ export function toFormValues(settings) {
  * ¿El enlace de una red es utilizable?
  *
  * A diferencia del enlace de un banner, este se abre hacia afuera: solo se
- * admite una URL absoluta `http`/`https`, nunca una ruta interna.
+ * admite una URL absoluta `http`/`https`, nunca una ruta interna. Esa distinción
+ * es lo único propio de acá; la regla de esquemas la resuelve
+ * `safeExternalHref`, en el mismo módulo que usa la tienda.
  */
 export function isValidUrl(valor) {
-  const enlace = valor?.trim();
-  if (!enlace) return false;
-  try {
-    const url = new URL(enlace);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
+  return safeExternalHref(valor) !== null;
 }
 
 /**

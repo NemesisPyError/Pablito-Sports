@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Carousel } from '../../../shared/components/Carousel.jsx';
 import { Section } from '../../../shared/components/Section.jsx';
 import { SectionHeader } from '../../../shared/components/SectionHeader.jsx';
+import { safeHref } from '../../../shared/utils/safeLink.js';
 import { useBanners } from '../hooks/useBanners.js';
 import styles from './BannerRail.module.css';
 
@@ -55,10 +56,21 @@ export function BannerRail({ id, eyebrow, title, placement, href, tone = 'defaul
  * Sin `link_url` la pieza no es accionable y se renderiza como bloque: un
  * enlace que no lleva a ninguna parte confunde al teclado y al lector de
  * pantalla.
+ *
+ * El destino pasa por `safeHref`, el mismo validador que usa el `Hero`: el
+ * backend acota la **longitud** de `link_url` pero no el esquema, así que un
+ * `javascript:` guardado llegaba tal cual al `href`. Un enlace que no supera el
+ * saneamiento se trata exactamente como la ausencia de enlace —la tarjeta pasa
+ * a ser un bloque, que es el camino que ya existía—: no se inventa un destino
+ * alternativo ni se deja un `href` a medias.
+ *
+ * `safeHref` acepta cualquier tipo. Eso también arregla que un `link_url` que
+ * no fuera texto rompiera el render: `42?.trim()` lanza `TypeError`, y el
+ * encadenamiento opcional no protege de eso porque el valor no es nulo.
  */
-function BannerCard({ banner }) {
-  const enlace = banner.link_url?.trim();
-  const etiqueta = banner.button_label?.trim();
+export function BannerCard({ banner }) {
+  const enlace = safeHref(banner.link_url);
+  const etiqueta = typeof banner.button_label === 'string' ? banner.button_label.trim() : '';
 
   const contenido = (
     <>

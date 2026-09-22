@@ -35,6 +35,12 @@ def catalogo(schema_app):
                 "(SELECT id FROM products WHERE sku LIKE 'IMG-SKU%')"
             )
         )
+        db.session.execute(
+            text(
+                "DELETE FROM product_genders WHERE product_id IN "
+                "(SELECT id FROM products WHERE sku LIKE 'IMG-SKU%')"
+            )
+        )
         db.session.execute(text("DELETE FROM products WHERE sku LIKE 'IMG-SKU%'"))
         db.session.execute(text("DELETE FROM categories WHERE slug LIKE 'img-%'"))
         db.session.execute(text("DELETE FROM brands WHERE slug LIKE 'img-%'"))
@@ -77,7 +83,7 @@ def producto_id(admin_client, catalogo, schema_app):
             "list_price": 100000,
             "primary_category_id": catalogo["category_id"],
             "brand_id": catalogo["brand_id"],
-            "gender_id": catalogo["gender_id"],
+            "gender_ids": [catalogo["gender_id"]],
             "size_type_id": catalogo["size_type_id"],
         },
     )

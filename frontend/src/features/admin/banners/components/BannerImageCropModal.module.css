@@ -1,7 +1,11 @@
+/* La proporción del marco ya no es fija (v2.9.4): la define `aspectRatio`
+   inline, calculada del tamaño real de la imagen elegida — un marco 21:9
+   forzaba a toda imagen (vertical, cuadrada, panorámica) a esa forma. Sin
+   ese inline (mientras la imagen no cargó), el layout no queda sin alto. */
 .frame {
   position: relative;
   overflow: hidden;
-  aspect-ratio: 21 / 9;
+  max-height: 70vh;
   background-color: var(--color-ink-900);
   border-radius: var(--radius-md);
   touch-action: none;

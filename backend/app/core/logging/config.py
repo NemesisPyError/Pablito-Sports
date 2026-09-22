@@ -3,7 +3,8 @@
 Logs are emitted as one JSON object per line to stdout. Key-value pairs, never
 assembled strings, so records can be filtered without parsing text
 (02_ARQUITECTURA.md §9.13). CFG-05: no secret, password, token or credential is
-ever written here.
+ever written here — ver `redaction.py`, que aplica esa garantía de forma
+recursiva sobre todo lo que llega por `extra`.
 """
 
 import json
@@ -14,6 +15,7 @@ from datetime import UTC, datetime
 
 from flask import Flask, g, request
 
+from .redaction import redact, redact_text
 from .request_context import get_request_id
 
 # Attributes LogRecord always carries; anything else was supplied via `extra`.
@@ -23,19 +25,9 @@ _RESERVED_RECORD_ATTRS = frozenset(logging.LogRecord("", 0, "", 0, "", None, Non
     "taskName",
 }
 
-# 03_SEGURIDAD.md §16.3 / §18.3: never serialise these, whatever the caller passes.
-_FORBIDDEN_KEYS = frozenset(
-    {
-        "password",
-        "password_hash",
-        "secret",
-        "secret_key",
-        "token",
-        "csrf_token",
-        "authorization",
-        "cookie",
-    }
-)
+# 03_SEGURIDAD.md §16.3 / §18.3: lo sensible no se serializa, lo pase quien lo
+# pase. El criterio y el recorrido recursivo viven en `redaction.py`; acá no se
+# repite la lista, para que no se desincronicen dos copias.
 
 
 class JsonFormatter(logging.Formatter):
@@ -51,21 +43,31 @@ class JsonFormatter(logging.Formatter):
             "user_id": getattr(record, "user_id", None),
         }
 
-        extra = {
+        crudo = {
             key: value
             for key, value in record.__dict__.items()
-            if key not in _RESERVED_RECORD_ATTRS and key not in _FORBIDDEN_KEYS
+            if key not in _RESERVED_RECORD_ATTRS
         }
-        extra.pop("request_id", None)
-        extra.pop("user_id", None)
+        crudo.pop("request_id", None)
+        crudo.pop("user_id", None)
+        # Recursivo: la clave sensible puede estar a cualquier profundidad, y
+        # `redact` deja además todo serializable sin necesidad de `default=`.
+        extra = redact(crudo)
         if extra:
             payload["extra"] = extra
 
         if record.exc_info:
-            # Stays server-side only; ERR-04 keeps it out of the response body.
-            payload["exception"] = self.formatException(record.exc_info)
+            # Solo del lado del servidor; ERR-04 lo mantiene fuera del cuerpo de
+            # la respuesta. El traceback NO se puede redactar por nombre de
+            # clave —es texto libre—: lo que se hace es cortar la fuente, con
+            # `hide_parameters` en el motor de SQLAlchemy (config/base.py), que
+            # es donde aparecían valores de fila (`password_hash` incluido).
+            # `redact_text` es la segunda barrera: recorta además el
+            # `DETAIL: Failing row contains (...)` que emite PostgreSQL, que
+            # `hide_parameters` no alcanza porque lo genera el servidor.
+            payload["exception"] = redact_text(self.formatException(record.exc_info))
 
-        return json.dumps(payload, ensure_ascii=False, default=str)
+        return json.dumps(payload, ensure_ascii=False)
 
 
 def _safe_request_id() -> str | None:
@@ -105,6 +107,18 @@ def _register_request_logging(app: Flask) -> None:
     ERR-05: 5xx at error level, 4xx at info level.
     """
 
+    # Campos elegidos, y por qué NO están los demás (auditado en S-10):
+    #
+    #   · `path` y NO `full_path`: `request.path` excluye el query string. Un
+    #     `?token=...` o `?password=...` no llega al log porque el query string
+    #     no se registra en absoluto. Preferido a redactarlo: lo que no se
+    #     escribe no se puede filtrar.
+    #   · sin cabeceras, sin cookies, sin cuerpo: ahí viven `Authorization`,
+    #     `Cookie`, el token CSRF y las contraseñas de los formularios. Ninguno
+    #     hace falta para operar.
+    #   · `ip` SÍ: es lo que permite investigar un abuso y correlacionar con el
+    #     rate limiting (§14). Es el único dato personal del registro.
+    #   · sin `user-agent`: no se usa para nada operativo.
     @app.after_request
     def _log_request(response):
         started_at = getattr(g, "request_started_at", None)

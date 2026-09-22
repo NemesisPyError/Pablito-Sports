@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { ConfirmDialog } from '../../../../shared/components/ConfirmDialog.jsx';
+import { RATE_LIMIT_MESSAGE } from '../../../../shared/services/errorMessages.js';
 import { AutoResizeTextarea } from '../../settings/components/AutoResizeTextarea.jsx';
 import { useUnsavedChangesWarning } from '../../settings/hooks/useUnsavedChangesWarning.js';
 import {
@@ -214,6 +215,7 @@ function VariableList({ titulo, variables }) {
 
 /** Traduce el código del contrato, nunca el mensaje del servidor (`ERR-04`). */
 function mensajeDeGuardado(error) {
+  if (error?.status === 429) return RATE_LIMIT_MESSAGE;
   if (error?.status === 422) {
     const campos = error.errors?.map((item) => item.field).filter(Boolean) ?? [];
     return campos.length > 0

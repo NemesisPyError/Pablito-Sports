@@ -22,7 +22,7 @@ import { useBanners } from '../hooks/useBanners.js';
 export function BannersPage() {
   const navigate = useNavigate();
   const [pagina, setPagina] = useState(1);
-  const { data, isLoading, isError, isPlaceholderData, refetch } = useBanners(pagina);
+  const { data, isLoading, isError, error, isPlaceholderData, refetch } = useBanners(pagina);
   const eliminar = useDeleteBanner();
 
   const [aEliminar, setAEliminar] = useState(null);
@@ -37,6 +37,7 @@ export function BannersPage() {
       <ErrorState
         title="No pudimos cargar los banners"
         message="Revisá tu conexión e intentá de nuevo."
+        error={error}
         onRetry={refetch}
       />
     );

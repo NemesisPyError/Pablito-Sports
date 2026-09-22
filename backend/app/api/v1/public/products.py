@@ -21,6 +21,13 @@ def list_products():
     return success_response([item.to_dict() for item in page.items], meta=meta)
 
 
+@products_bp.get("/products/home-new")
+def list_home_new_products():
+    """§7.2d: Novedades — selección editorial, en el orden que fija el panel."""
+    items = ProductService.list_home_new()
+    return success_response([item.to_dict() for item in items])
+
+
 @products_bp.get("/products/<string:slug>")
 def get_product(slug: str):
     """§7.4: 404 when the product does not exist or is not visible."""

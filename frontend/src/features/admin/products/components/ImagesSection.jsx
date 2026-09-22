@@ -198,6 +198,10 @@ export function ImagesSection({ productId }) {
 
 /** Traduce el código del contrato, nunca el mensaje del servidor (`ERR-04`). */
 function mensajeDeCarga(error) {
+  if (error?.status === 429) {
+    // 03_SEGURIDAD.md §14: demasiadas solicitudes en poco tiempo.
+    return 'hay demasiadas solicitudes, esperá un momento y volvé a intentar';
+  }
   if (error?.status === 422) {
     // 03_SEGURIDAD.md §11.1: formato, dimensiones o contenido no admitidos.
     return 'formato o dimensiones no admitidos';

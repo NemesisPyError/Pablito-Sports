@@ -330,7 +330,7 @@ Este documento es la **autoridad única** sobre qué se prueba, cómo se prueba,
 |---|---|
 | **Usuarios** | Administrador, superadministrador, usuario inactivo. |
 | **Productos** | Activo, inactivo, eliminado, destacado, nuevo, en oferta, sin stock. |
-| **Variantes** | Activa, eliminada, con combinaciones de color/talle. |
+| **Variantes** | Activa, eliminada, con talles distintos. |
 | **Promociones** | Vigente, vencida, futura, por producto/categoría/marca. |
 | **Banners** | Activo, vencido, en posición específica. |
 | **Imágenes** | Válidos (jpg, png, webp) e inválidos (pdf, exe, gif animado). |
@@ -393,7 +393,7 @@ Este documento es la **autoridad única** sobre qué se prueba, cómo se prueba,
 | Elemento | Valor |
 |---|---|
 | **Entorno** | Staging con infraestructura similar a producción. |
-| **Dataset** | 2.000 productos activos, 10 marcas, 15 categorías, 5 deportes, 30 talles, 20 colores. |
+| **Dataset** | 2.000 productos activos, 10 marcas, 15 categorías, 5 deportes, 30 talles. |
 | **Herramienta** | `pytest-benchmark` / `locust` para backend; Lighthouse CI para frontend. |
 | **Iteraciones** | Mínimo 5 por escenario. |
 | **Métrica** | Percentil 95 (p95). |

@@ -6,6 +6,7 @@ dedicadas cuando hace falta encenderlos, igual que en `test_admin_users_hardenin
 Cubre lo que la tanda de seguridad añadió:
 - rotación del identificador de sesión tras el login (session fixation);
 - flags de la cookie de sesión;
+- rate limit del login como protección de fuerza bruta (03_SEGURIDAD.md §14.1);
 - que un `X-Forwarded-For` inyectado por el cliente no se cree como IP real.
 """
 
@@ -17,7 +18,7 @@ from flask_migrate import upgrade
 from app import create_app
 from app.core.config import TestingConfig
 from app.core.security.password import hash_password
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import Administrator
 
 PREFIJO = "session-test"
@@ -156,6 +157,75 @@ def test_logout_cierra_la_sesion(app_dedicada):
 
     client.post("/api/v1/admin/auth/logout")
     assert client.get("/api/v1/admin/auth/me").status_code == 401
+
+
+# --- Fuerza bruta: rate limit del login ------------------------------------
+
+
+@pytest.fixture
+def app_con_limite_login(app_dedicada):
+    """`TestingConfig` apaga el rate limiting; aquí se enciende sobre una app
+    dedicada, igual que en `test_admin_users_hardening`. Se reutiliza el
+    administrador de `app_dedicada` para poder probar también el camino de
+    credenciales correctas si hiciera falta.
+    """
+    _, identificador = app_dedicada
+
+    class Config(TestingConfig):
+        RATELIMIT_ENABLED = True
+
+    aplicacion = create_app(Config)
+    with aplicacion.app_context():
+        upgrade()
+    try:
+        yield aplicacion, identificador
+    finally:
+        limiter.reset()
+
+
+def test_el_login_se_limita_a_cinco_intentos_por_ip(app_con_limite_login):
+    """§14.1: 5 intentos cada 15 minutos por IP. El sexto ya no llega al servicio."""
+    aplicacion, _ = app_con_limite_login
+    client = aplicacion.test_client()
+
+    codigos = [
+        client.post(
+            "/api/v1/admin/auth/login",
+            json={"username": f"{PREFIJO}-base", "password": "clave-incorrecta"},
+        ).status_code
+        for _ in range(6)
+    ]
+
+    assert codigos[:5] == [401, 401, 401, 401, 401]
+    assert codigos[5] == 429
+
+
+def test_el_limite_del_login_no_revela_si_el_usuario_existe(app_con_limite_login):
+    """§16.1: superado el límite, la respuesta es idéntica exista o no el usuario.
+
+    No hay bloqueo permanente por IP: es una ventana deslizante de 15 minutos.
+    """
+    aplicacion, _ = app_con_limite_login
+    client = aplicacion.test_client()
+
+    for _ in range(5):
+        client.post(
+            "/api/v1/admin/auth/login",
+            json={"username": f"{PREFIJO}-base", "password": "x"},
+        )
+
+    existente = client.post(
+        "/api/v1/admin/auth/login",
+        json={"username": f"{PREFIJO}-base", "password": "x"},
+    )
+    inexistente = client.post(
+        "/api/v1/admin/auth/login",
+        json={"username": f"{PREFIJO}-no-existe", "password": "x"},
+    )
+
+    assert existente.status_code == 429
+    assert inexistente.status_code == 429
+    assert existente.get_json()["errors"][0]["code"] == inexistente.get_json()["errors"][0]["code"]
 
 
 # --- Confianza de proxy: X-Forwarded-For no falsificable --------------------

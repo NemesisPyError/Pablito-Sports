@@ -4,8 +4,11 @@
 export { HomePage } from './pages/HomePage.jsx';
 export { AboutPage } from './pages/AboutPage.jsx';
 export { ContactPage } from './pages/ContactPage.jsx';
+export { LegalPage } from './pages/LegalPage.jsx';
+export { NotFoundPage } from './pages/NotFoundPage.jsx';
 export { useStoreSettings } from './hooks/useStoreSettings.js';
 export { useBanners } from './hooks/useBanners.js';
+export { useBanks } from './hooks/useBanks.js';
 export { useBrandShowcases } from './hooks/useBrandShowcases.js';
 export { useStoreAbout } from './hooks/useStoreAbout.js';
 export { useFeaturedProducts } from './hooks/useFeaturedProducts.js';

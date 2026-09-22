@@ -10,9 +10,9 @@
 | **Sistema** | Plataforma de Catálogo Comercial |
 | **Documento** | Frontend |
 | **Código** | 06 |
-| **Versión** | 1.0.0 |
-| **Estado** | ✅ APROBADO |
-| **Fecha** | 07/08/2026 |
+| **Versión** | 1.1.0 |
+| **Estado** | 🟡 EN REVISIÓN |
+| **Fecha** | 28/08/2026 |
 | **Documentos previos** | [01_ANALISIS_NEGOCIO.md](01_ANALISIS_NEGOCIO.md) ✅ · [02_ARQUITECTURA.md](02_ARQUITECTURA.md) ✅ · [02.1_DECISIONES_ARQUITECTONICAS.md](02.1_DECISIONES_ARQUITECTONICAS.md) ✅ · [04_BASE_DATOS.md](04_BASE_DATOS.md) ✅ · [05_API.md](05_API.md) ✅ · [05.1_API_DATABASE_CROSS_REVIEW.md](05.1_API_DATABASE_CROSS_REVIEW.md) ✅ · [06.0_FRONTEND_ANALISIS_PREVIO.md](06.0_FRONTEND_ANALISIS_PREVIO.md) ✅ |
 | **Documentos dependientes** | `07_PANEL_ADMIN.md`, `08_UI_SYSTEM.md`, `09_COMPONENTES.md`, `11_TESTING.md`, `99_AI_DEVELOPMENT_GUIDE.md` |
 
@@ -243,6 +243,7 @@ features/catalog/
 | `/carrito` | Carrito de consulta | No | No indexable por naturaleza. |
 | `/nosotros` | Información de la tienda | Sí | Dirección, horarios, contacto, redes. |
 | `/contacto` | Contacto | Sí | Puede redundar con `/nosotros`. |
+| `*` (cualquier otra) | Página 404 | No | `NotFoundPage`, dentro de `PublicLayout` (navbar + footer). Enlaces a Inicio y Catálogo. **No redirige en silencio.** |
 
 ## 8.2 Rutas del panel administrativo
 
@@ -274,6 +275,7 @@ Todas las rutas bajo `/admin/*` requieren autenticación (`RN-66`). Las rutas de
 3. Toda ruta privada carga de forma diferida (`02_ARQUITECTURA.md` §8.5).
 4. La guarda de ruta es una conveniencia de interfaz; la autorización real la impone el backend en cada endpoint (`PA-06`, `AD-03`).
 5. La búsqueda no es una ruta aparte; es un filtro más de `/catalogo` (`02_ARQUITECTURA.md` §11.6).
+6. Una ruta inexistente muestra una **página 404 visible** (pública: `NotFoundPage`; panel: `AdminNotFoundPage`, dentro de `AdminLayout`), nunca un redirect silencioso. El código HTTP sigue siendo `200`: una SPA sin SSR no puede devolver un `404` real para una ruta arbitraria del cliente, y **no se falsean cabeceras desde React**. El `404` HTTP real lo sirve el backend para `/api/v1/*` y Nginx para `/uploads/*`.
 
 ---
 
@@ -368,6 +370,17 @@ El frontend mantiene un catálogo de mensajes en español asociados a los códig
 |---|---|
 | `RN-31` | "El precio de oferta debe ser menor al precio de lista." |
 | `RN-68` | "No se puede eliminar una marca con productos asociados." |
+
+Lo transversal —fallo de red, `429` (límite de tasa), sesión, permisos, `5xx`—
+vive en `shared/services/errorMessages.js` (`describeApiError`), consumido por
+`ErrorState` y por los formularios; estos añaden además su traducción propia de
+`422`/`409` porque necesitan nombrar el campo o la regla `RN-xx`. Nunca se
+muestra el `message` crudo del servidor (`ERR-04`).
+
+- **`429`**: siempre *"Demasiadas solicitudes. Esperá un momento y volvé a
+  intentar."* En `ErrorState` se **oculta el botón de reintento** para no volver
+  a chocar con el límite en el acto (`03_SEGURIDAD.md` §14). TanStack Query solo
+  reintenta fallos de red (§10.3), así que un `429` nunca se reintenta solo.
 
 ---
 
@@ -591,19 +604,24 @@ Se usan **React Error Boundaries** para limitar el impacto de errores de renderi
 
 ## 15.2 Ubicación
 
+`ErrorBoundary` es genérico (acepta `fallback` y `resetKeys`). `RouteErrorBoundary`
+(`app/RouteErrorBoundary.jsx`) lo especializa por sección: pasa `resetKeys=[pathname]`
+para reiniciarse solo al navegar y un fallback con acción de recuperación.
+
 | Nivel | Ubicación | Propósito |
 |---|---|---|
-| Raíz | `app/ErrorBoundary.jsx` | Captura errores no atrapados en otra parte; muestra fallback genérico. |
-| Sección carrito | Dentro de `/carrito` | Un error en el carrito no tumba la app. |
-| Sección panel | Dentro de `/admin/*` | Un error en una pantalla del panel no tumba el resto. |
-| Sección producto | Dentro de `/producto/:slug` | Un error en la galería no tumba toda la ficha. |
+| Raíz | `app/App.jsx` → `ErrorBoundary` | Captura lo no atrapado en otra parte; fallback de página completa con "Recargar". |
+| Sección carrito | `routes/PublicRoutes.jsx` → `/carrito` envuelto en `RouteErrorBoundary` | Un error en el carrito no tumba la app. |
+| Sección producto | `routes/PublicRoutes.jsx` → `/producto/:slug` envuelto en `RouteErrorBoundary` | Un error en la galería no tumba toda la tienda. |
+| Sección panel | `features/admin/layout/AdminLayout.jsx` → `<Outlet/>` envuelto en `RouteErrorBoundary` | Un error en una pantalla del panel no tumba el resto (sidebar y topbar siguen vivos). |
 
 ## 15.3 Comportamiento
 
 - Muestran un mensaje amigable en español.
-- Incluyen el `request_id` si está disponible (`OA-09`).
-- Ofrecen acción de reintentar cuando tiene sentido.
-- **No capturan errores de la API:** esos se manejan en los hooks de consulta.
+- Ofrecen **"Reintentar"** (reinicia el boundary) y un enlace de salida contextual.
+- Se **reinician solos al cambiar de ruta** (`resetKeys`), de modo que navegar a otra pantalla recupera aunque el error de origen fuera permanente.
+- Incluyen el `request_id` si está disponible (`OA-09`) — para un error de renderizado puro normalmente no lo hay.
+- **No capturan errores de la API:** esos se manejan en los hooks de consulta y se muestran vía `ErrorState`.
 
 ---
 
@@ -816,6 +834,7 @@ El detalle de la estrategia de pruebas vive en `11_TESTING.md`. Este documento d
 
 | Versión | Fecha | Estado | Cambios |
 |---|---|---|---|
+| **1.1.0** | 28/08/2026 | 🟡 EN REVISIÓN | **Cierre de manejo de errores y rutas** (auditoría E-1/E-2/E-3, pedido explícito del usuario). §8.1/§8.3: página 404 visible (`NotFoundPage` pública, `AdminNotFoundPage` en el panel) en vez del redirect silencioso; se documenta que el HTTP sigue en `200` y por qué. §10.5: catálogo central `shared/services/errorMessages.js` (`describeApiError`); el `429` muestra un mensaje único y sin tecnicismos, y `ErrorState` oculta el reintento en ese caso. §15.2/§15.3: los cuatro Error Boundaries pasan a estar implementados (raíz + carrito + producto + panel) vía `RouteErrorBoundary`, con reinicio automático al navegar. Sin librerías nuevas, sin cambios de contrato. |
 | **1.0.0** | 07/08/2026 | ✅ **APROBADO** | Frontend completo: filosofía, stack, features, organización, routing, gestión de estado (resolución de `AD-07` / `ADP-01`), comunicación con API, carrito, componentes, accesibilidad, rendimiento, Error Boundaries, Suspense, SEO, responsive y testing. Aplicados ajustes aprobados: acceso a TanStack Query/Zustand solo por hooks propios, React Hook Form + Zod Resolver, delimitación Bootstrap/CSS Modules, listado definitivo de features previo a la arquitectura, decisión sobre Error Boundaries y uso explícito de Suspense solo para code splitting. |
 
 ---

@@ -29,11 +29,12 @@ export function DashboardPage() {
   return (
     <>
       <section aria-label="Totales del catálogo" className="mb-4">
-        <div className="row g-3 row-cols-2 row-cols-md-3 row-cols-xl-4">
+        <div className="row g-3 row-cols-2 row-cols-md-4">
           {isLoading
-            ? // Ocho esqueletos: los mismos que habrá después, para que la
-              // pantalla no cambie de forma al llegar los datos.
-              Array.from({ length: 8 }, (_, indice) => (
+            ? // Siete esqueletos: los mismos que habrá después (antes eran
+              // ocho, uno de más — `buildMetricCards` siempre da 7), para que
+              // la pantalla no cambie de forma al llegar los datos.
+              Array.from({ length: 7 }, (_, indice) => (
                 <div className="col" key={indice}>
                   <MetricCardSkeleton />
                 </div>
@@ -44,6 +45,7 @@ export function DashboardPage() {
                     label={metrica.label}
                     value={metrica.value}
                     tone={metrica.tone}
+                    icon={metrica.icon}
                     emphasis={metrica.emphasis}
                   />
                 </div>

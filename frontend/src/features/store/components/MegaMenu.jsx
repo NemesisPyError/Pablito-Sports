@@ -11,6 +11,8 @@ import styles from './MegaMenu.module.css';
  *
  * No fabrica categorías ni marcas: solo compone el eje con el árbol real que
  * devuelve `GET /api/v1/categories` y el catálogo real de `GET /api/v1/brands`.
+ * El eje `DEPORTES` (v2.8.0) reutiliza el mismo mecanismo de `groups` para
+ * listar `GET /api/v1/sports` como enlaces planos, sin subitems ni marcas.
  */
 export function MegaMenu({ axis, id, onNavigate }) {
   const brands = axis.brands ?? [];

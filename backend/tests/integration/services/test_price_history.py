@@ -56,6 +56,12 @@ def product_cleanup(schema_app):
                 "(SELECT id FROM products WHERE sku LIKE 'PH-SKU%')"
             )
         )
+        db.session.execute(
+            text(
+                "DELETE FROM product_genders WHERE product_id IN "
+                "(SELECT id FROM products WHERE sku LIKE 'PH-SKU%')"
+            )
+        )
         db.session.execute(text("DELETE FROM products WHERE sku LIKE 'PH-SKU%'"))
         db.session.execute(text("DELETE FROM categories WHERE slug LIKE 'ph-%'"))
         db.session.execute(text("DELETE FROM brands WHERE slug LIKE 'ph-%'"))
@@ -106,7 +112,7 @@ def producto(schema_app, administrator_id, product_cleanup):
                 "list_price": 100000,
                 "primary_category_id": referencias["category_id"],
                 "brand_id": referencias["brand_id"],
-                "gender_id": referencias["gender_id"],
+                "gender_ids": [referencias["gender_id"]],
                 "size_type_id": referencias["size_type_id"],
             },
             administrator_id=administrator_id,
@@ -121,7 +127,7 @@ def _payload(producto, **overrides) -> dict:
         "list_price": 100000,
         "primary_category_id": producto["referencias"]["category_id"],
         "brand_id": producto["referencias"]["brand_id"],
-        "gender_id": producto["referencias"]["gender_id"],
+        "gender_ids": [producto["referencias"]["gender_id"]],
         "size_type_id": producto["referencias"]["size_type_id"],
     }
     base.update(overrides)

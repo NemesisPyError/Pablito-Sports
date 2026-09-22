@@ -10,9 +10,9 @@
 | **Sistema** | Plataforma de Catálogo Comercial |
 | **Documento** | Análisis de Negocio |
 | **Código** | 01 |
-| **Versión** | 2.6.0 |
+| **Versión** | 2.9.0 |
 | **Estado** | 🟡 EN REVISIÓN |
-| **Fecha** | 18/08/2026 |
+| **Fecha** | 22/09/2026 |
 | **Documentos previos** | [00_VISION_PROYECTO.md](00_VISION_PROYECTO.md) ✅, [00.2_GLOSARIO.md](00.2_GLOSARIO.md) ✅ |
 | **Documentos dependientes** | `02_ARQUITECTURA.md`, `03_SEGURIDAD.md`, `04_BASE_DATOS.md`, `05_API.md`, `06_FRONTEND.md`, `07_PANEL_ADMIN.md` |
 
@@ -248,6 +248,7 @@ Sin esta revalidación, el cliente podría enviar por WhatsApp precios vencidos 
 | RN-10 | Cada producto tiene un **slug único** para su URL pública. Ver también `RN-79`. |
 | RN-79 | **Toda entidad utilizada como filtro público deberá poseer un slug único, permanente y no reutilizable.** Aplica como mínimo a **Producto, Marca, Categoría, Deporte y Sexo**. |
 | RN-80 | Un producto puede asignarse **tanto a una categoría padre como a una categoría hoja**. Al consultar una categoría padre se devuelven los productos asignados directamente a ella **y** los de todas sus categorías descendientes. |
+| RN-83 | Una **categoría declara a qué sexos aplica** (Hombre, Mujer, Unisex, Niño, Niña). Es lo que decide en qué secciones de la navegación se ofrece y qué categorías se listan en el filtro del catálogo cuando el cliente ya filtró por sexo. **Una categoría sin sexos indicados no está restringida** y se ofrece en todas: la ausencia significa «sin restricción», no «ninguno». Es un dato del administrador, independiente de los sexos de los productos que contenga. |
 | RN-11 | Cada producto tiene un **código interno (SKU) único**, no visible al cliente. |
 | RN-12 | Un producto **no puede activarse** sin precio de lista válido, imagen principal y al menos una categoría. |
 
@@ -258,6 +259,7 @@ Sin esta revalidación, el cliente podría enviar por WhatsApp precios vencidos 
 | RN-13 | Una **variante** es la combinación de Producto + Talle. Es la unidad que el cliente selecciona. (Revisado 19/08/2026: se retira el color como eje de la variante — ver `13_CHANGELOG.md`.) |
 | RN-14 | Un producto puede tener **0..N talles**. (Revisado 19/08/2026: definía también 0..N colores; ya no existe esa clasificación.) |
 | RN-15 | Cada producto define su **tipo de talle**. Los talles ofrecidos deben pertenecer a ese tipo. |
+| RN-15b | El **nombre del talle es texto libre** (revisado v1.5.0, pedido explícito del usuario): admite cualquier valor alfanumérico razonable (numérico, decimal, alfabético, alfanumérico, con "/" o "-", "Único"), sin restricción de formato según el tipo de talle. Solo se exige que no quede vacío tras recortar espacios. |
 | RN-16 | Si el producto define talles, **su selección es obligatoria** antes de agregarlo al carrito. (Revisado 19/08/2026: antes también cubría color.) |
 | RN-17 | Las variantes **no tienen precio propio**. El precio se define a nivel producto. Decisión firme, no diferida (**DN-02**). |
 | RN-18 | Las variantes **no tienen disponibilidad propia** en v1: el estado se define a nivel producto. No obstante, la **Variante se modela como entidad propia desde el inicio**, de modo que incorporar disponibilidad por variante en el futuro no exija reestructurar el modelo (**DN-01**). |
@@ -293,7 +295,7 @@ Sin esta revalidación, el cliente podría enviar por WhatsApp precios vencidos 
 | RN-33 | Sin fecha de fin, la oferta rige **indefinidamente** mientras el producto esté activo. |
 | RN-34 | La vigencia se evalúa según la **zona horaria de la tienda** (Paraguay). |
 | RN-35 | Con oferta vigente se muestra: precio de lista **tachado**, precio de oferta y **porcentaje de descuento redondeado hacia abajo**. |
-| RN-36 | Una promoción puede aplicarse a **un producto, una categoría o una marca**. |
+| RN-36 | Una promoción puede aplicarse a **un producto, una categoría, una marca, o a todos los productos** (revisado v2.9.0, pedido explícito del usuario). Sin indicar producto, categoría ni marca, la promoción rige sobre el catálogo entero. |
 | RN-37 | Si concurren varias promociones vigentes, se aplica la de **mayor descuento**. |
 | RN-38b | Las promociones de v1 son **descuentos simples**. No existen 2x1, combos, topes ni cupones (**DN-03**). |
 
@@ -792,6 +794,9 @@ Aceptados con la aprobación de este documento.
 
 | **2.4.0** | 06/08/2026 | ✅ APROBADO | **Resolución de `ADP-07` — evidencia de medición.** `RN-75` baja de **30 a 26** productos distintos. `RN-76` reformulada: el límite se mide en **caracteres del cuerpo del mensaje**, no en la longitud del enlace, y su garantía es la **validación de longitud real antes de generar el enlace**, no el límite de ítems. **`DN-17` nueva**, con la decisión y su evidencia. `DN-11` y `DN-12` marcadas como **actualizadas por `DN-17`**, sin modificar su contexto (`ADR-02`); se registra que `DN-12` partía de dos supuestos que la medición refutó. Motivo: con 30 ítems un carrito típico alcanza 4 432 caracteres frente a un techo de 4 096. Evidencia reproducible en [`docs/evidencia/ADP-07/`](evidencia/ADP-07/INFORME_ADP-07.md). Aprobado por el responsable del proyecto. **Numeración previa intacta.** |
 
+| **2.9.0** | 22/09/2026 | 🟡 EN REVISIÓN | **Promoción "todos los productos".** Pedido explícito del usuario: poder aplicar una promoción a todo el catálogo, no solo a un producto, categoría o marca. **`RN-36` revisada**: pasa de "un producto, una categoría o una marca" a "un producto, una categoría, una marca, o todos los productos" — sin ninguno de los tres, la promoción rige sobre el catálogo entero. **Numeración previa intacta.** |
+| **2.8.0** | 22/09/2026 | 🟡 EN REVISIÓN | **Talle como texto libre.** Pedido explícito del usuario: el talle debe aceptar cualquier valor alfanumérico razonable (numérico, decimal, alfabético, con "/" o "-", "Único"), sin la restricción de formato que hasta ahora exigía dígitos puros en Calzado y prohibía dígitos puros en Indumentaria. **`RN-15b` nueva** (antes documentada solo en `07_PANEL_ADMIN.md`): el nombre del talle es texto libre. **Numeración previa intacta.** |
+| **2.7.0** | 10/09/2026 | 🟡 EN REVISIÓN | **Sexos por categoría.** Pedido explícito del usuario: ordenar la navegación de la tienda desde el panel, en lugar de que cada categoría nueva aparezca automáticamente bajo Hombres, Mujeres e Infantil a la vez. **`RN-83` nueva**: la categoría declara a qué sexos aplica, y no indicar ninguno significa «sin restricción». Es un eje de presentación que el administrador controla, no una propiedad derivada de los productos que la categoría contenga. **Numeración previa intacta.** |
 | **2.6.0** | 18/08/2026 | 🟡 EN REVISIÓN | **Registro de ventas y sincronización de stock.** `RN-38`/`RN-39` se corrigen para reflejar lo que v1.4.0 ya tiene implementado y aprobado en `07_PANEL_ADMIN.md`/`04_BASE_DATOS.md`: v1 sí maneja stock numérico por variante (`variants.quantity`), y la disponibilidad se deriva automáticamente de esa cantidad — este documento nunca se había actualizado para reflejarlo. **`RN-82` nueva**: el administrador registra una venta sobre una variante y el sistema descuenta la cantidad automáticamente, con un registro inmutable (`sales`), igual que `price_history`. Pedido explícito del usuario. |
 | **2.5.0** | 07/08/2026 | ✅ APROBADO | **Aclaración de enumeraciones del sistema.** `CU-A-18` y `CU-A-20` ajustados: sexos y tipos de talle se consultan, no se administran. `RF-29` reformulada para excluir el ABM de sexos y tipos de talle. Se añade nota en `S-06`/`S-07`: son **datos semilla no administrables**. No se modifican identificadores previos. |
 

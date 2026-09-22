@@ -45,6 +45,13 @@ def catalogo(schema_app):
             ),
             {"p": f"{PREFIJO}%"},
         )
+        db.session.execute(
+            text(
+                "DELETE FROM product_genders WHERE product_id IN "
+                "(SELECT id FROM products WHERE slug LIKE :p)"
+            ),
+            {"p": f"{PREFIJO}%"},
+        )
         db.session.execute(text("DELETE FROM products WHERE slug LIKE :p"), {"p": f"{PREFIJO}%"})
         db.session.execute(text("DELETE FROM categories WHERE slug LIKE :p"), {"p": f"{PREFIJO}%"})
         db.session.execute(text("DELETE FROM brands WHERE slug LIKE :p"), {"p": f"{PREFIJO}%"})
@@ -80,15 +87,14 @@ def catalogo(schema_app):
         db.session.execute(
             text(
                 "INSERT INTO products (name, slug, sku, list_price, availability, is_active, "
-                "is_featured, is_new, primary_category_id, brand_id, gender_id, size_type_id) "
+                "is_featured, is_new, primary_category_id, brand_id, size_type_id) "
                 "VALUES ('Promo Producto', :s, 'PROMO-001', 100000, 'available', true, "
-                "false, false, :c, :b, :g, :t)"
+                "false, false, :c, :b, :t)"
             ),
             {
                 "s": f"{PREFIJO}-producto",
                 "c": referencias["category_id"],
                 "b": referencias["brand_id"],
-                "g": referencias["gender_id"],
                 "t": referencias["size_type_id"],
             },
         )
@@ -96,6 +102,12 @@ def catalogo(schema_app):
         product_id = db.session.execute(
             text("SELECT id FROM products WHERE slug = :s"), {"s": f"{PREFIJO}-producto"}
         ).scalar_one()
+        # RN-09 (v2.9.0): `genders` es M:N.
+        db.session.execute(
+            text("INSERT INTO product_genders (product_id, gender_id) VALUES (:p, :g)"),
+            {"p": product_id, "g": referencias["gender_id"]},
+        )
+        db.session.commit()
 
         datos = dict(referencias) | {"product_id": product_id}
         try:
@@ -220,22 +232,23 @@ def test_el_alcance_puede_ser_producto_categoria_o_marca(cliente, catalogo, camp
     assert respuesta.get_json()["data"]["scope"]["type"] == tipo
 
 
-# Validaciones (§10.9)
-
-
-def test_sin_alcance_es_422(cliente, catalogo):
-    """`RN-36`: exactamente uno, ni ninguno."""
-    payload = _payload(catalogo)
+def test_el_alcance_puede_ser_todos_los_productos(cliente, catalogo):
+    """`RN-36` (v1.6.0): sin ninguno de los tres, la promoción aplica a todos."""
+    payload = _payload(catalogo, sufijo="todos")
     payload.pop("brand_id")
 
     respuesta = cliente.post("/api/v1/admin/promotions", json=payload)
 
-    assert respuesta.status_code == 422
-    assert "product_id" in {e["field"] for e in respuesta.get_json()["errors"]}
+    assert respuesta.status_code == 201
+    datos = respuesta.get_json()["data"]
+    assert datos["scope"] == {"type": "all", "entity": None}
+
+
+# Validaciones (§10.9)
 
 
 def test_con_dos_alcances_es_422(cliente, catalogo):
-    """`RN-36`: exactamente uno, ni varios."""
+    """`RN-36`: como máximo uno, no varios."""
     respuesta = cliente.post(
         "/api/v1/admin/promotions",
         json=_payload(catalogo, category_id=catalogo["category_id"]),
@@ -468,6 +481,34 @@ def test_cada_escritura_deja_auditoria(cliente, catalogo, administrator_id, outs
     assert [fila["action"] for fila in filas] == ["create", "deactivate", "delete"]
     assert {fila["administrator_id"] for fila in filas} == {administrator_id}
     assert filas[0]["new_values"]["discount_percentage"] == 20
+
+
+# Efecto sobre el precio público (RN-30 a RN-37, v1.6.0)
+
+
+def test_una_promocion_sin_alcance_descuenta_el_precio_de_cualquier_producto(cliente, catalogo):
+    """RN-37: el precio efectivo del catálogo público recoge la promoción.
+
+    A diferencia de las pruebas de alcance/forma de este archivo, esta sí
+    depende del reloj real: la vigencia se evalúa en el servidor contra
+    `now()` (`RN-34`), así que usa una ventana relativa al instante actual y
+    no la referencia fija `AHORA` que usa el resto del archivo.
+    """
+    real_ahora = datetime.now(UTC)
+    payload = _payload(
+        catalogo,
+        sufijo="global",
+        starts_at=_iso(real_ahora - timedelta(days=1)),
+        ends_at=_iso(real_ahora + timedelta(days=1)),
+    )
+    payload.pop("brand_id")
+    creada = cliente.post("/api/v1/admin/promotions", json=payload)
+    assert creada.status_code == 201, creada.get_json()
+
+    detalle = cliente.get(f"/api/v1/products/{PREFIJO}-producto").get_json()["data"]
+
+    assert detalle["discount_percentage"] == 20
+    assert detalle["sale_price"] == 80000  # 100000 * (1 - 20%)
 
 
 def test_fallo_de_auditoria_revierte_la_creacion(cliente, catalogo, outside, monkeypatch):

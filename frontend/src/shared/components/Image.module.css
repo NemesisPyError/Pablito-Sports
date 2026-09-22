@@ -30,8 +30,10 @@
 
 .objectCover {
   object-fit: cover;
+  object-position: center;
 }
 
 .objectContain {
   object-fit: contain;
+  object-position: center;
 }

@@ -1,24 +1,52 @@
 /**
  * Bloque de marca de la portada (09_COMPONENTES.md §9.8).
  *
- * Tinta a sangre, con el logotipo y la frase a un lado y el collage al otro.
- * Un filete de acento arriba lo distingue de los demás bloques oscuros de la
- * Home (Novedades, Promociones, Ofertas): es el único con marca propia.
+ * **v2.12.0 — prototipo «Moderno»**, elegido por el usuario el 11/09/2026:
+ * panel de tinta, logotipo en recuadro blanco, la frase de la marca como
+ * titular grande y el collage como una foto protagonista con las demás
+ * apiladas al costado. Reemplaza al ensayo en superficie clara de v2.11.0.
+ *
+ * Del prototipo quedan afuera, a propósito:
+ *   · las rayas diagonales del fondo — son identidad de Adidas, y este fondo
+ *     es el mismo para todas las marcas;
+ *   · el subtítulo bajo el titular — la marca tiene un solo campo de frase
+ *     (`tagline`), y ese es el que pasa a titular.
  */
 
 .showcase {
+  padding: var(--section-gap-y) var(--section-inset-x);
   background-color: var(--color-surface-inverse);
-  border-block-start: 3px solid var(--color-volt-500);
   color: var(--color-text-inverse);
 }
 
+/*
+ * El panel del prototipo: una tarjeta un tono más clara que la página, con
+ * borde fino y franjas diagonales detrás de la identidad. Es lo que hace que
+ * el fondo se lea distinto del resto de los bloques de tinta —y lo que
+ * separa este bloque de Promociones, que viene justo debajo—.
+ *
+ * Solo tintas del sistema: base `--color-ink-800`, franjas `--color-ink-700`,
+ * borde `--color-border-inverse`. Las franjas se desvanecen hacia la derecha
+ * para no pasar por detrás del collage.
+ */
 .inner {
   display: grid;
-  gap: var(--spacing-5);
+  gap: var(--spacing-6);
   width: 100%;
   max-width: var(--container-max-width-store);
   margin-inline: auto;
-  padding: var(--section-gap-y) var(--section-inset-x);
+  padding: var(--spacing-5);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border-inverse);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-ink-800);
+  background-image:
+    linear-gradient(90deg, transparent 0 30%, var(--color-ink-800) 55%),
+    repeating-linear-gradient(
+      115deg,
+      transparent 0 3rem,
+      var(--color-ink-700) 3rem 5.5rem,
+      transparent 5.5rem 8rem
+    );
 }
 
 @media (min-width: 992px) {
@@ -26,6 +54,7 @@
     grid-template-columns: minmax(14rem, 1fr) 2fr;
     align-items: center;
     gap: var(--spacing-8);
+    padding: var(--spacing-7);
   }
 }
 
@@ -39,9 +68,26 @@
   gap: var(--spacing-4);
 }
 
+/*
+ * El recuadro blanco no es adorno: garantiza que **cualquier** logotipo se lea
+ * sobre tinta. Casi todos los logos de marcas deportivas son oscuros y sobre
+ * `--color-surface-inverse` desaparecerían; con el recuadro, se ven igual que
+ * en la franja de marcas bajo el menú, que ya los muestra sobre blanco.
+ */
+.logoTile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  padding: var(--spacing-2);
+  border-radius: var(--radius-md);
+  background-color: var(--color-background);
+}
+
 .logo {
-  max-width: 12rem;
-  max-height: 5rem;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 
@@ -50,24 +96,38 @@
   margin-block-end: var(--spacing-0);
   color: var(--color-text-inverse);
   font-family: var(--font-family-display);
-  font-size: var(--font-size-3xl);
+  font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-extrabold);
   letter-spacing: var(--letter-spacing-tighter);
   line-height: var(--line-height-none);
   text-transform: uppercase;
 }
 
-.tagline {
-  max-width: 32ch;
+/* La frase de la marca, como titular del bloque. */
+.headline {
+  max-width: 16ch;
   margin-block-end: var(--spacing-0);
-  color: var(--color-text-inverse-muted);
-  font-size: var(--font-size-md);
+  color: var(--color-text-inverse);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-tight);
+  line-height: var(--line-height-tight);
+  text-transform: uppercase;
+}
+
+@media (min-width: 768px) {
+  .headline {
+    font-size: var(--font-size-3xl);
+  }
 }
 
 .action {
   display: inline-flex;
   align-items: center;
+  gap: var(--spacing-2);
   min-height: var(--touch-target-min);
+  margin-block-start: var(--spacing-2);
   padding: var(--spacing-3) var(--spacing-5);
   border-radius: var(--radius-md);
   background-color: var(--color-action-accent-bg);
@@ -85,42 +145,117 @@
   color: var(--color-action-accent-text);
 }
 
+/* §10.3: sobre tinta, el anillo de foco pasa al acento para seguir viéndose. */
+.action:focus-visible {
+  outline-color: var(--focus-ring-color-inverse);
+}
+
 /* --------------------------------------------------------------------------
- * Collage. La primera pieza manda: ocupa el doble en pantallas anchas, que es
- * lo que evita que el conjunto se lea como una grilla de miniaturas iguales.
+ * Collage: una foto protagonista a la izquierda y las demás apiladas a la
+ * derecha, en la proporción del prototipo.
+ *
+ * Las filas se reparten el alto del contenedor en partes iguales, y la
+ * protagonista las abarca todas. Con consultas por cantidad ningún recuento
+ * deja hueco:
+ *
+ *   2 piezas: protagonista + una al costado, las dos a toda altura;
+ *   3 piezas: protagonista + dos apiladas (el caso del prototipo);
+ *   4 piezas: protagonista + tres apiladas.
  * ----------------------------------------------------------------------- */
+/*
+ * Móvil: la protagonista a lo ancho y las demás en una fila debajo. Apiladas
+ * al costado, en 375px quedaban de 110×68 — el producto dejaba de leerse.
+ * Seis columnas para que 1, 2 o 3 piezas secundarias repartan la fila exacta.
+ */
 .collage {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--spacing-3);
 }
 
-.piece {
-  display: block;
-  width: 100%;
+.collage > * {
+  grid-column: span 2;
   aspect-ratio: 1 / 1;
-  border-radius: var(--radius-media);
-  object-fit: cover;
 }
 
+.collage > :first-child {
+  grid-column: 1 / -1;
+  aspect-ratio: 4 / 3;
+}
+
+.collage > :nth-child(2):nth-last-child(2),
+.collage > :nth-child(3):nth-last-child(1) {
+  grid-column: span 3;
+}
+
+.collage > :nth-child(2):last-child {
+  grid-column: 1 / -1;
+  aspect-ratio: 4 / 3;
+}
+
+/* Desde tablet, la composición del prototipo. */
 @media (min-width: 768px) {
   .collage {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: 2fr 1fr;
+    grid-auto-rows: minmax(0, 1fr);
+    aspect-ratio: 3 / 2;
   }
 
-  /* Con dos piezas, cada una toma la mitad; con tres o cuatro, la primera
-     ocupa el doble y el resto se acomoda al lado. */
+  .collage > *,
+  .collage > :first-child,
+  .collage > :nth-child(2):nth-last-child(2),
+  .collage > :nth-child(3):nth-last-child(1),
+  .collage > :nth-child(2):last-child {
+    grid-column: auto;
+    aspect-ratio: auto;
+  }
+
   .collage > :first-child {
-    grid-column: span 2;
     grid-row: span 2;
   }
 
-  .collage > :first-child .piece {
-    aspect-ratio: 1 / 1;
-    height: 100%;
+  .collage > :nth-child(2):last-child {
+    grid-row: span 2;
+  }
+
+  .collage > :first-child:nth-last-child(4) {
+    grid-row: span 3;
   }
 }
 
-.focusRing:focus-visible {
-  outline-color: var(--focus-ring-color-inverse);
+/*
+ * Tarjeta blanca por pieza. Las fotos de producto vienen casi siempre sobre
+ * fondo blanco: el marco las presenta como producto, no como recorte.
+ */
+.frame {
+  display: block;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background-color: var(--color-background);
+}
+
+/*
+ * `contain` y no `cover`: el producto se ve **entero**. Con `cover`, una
+ * zapatilla en una celda apaisada perdía la punta y el talón — era el recorte
+ * que se veía en la versión anterior. El relleno deja respirar la foto dentro
+ * del marco.
+ */
+.piece {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: var(--spacing-3);
+  border-radius: var(--radius-media);
+  object-fit: contain;
+}
+
+/* Las apiladas son chicas: con el mismo relleno el producto quedaba diminuto. */
+.collage > :not(:first-child) .piece {
+  padding: var(--spacing-2);
+}
+
+@media (min-width: 992px) {
+  .collage > :first-child .piece {
+    padding: var(--spacing-4);
+  }
 }

@@ -1,11 +1,12 @@
 """Administrative authentication endpoints (05_API.md §5.1, §9.1)."""
 
-from flask import Blueprint, current_app, request, session
+from flask import Blueprint, current_app, session
 from flask_wtf.csrf import generate_csrf
 
 from ....core.exceptions import RequestValidationError
 from ....core.utils.responses import success_response
 from ....extensions import csrf, limiter
+from ....schemas.shared import json_body, texto
 from ....services.admin_auth_service import AdminAuthService
 
 auth_bp = Blueprint("admin_auth", __name__)
@@ -23,15 +24,17 @@ def login():
     Abre la sesión de servidor y entrega el token CSRF que el panel usará en
     las escrituras posteriores (§8.2: se envía al frontend en el login).
     """
-    payload = request.get_json(silent=True) or {}
-    username = (payload.get("username") or "").strip()
-    password = payload.get("password") or ""
+    payload = json_body()
 
-    errors = []
-    if not username:
-        errors.append({"field": "username", "detail": "username is required"})
-    if not password:
+    # S-13: sin conversión de tipo. Antes, `{"username": 123}` llegaba a
+    # `.strip()` y terminaba en 500; ahora es un 422 con el campo señalado.
+    errors: list[dict] = []
+    username = texto(payload, "username", errors)
+    password = payload.get("password")
+    if password is None or password == "":
         errors.append({"field": "password", "detail": "password is required"})
+    elif not isinstance(password, str):
+        errors.append({"field": "password", "detail": "password must be a string"})
     if errors:
         raise RequestValidationError(errors)
 

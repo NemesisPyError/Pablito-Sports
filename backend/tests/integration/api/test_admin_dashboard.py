@@ -31,7 +31,8 @@ def catalogo(schema_app):
             ),
             {"p": f"{PREFIJO}%"},
         )
-        for tabla in ("price_history", "variants", "images", "product_categories"):
+        tablas = ("price_history", "variants", "images", "product_categories", "product_genders")
+        for tabla in tablas:
             db.session.execute(
                 text(
                     f"DELETE FROM {tabla} WHERE product_id IN "
@@ -95,23 +96,30 @@ def _crear_producto(catalogo, sufijo: str, **overrides) -> int:
         text(
             "INSERT INTO products (name, slug, sku, list_price, sale_price, sale_starts_at, "
             "sale_ends_at, availability, is_active, is_featured, is_new, deleted_at, "
-            "primary_category_id, brand_id, gender_id, size_type_id) "
+            "primary_category_id, brand_id, size_type_id) "
             "VALUES (:name, :slug, :sku, :list_price, :sale_price, :sale_starts_at, "
             ":sale_ends_at, :availability, :is_active, false, false, :deleted_at, "
-            ":cat, :marca, :gen, :st)"
+            ":cat, :marca, :st)"
         ),
         campos
         | {
             "cat": catalogo["category_id"],
             "marca": catalogo["brand_id"],
-            "gen": catalogo["gender_id"],
             "st": catalogo["size_type_id"],
         },
     )
     db.session.commit()
-    return db.session.execute(
+    producto_id = db.session.execute(
         text("SELECT id FROM products WHERE slug = :s"), {"s": campos["slug"]}
     ).scalar_one()
+    # RN-09 (v2.9.0): `genders` es M:N; el dashboard no lo lee, pero un
+    # producto sin ningún sexo no es un estado realista para el resto.
+    db.session.execute(
+        text("INSERT INTO product_genders (product_id, gender_id) VALUES (:p, :g)"),
+        {"p": producto_id, "g": catalogo["gender_id"]},
+    )
+    db.session.commit()
+    return producto_id
 
 
 def _totales(cliente) -> dict:
@@ -407,7 +415,7 @@ def test_los_cambios_de_precio_usan_el_dto_del_contrato(schema_app, admin_client
                 "list_price": 155000,
                 "primary_category_id": catalogo["category_id"],
                 "brand_id": catalogo["brand_id"],
-                "gender_id": catalogo["gender_id"],
+                "gender_ids": [catalogo["gender_id"]],
                 "size_type_id": catalogo["size_type_id"],
             },
             administrator_id=administrador,

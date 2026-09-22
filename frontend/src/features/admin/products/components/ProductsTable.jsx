@@ -20,7 +20,13 @@ function etiquetaDisponibilidad(valor) {
  * debajo de `lg` cada fila se apila como tarjeta, porque una tabla de siete
  * columnas con desplazamiento horizontal es inservible en un teléfono.
  */
-export function ProductsTable({ products, onToggleActive, onDelete, onRestore, busyId }) {
+export function ProductsTable({
+  products,
+  onToggleActive,
+  onToggleHomeNew,
+  onDelete,
+  busyId,
+}) {
   return (
     <>
       {/* Escritorio */}
@@ -68,8 +74,8 @@ export function ProductsTable({ products, onToggleActive, onDelete, onRestore, b
                     producto={producto}
                     busy={busyId === producto.id}
                     onToggleActive={onToggleActive}
+                    onToggleHomeNew={onToggleHomeNew}
                     onDelete={onDelete}
-                    onRestore={onRestore}
                   />
                 </td>
               </tr>
@@ -111,8 +117,8 @@ export function ProductsTable({ products, onToggleActive, onDelete, onRestore, b
                 producto={producto}
                 busy={busyId === producto.id}
                 onToggleActive={onToggleActive}
+                onToggleHomeNew={onToggleHomeNew}
                 onDelete={onDelete}
-                onRestore={onRestore}
               />
             </div>
           </li>
@@ -123,9 +129,6 @@ export function ProductsTable({ products, onToggleActive, onDelete, onRestore, b
 }
 
 function EstadoBadges({ producto }) {
-  if (producto.deleted_at) {
-    return <span className="badge text-bg-danger">Eliminado</span>;
-  }
   return (
     <>
       <span className={`badge text-bg-${producto.is_active ? 'success' : 'secondary'}`}>
@@ -133,27 +136,15 @@ function EstadoBadges({ producto }) {
       </span>
       {producto.is_featured && <span className="badge text-bg-light border ms-1">Destacado</span>}
       {producto.is_new && <span className="badge text-bg-light border ms-1">Nuevo</span>}
+      {producto.home_new_position != null && (
+        <span className="badge text-bg-light border ms-1">Novedades</span>
+      )}
       {!producto.has_image && <span className="badge text-bg-warning ms-1">Sin imagen</span>}
     </>
   );
 }
 
-function Acciones({ producto, busy, onToggleActive, onDelete, onRestore }) {
-  // Un producto eliminado solo admite restaurarse: activarlo o volver a
-  // eliminarlo no significa nada mientras esté dado de baja.
-  if (producto.deleted_at) {
-    return (
-      <button
-        type="button"
-        className="btn btn-outline-primary btn-sm"
-        onClick={() => onRestore(producto)}
-        disabled={busy}
-      >
-        Restaurar
-      </button>
-    );
-  }
-
+function Acciones({ producto, busy, onToggleActive, onToggleHomeNew, onDelete }) {
   return (
     <div
       className="btn-group btn-group-sm"
@@ -170,6 +161,14 @@ function Acciones({ producto, busy, onToggleActive, onDelete, onRestore }) {
         disabled={busy}
       >
         {producto.is_active ? 'Ocultar' : 'Activar'}
+      </button>
+      <button
+        type="button"
+        className="btn btn-outline-secondary"
+        onClick={() => onToggleHomeNew(producto)}
+        disabled={busy}
+      >
+        {producto.home_new_position != null ? 'Quitar de novedades' : 'Agregar a novedades'}
       </button>
       <button
         type="button"

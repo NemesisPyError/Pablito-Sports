@@ -160,8 +160,11 @@
   }
 }
 
+/* El campo cede el ancho que ocupa la lupa; antes era el único hijo y podía
+   pedir el 100%. */
 .searchField {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: var(--touch-target-min);
   padding: var(--spacing-2) var(--spacing-3);
   border: var(--border-width-thin) var(--border-style-default) var(--color-border-inverse);
@@ -177,6 +180,49 @@
 
 .searchField:focus-visible {
   outline-color: var(--focus-ring-color-inverse);
+}
+
+/*
+ * Lupa del buscador. Mismo alto mínimo táctil que el campo (§10.1) y el mismo
+ * filete, para que campo y botón se lean como un solo control.
+ */
+.searchSubmit {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  margin-inline-start: var(--spacing-2);
+  padding: var(--spacing-0) var(--spacing-3);
+  border: var(--border-width-thin) var(--border-style-default) var(--color-border-inverse);
+  border-radius: var(--radius-md);
+  background-color: var(--color-ink-800);
+  color: var(--color-text-inverse);
+  transition: var(--transition-fast);
+}
+
+.searchSubmit:hover:not(:disabled),
+.searchSubmit:focus-visible:not(:disabled) {
+  border-color: var(--color-action-primary-bg);
+  background-color: var(--color-action-primary-bg);
+}
+
+.searchSubmit:focus-visible {
+  outline-color: var(--focus-ring-color-inverse);
+}
+
+/* Con el campo vacío no hay búsqueda que lanzar. Se atenúa en lugar de
+   ocultarse: un control que aparece y desaparece mueve el layout del navbar. */
+.searchSubmit:disabled {
+  color: var(--color-text-inverse-muted);
+  cursor: not-allowed;
+}
+
+/* El formulario móvil también alinea campo y lupa en una fila. */
+.searchMobileForm {
+  display: flex;
+  align-items: center;
 }
 
 .iconButton {

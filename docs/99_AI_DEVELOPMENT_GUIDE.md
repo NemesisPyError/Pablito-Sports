@@ -802,29 +802,38 @@ Nginx publica — con una excepción (`brands`, ver más abajo):
 |---|---|---|---|
 | Producto | `images.file_path` | `products/<product_id>/<huella>-800.webp` | La tarjeta de producto es el consumidor más frecuente del catálogo |
 | Banner | `banners.image_path` | `banners/<huella>-1600.webp` | La portada en escritorio es la vista principal; el de 2400 px solo lo pide una pantalla ancha |
-| Marca | `brands.image_path` | `brands/<brand_id>/<huella>-800.**jpg**` | Excepción de fiabilidad, v1.4.0 — ver abajo |
-| Imagen de marca | `brand_images.file_path` | `brands/<brand_id>/<huella>-800.**jpg**` | Misma excepción que el logotipo, mismo espacio de nombres |
+| Marca | `brands.image_path` | `brands/<brand_id>/<huella>-800.**png**` (con alfa) o `.jpg` (sin alfa) | Excepción de fiabilidad, v1.4.0, revisada — ver abajo |
+| Imagen de marca | `brand_images.file_path` | `brands/<brand_id>/<huella>-800.**png**` (con alfa) o `.jpg` (sin alfa) | Misma excepción que el logotipo, mismo espacio de nombres |
 | Historia | `store_settings.about_image_path` | `store/<huella>-1600.webp` | La sección ocupa media pantalla en escritorio (v1.1.0) |
 
 En todos los casos el canónico es el **intermedio** cuando hay tres, y el mayor
 cuando hay dos: es el que más se sirve, y los otros se deducen del nombre.
 
-**Excepción `brands` (v1.4.0):** el logotipo y el collage de marca publican el
-respaldo JPEG como canónico, no WebP, pese a que el respaldo (§17.1.3) nace
-pensado como *fallback* de compatibilidad, no como formato principal. El WebP
-con alfa se sigue generando —queda en disco, `JPEG_CANONICAL_NAMESPACES` en
-`local_storage.py`— pero se encontró en producción una franja real de
-navegadores (confirmado con Brave, aceleración por GPU) que decodifican mal
-el canal alfa de WebP y muestran el logotipo como un rectángulo negro sólido.
-El archivo es válido —confirmado con Pillow y con otro motor de renderizado—:
-es un problema del decodificador del cliente, no del dato, y no tiene arreglo
-del lado del servidor. El JPEG no tiene canal alfa, así que no hay nada que
-decodificar mal. Se acota a `brands` porque hoy es el único espacio cuyo
-contenido son casi siempre logotipos con transparencia real mostrados sobre
-fondo claro (`MediaTile`, tono `light` en todos sus usos desde v1.4.0 — ver
-`09_COMPONENTES.md`), donde el respaldo compuesto sobre blanco (§15.6) se ve
-idéntico al WebP. Si en el futuro se necesita un logotipo sobre fondo oscuro,
-hay que revisar esta decisión, no reintroducir WebP sin más.
+**Excepción `brands` (v1.4.0, revisada tras sumar el modo oscuro de la
+tienda):** el WebP con alfa no es el canónico de marca. Se encontró en
+producción una franja real de navegadores (confirmado con Brave, aceleración
+por GPU) que decodifica mal su canal alfa y muestra el logotipo como un
+rectángulo negro sólido. El archivo es válido —confirmado con Pillow y con
+otro motor de renderizado—: es un problema del decodificador del cliente, no
+del dato, y no tiene arreglo del lado del servidor. El WebP con alfa se sigue
+generando igual —queda en disco— pero deja de ser lo que se publica.
+
+El canónico depende de si la fuente tiene alfa real
+(`ALPHA_CANONICAL_NAMESPACES` en `local_storage.py`):
+
+- **con alfa** → **PNG con alfa** (`ALPHA_FALLBACK_FORMAT`). El PNG no tiene
+  el bug del WebP en Brave y, a diferencia del JPEG, sí es transparencia
+  real: el logotipo se integra con cualquier fondo, claro u oscuro
+  (`MediaTile`, franja de marcas), sin traer su propio rectángulo blanco.
+  Es la revisión que este mismo documento pedía más abajo cuando hiciera
+  falta un logotipo sobre fondo oscuro: no reintroducir WebP, resolverlo con
+  un formato sin el bug.
+- **sin alfa** → **JPEG** (`FALLBACK_FORMAT`), como antes: una foto del
+  collage no tiene transparencia que perder.
+
+Se acota a `brands` porque hoy es el único espacio cuyo contenido son
+logotipos pensados para integrarse con cualquier fondo, no fotografía de
+catálogo.
 
 `ImageDTO.image_url` (`05_API.md` §10.6), `BannerDTO.image_url` (§10.3) y
 `BannerAdminDTO.image_url` (§10.3) son la URL pública del canónico

@@ -16,7 +16,6 @@ export const adminProductsApi = {
     if (filters.category) params.set('category', filters.category);
     if (filters.availability) params.set('availability', filters.availability);
     if (filters.is_active !== '') params.set('is_active', filters.is_active);
-    if (filters.deleted) params.set('deleted', 'true');
     if (filters.sort) params.set('sort', filters.sort);
     params.set('page', String(filters.page ?? 1));
     params.set('per_page', String(filters.per_page ?? 20));
@@ -54,15 +53,15 @@ export const adminProductsApi = {
     return data;
   },
 
+  /** §9.3. Agrega o quita el producto de Novedades sin tocar el resto. */
+  async setHomeNew(productId, selected) {
+    const { data } = await post(`/admin/products/${productId}/set-home-new`, { selected });
+    return data;
+  },
+
   /** §9.3. Borrado lógico (`AD-18`), responde 204. */
   async remove(productId) {
     await del(`/admin/products/${productId}`);
-  },
-
-  /** §9.3. Restaura un producto eliminado lógicamente. */
-  async restore(productId) {
-    const { data } = await post(`/admin/products/${productId}/restore`);
-    return data;
   },
 
   // --- Variantes (§9.4) -------------------------------------------------
@@ -93,6 +92,19 @@ export const adminProductsApi = {
     const { data } = await post(`/admin/products/${productId}/variants/${variantId}/sales`, {
       quantity,
     });
+    return data;
+  },
+
+  /**
+   * §9.19: venta manual de una o varias líneas, en una sola transacción.
+   *
+   * Cada línea lleva su `unit_price` explícito: es el precio que el
+   * administrador vio y confirmó en el resumen. El backend acepta omitirlo y
+   * usar el vigente, pero entonces el total confirmado y el registrado podrían
+   * no coincidir si el precio cambia entre que se abre el modal y se confirma.
+   */
+  async registerManualSale(items) {
+    const { data } = await post('/admin/sales', { items });
     return data;
   },
 

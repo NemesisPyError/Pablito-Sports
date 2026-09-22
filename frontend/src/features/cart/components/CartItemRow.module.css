@@ -3,3 +3,11 @@
 .quantityInput {
   width: var(--spacing-10);
 }
+
+/* Ancho fijo de la miniatura: no se estira con el resto de la fila. */
+.thumbnail {
+  flex: 0 0 auto;
+  width: var(--spacing-10);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}

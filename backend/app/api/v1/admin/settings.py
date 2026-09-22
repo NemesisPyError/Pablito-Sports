@@ -13,6 +13,7 @@ from flask import Blueprint, current_app, request
 from ....core.exceptions import RequestValidationError
 from ....core.utils.responses import success_response
 from ....infrastructure.storage.local_storage import LocalStorage
+from ....schemas.shared import json_body
 from ....schemas.store_setting_schemas import parse_store_settings, parse_whatsapp_template
 from ....services.admin_auth_service import AdminAuthService
 from ....services.store_setting_service import StoreSettingService
@@ -40,7 +41,7 @@ def get_store_settings():
 def update_store_settings():
     """PUT /api/v1/admin/store/settings (§9.12). `StoreSettingsAdminDTO`."""
     administrator_id = _admin_required()
-    entrada = parse_store_settings(request.get_json(silent=True) or {})
+    entrada = parse_store_settings(json_body())
     dto = StoreSettingService.update(entrada, administrator_id=administrator_id)
     return success_response(dto.to_dict())
 
@@ -103,7 +104,7 @@ def update_whatsapp_template():
     aplica `parse_whatsapp_template`.
     """
     administrator_id = _admin_required()
-    entrada = parse_whatsapp_template(request.get_json(silent=True) or {})
+    entrada = parse_whatsapp_template(json_body())
     dto = StoreSettingService.update_whatsapp_template(entrada, administrator_id=administrator_id)
     return success_response(dto.to_dict())
 
