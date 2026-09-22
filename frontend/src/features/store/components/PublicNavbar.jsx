@@ -206,8 +206,8 @@ export function PublicNavbar({ storeSettings, theme, onToggleTheme }) {
           <Icon name="menu" />
         </button>
 
-        <Link to="/" className={styles.brand}>
-          {storeSettings?.store_name ?? 'Pablito Sports'}
+        <Link to="/" className={styles.brand} aria-label={storeSettings?.store_name ?? 'Pablito Sports'}>
+          <img src="/logo.png" alt={storeSettings?.store_name ?? 'Pablito Sports'} className={styles.brandLogo} />
         </Link>
 
         <nav className={styles.axes} aria-label="Principal">

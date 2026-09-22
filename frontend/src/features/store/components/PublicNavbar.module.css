@@ -58,23 +58,34 @@
 }
 
 /* --------------------------------------------------------------------------
- * Marca. Hasta que exista un logotipo administrable, la identidad es el
- * nombre de la tienda compuesto tipográficamente (`UDS-09`).
+ * Marca (v2.9.10, pedido explícito del usuario): logotipo real en vez del
+ * nombre de la tienda compuesto tipográficamente. `/logo.png` es un archivo
+ * estático (mismo criterio que `/favicon.svg`, `/og-default.png`), no pasa
+ * por el pipeline de imágenes del backend porque no lo administra nadie
+ * desde el panel.
  * ----------------------------------------------------------------------- */
 .brand {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
-  color: var(--color-text-inverse);
-  font-family: var(--font-family-display);
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-extrabold);
-  letter-spacing: var(--letter-spacing-tighter);
-  line-height: var(--line-height-none);
-  text-decoration: none;
-  text-transform: uppercase;
 }
 
-.brandMark {
-  color: var(--color-volt-500);
+.brandLogo {
+  display: block;
+  height: 32px;
+  width: auto;
+}
+
+@media (min-width: 768px) {
+  .brandLogo {
+    height: 38px;
+  }
+}
+
+@media (min-width: 992px) {
+  .brandLogo {
+    height: 44px;
+  }
 }
 
 /* --------------------------------------------------------------------------
