@@ -224,6 +224,8 @@ services:
       ADMIN_INITIAL_USERNAME: ${ADMIN_INITIAL_USERNAME:-admin}
       ADMIN_INITIAL_EMAIL: ${ADMIN_INITIAL_EMAIL:-admin@pablitosports.local}
       ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+      INITIAL_STORE_NAME: ${INITIAL_STORE_NAME:-Pablito Sports}
+      INITIAL_WHATSAPP_NUMBER: ${INITIAL_WHATSAPP_NUMBER:-+595000000000}
       # `flask db upgrade` construye la aplicación, así que pasa por
       # `ProductionConfig.validate` y necesita el mismo almacén que el backend:
       # sin esta variable la migración no arrancaría (§14.4).
