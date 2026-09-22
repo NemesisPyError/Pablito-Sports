@@ -189,6 +189,43 @@ def test_crear_producto_ignora_el_slug_enviado(admin_client, catalogo):
     assert response.get_json()["data"]["slug"] == "producto-api"
 
 
+def test_crear_producto_con_oferta_y_fechas_no_explota(admin_client, catalogo):
+    """Regresión AD: el alta con `sale_starts_at`/`sale_ends_at` en ISO 8601
+    (string, como las manda `ProductForm.toPayload`) moría con 500 en
+    `_to_admin_detail_dto`: `.isoformat()` se llamaba sobre un `str`. El
+    servicio debe normalizar las fechas a `datetime` antes de persistir.
+    """
+    response = admin_client.post(
+        "/api/v1/admin/products",
+        json=_payload(
+            catalogo,
+            sku="API-SKU-OFERTA",
+            list_price=100000,
+            sale_price=80000,
+            sale_starts_at="2026-01-01T00:00:00Z",
+            sale_ends_at="2026-12-31T23:59:59Z",
+        ),
+    )
+
+    assert response.status_code == 201
+    data = response.get_json()["data"]
+    assert data["sale_price"] == 80000
+    assert data["sale_starts_at"] == "2026-01-01T00:00:00+00:00"
+    assert data["sale_ends_at"] == "2026-12-31T23:59:59+00:00"
+    assert data["effective_price"] == 80000
+
+
+def test_crear_producto_con_fecha_de_oferta_invalida_es_422(admin_client, catalogo):
+    """Una fecha ilegible es 422, nunca 500 (`ERR-04`)."""
+    response = admin_client.post(
+        "/api/v1/admin/products",
+        json=_payload(catalogo, sku="API-SKU-FECHA", sale_starts_at="no-es-una-fecha"),
+    )
+
+    assert response.status_code == 422
+    assert "sale_starts_at" in {e["field"] for e in response.get_json()["errors"]}
+
+
 def test_crear_dos_productos_con_el_mismo_nombre_desambigua_el_slug(admin_client, catalogo):
     primero = admin_client.post(
         "/api/v1/admin/products", json=_payload(catalogo, sku="API-SKU-DUP-1")

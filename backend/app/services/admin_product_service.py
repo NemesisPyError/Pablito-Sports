@@ -659,6 +659,32 @@ class AdminProductService:
         raise BusinessRuleError("could not generate a unique product slug", rule="RN-slug")
 
     @classmethod
+    def _parse_sale_dates(cls, payload: dict, campo: str) -> datetime | None:
+        """Convierte la fecha de oferta a `datetime`, del mismo modo que los
+        schemas de promociones (promotion_schemas._fecha).
+
+        El frontend envía `sale_starts_at`/`sale_ends_at` como ISO 8601 en
+        string (`ProductForm.toPayload` → `localInputToIso`); guardarlas crudas
+        hacía que `_to_admin_detail_dto` llamara `.isoformat()` sobre un `str`
+        y el alta de un producto con oferta muriera con `AttributeError` (500).
+        Se parsean acá, antes de persistir, y el DTO las serializa como
+        `datetime`. Un valor mal formado es 422, no 500.
+        """
+        crudo = payload.get(campo)
+        if crudo in (None, ""):
+            return None
+        if not isinstance(crudo, str):
+            raise RequestValidationError(
+                [{"field": campo, "detail": f"{campo} must be an ISO 8601 datetime"}]
+            )
+        try:
+            return datetime.fromisoformat(crudo)
+        except ValueError:
+            raise RequestValidationError(
+                [{"field": campo, "detail": f"{campo} must be an ISO 8601 datetime"}]
+            ) from None
+
+    @classmethod
     def _product_fields(cls, payload: dict) -> dict:
         required = [
             "name",
@@ -684,8 +710,8 @@ class AdminProductService:
             "description": payload.get("description") or None,
             "list_price": int(payload["list_price"]),
             "sale_price": payload.get("sale_price") or None,
-            "sale_starts_at": payload.get("sale_starts_at") or None,
-            "sale_ends_at": payload.get("sale_ends_at") or None,
+            "sale_starts_at": cls._parse_sale_dates(payload, "sale_starts_at"),
+            "sale_ends_at": cls._parse_sale_dates(payload, "sale_ends_at"),
             # RN-38b (v1.4.0): `availability` ya no es un campo de entrada —
             # se deriva de `variants.quantity` en `_recompute_availability`.
             # Cualquier `availability` que llegue en el payload se ignora,
