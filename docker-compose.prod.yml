@@ -111,9 +111,11 @@ services:
       SECRET_KEY: ${SECRET_KEY:?falta SECRET_KEY}
       UPLOAD_FOLDER: ${UPLOAD_FOLDER:-/var/lib/pablito/uploads}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      # 03_SEGURIDAD.md §14.2 / auditoría Cloudflare §C7: SE QUEDA EN 1
-      # (Nginx -> Gunicorn). Pasa a 2 SOLO en la fase Cloudflare.
-      TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-1}
+      # 03_SEGURIDAD.md §14.2 / auditoría Cloudflare §C7: Cloudflare en modo proxy
+      # (Cliente -> CF -> Nginx -> Gunicorn) son 2 saltos: XFF termina con la IP
+      # real del cliente. Sin CF (modo directo) vuelve a 1. Ver §23.2 y la nota
+      # en 12_DEPLOY.md §14.
+      TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-2}
       # §14.4: obligatoria en producción. `ProductionConfig.validate` se niega a
       # arrancar si falta o si apunta a un almacén dentro del proceso.
       RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-redis://redis:6379/0}
