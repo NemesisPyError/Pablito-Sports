@@ -10,7 +10,7 @@
 | **Sistema** | Plataforma de Catálogo Comercial |
 | **Documento** | Modelo de Datos |
 | **Código** | 04 |
-| **Versión** | 1.9.0 |
+| **Versión** | 1.10.0 |
 | **Estado** | 🟡 EN REVISIÓN |
 | **Fecha** | 22/09/2026 |
 | **Documentos previos** | [00_VISION_PROYECTO.md](00_VISION_PROYECTO.md) ✅ · [00.2_GLOSARIO.md](00.2_GLOSARIO.md) ✅ · [00.3_NOMENCLATURA.md](00.3_NOMENCLATURA.md) ✅ · [01_ANALISIS_NEGOCIO.md](01_ANALISIS_NEGOCIO.md) ✅ · [02_ARQUITECTURA.md](02_ARQUITECTURA.md) ✅ · [02.1_DECISIONES_ARQUITECTONICAS.md](02.1_DECISIONES_ARQUITECTONICAS.md) ✅ |
@@ -523,6 +523,7 @@ El valor por defecto `'hero'` no es arbitrario: las filas que ya existen se crea
 |---|---|---|---|
 | `id` | `INTEGER` | No | PK |
 | `name` | `VARCHAR(100)` | No | — |
+| `description` | `TEXT` | Sí | `NULL` |
 | `discount_percentage` | `INTEGER` | No | — |
 | `image_path` | `VARCHAR(500)` | Sí | `NULL` |
 | `position` | `INTEGER` | No | `0` |
@@ -538,6 +539,8 @@ CHECK (position >= 0)
 ```
 
 **Justificación:** no reutiliza `promotions` (atada por `RN-36`/`scope_exclusive` a producto/categoría/marca, sin ese concepto de banco) ni `banners` (atado a las tres zonas fijas de portada `placement`, con campos —`subtitle`, `link_url`, `button_label`, vigencia— que un banco no necesita). Es una entidad mínima, con el mismo rango 1-99 de `discount_percentage` que `promotions` y el mismo `position` de `banners` para el orden de aparición. Un caso comercial compuesto (p. ej. un banco con porcentaje distinto según débito/crédito) se resuelve cargando dos filas, no ampliando el modelo con un campo que nadie más pidió.
+
+**`description` (v1.10.0, pedido explícito del usuario):** nota interna del panel, sin tope de longitud propio (`TEXT`), mismo criterio que `promotions.description`. No es un dato que la tarjeta pública muestre (`BankDTO` sigue con solo `name`, `discount_percentage`, `image_url`). Migración `766befdcc1ed`, de esquema únicamente.
 
 `image_path` es el mini banner del banco; usa el mismo pipeline de imágenes que `banners`/`brand_images` (espacio de nombres propio `banks`, ver `99_AI_DEVELOPMENT_GUIDE.md` §17.1). El borrado es lógico (`AD-18`); el archivo solo se retira del disco si ningún otro banco vivo lo referencia.
 
@@ -1141,6 +1144,7 @@ Este documento **no crea decisiones arquitectónicas propias**. Desarrolla las d
 
 | Versión | Fecha | Estado | Cambios |
 |---|---|---|---|
+| **1.10.0** | 22/09/2026 | 🟡 **EN REVISIÓN** | **`banks.description` (pedido explícito del usuario).** §9.2.11b: nueva columna `TEXT NULL`, nota interna del panel, mismo criterio que `promotions.description` — no la muestra la tarjeta pública. Migración `766befdcc1ed`, de esquema únicamente. |
 | **1.9.0** | 22/09/2026 | 🟡 **EN REVISIÓN** | **Promoción "todos los productos" (`RN-36` revisada, pedido explícito del usuario).** §9.2.10: el CHECK `scope_exclusive` pasa de "exactamente uno" (`= 1`) a "como máximo uno" (`<= 1`) de `product_id`/`category_id`/`brand_id`. Con los tres en `NULL`, la promoción aplica a todos los productos — antes ese estado no era representable. Migración `a3f6c9d21b47`, de esquema únicamente: solo reemplaza el CHECK, no toca ninguna fila ni columna. |
 | **1.8.0** | 22/09/2026 | 🟡 **EN REVISIÓN** | **Nueva tabla `banks` (§9.2.11b), Superdescuentos (pedido explícito del usuario).** Panel administrativo nuevo para los bancos del pie de la tienda, antes hardcodeados en el frontend sin ningún campo administrable. Migración `e2db739a4c13`, de esquema únicamente: crea la tabla, sin backfill ni tocar ninguna existente. No reutiliza `promotions` (`scope_exclusive`, `RN-36`, sin sentido para un banco) ni `banners` (`placement` fijo a las tres zonas de portada, con campos que un banco no usa). |
 | **1.7.0** | 10/09/2026 | 🟡 **EN REVISIÓN** | **Sexos por categoría (`RN-83` nueva).** Pedido explícito del usuario: ordenar el menú de la tienda desde el panel en lugar de con una lista de slugs excluidos escrita en el frontend. Nueva tabla `category_genders` (§9.2.16, entidad 21 de §6), mismo patrón sin columna propia que `product_genders`. Migración `c5b1f0a72e14`, **de esquema y sin backfill**: `AD-41` establece que la ausencia de filas significa «sin restricción», así que el menú se ve igual que antes del despliegue y ninguna categoría cargada necesita tocarse. Ninguna tabla existente cambia. |

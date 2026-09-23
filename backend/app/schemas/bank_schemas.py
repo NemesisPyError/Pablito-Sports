@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from ..core.exceptions import RequestValidationError
 
 MAX_NAME_LENGTH = 100
+MAX_DESCRIPTION_LENGTH = 500
 MIN_DISCOUNT = 1
 MAX_DISCOUNT = 99
 
@@ -20,6 +21,7 @@ FALSE_VALUES = {"false", "0"}
 @dataclass
 class BankInput:
     name: str
+    description: str | None
     discount_percentage: int
     position: int
     is_active: bool
@@ -92,6 +94,10 @@ def parse_bank(form) -> BankInput:
     errores: list[dict] = []
 
     nombre = _texto(form, "name", errores, maximo=MAX_NAME_LENGTH, obligatorio=True)
+    # Nota interna del panel, opcional: no la muestra la tarjeta pública.
+    descripcion = _texto(
+        form, "description", errores, maximo=MAX_DESCRIPTION_LENGTH, obligatorio=False
+    )
     porcentaje = _porcentaje(form, errores)
     posicion = _posicion(form, errores)
     activo = _booleano(form, "is_active", errores, defecto=True)
@@ -101,6 +107,7 @@ def parse_bank(form) -> BankInput:
 
     return BankInput(
         name=nombre,
+        description=descripcion,
         discount_percentage=porcentaje,
         position=posicion,
         is_active=activo,

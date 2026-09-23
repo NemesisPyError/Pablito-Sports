@@ -18,11 +18,7 @@
   background-color: var(--color-auth-background);
   /* Un halo del acento detrás de la tarjeta. Es decorativo: si el navegador no
      resolviera el gradiente, el color plano de arriba ya sostiene el diseño. */
-  background-image: radial-gradient(
-    ellipse at 50% 0%,
-    var(--color-auth-glow),
-    transparent 60%
-  );
+  background-image: radial-gradient(ellipse at 50% 0%, var(--color-auth-glow), transparent 60%);
 }
 
 .shell {
@@ -119,6 +115,13 @@
 
 .group {
   margin-block-end: var(--spacing-4);
+}
+
+/* La tarjeta es oscura: sin esto el botón de mostrar/ocultar heredaría el
+   color de texto por defecto de la página y quedaría invisible sobre el
+   campo. */
+.passwordToggle {
+  color: var(--color-text-inverse);
 }
 
 .submit {

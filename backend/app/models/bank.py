@@ -6,7 +6,7 @@ portada, `BANNER_PLACEMENT_VALUES`): un banco es una tarjeta informativa de
 descuento por medio de pago, sin ninguno de esos dos conceptos.
 """
 
-from sqlalchemy import CheckConstraint, Integer, String
+from sqlalchemy import CheckConstraint, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..extensions import db
@@ -19,6 +19,10 @@ class Bank(IdentityMixin, ActiveMixin, TimestampMixin, SoftDeleteMixin, db.Model
     __tablename__ = "banks"
 
     name: Mapped[str] = mapped_column(String(100), nullable=False)
+    # Nota interna del panel (v1.6.0, pedido explícito del usuario), no un
+    # dato que la tarjeta pública muestre: mismo criterio que
+    # `Promotion.description`, opcional y sin tope de longitud propio (`Text`).
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     discount_percentage: Mapped[int] = mapped_column(Integer, nullable=False)
     image_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { PasswordField } from '../../../../shared/components/PasswordField.jsx';
 import { validatePasswordChange } from '../utils/userForm.js';
 
 /**
@@ -55,9 +56,8 @@ export function ChangePasswordForm({
           <label htmlFor={`${idPrefix}-current`} className="form-label">
             Contraseña actual
           </label>
-          <input
+          <PasswordField
             id={`${idPrefix}-current`}
-            type="password"
             autoComplete="current-password"
             className={`form-control ${errors.currentPassword ? 'is-invalid' : ''}`}
             value={values.currentPassword}
@@ -73,9 +73,8 @@ export function ChangePasswordForm({
         <label htmlFor={`${idPrefix}-new`} className="form-label">
           Nueva contraseña
         </label>
-        <input
+        <PasswordField
           id={`${idPrefix}-new`}
-          type="password"
           autoComplete="new-password"
           className={`form-control ${errors.newPassword ? 'is-invalid' : ''}`}
           value={values.newPassword}
@@ -92,9 +91,8 @@ export function ChangePasswordForm({
         <label htmlFor={`${idPrefix}-confirm`} className="form-label">
           Repetir nueva contraseña
         </label>
-        <input
+        <PasswordField
           id={`${idPrefix}-confirm`}
-          type="password"
           autoComplete="new-password"
           className={`form-control ${errors.confirmPassword ? 'is-invalid' : ''}`}
           value={values.confirmPassword}

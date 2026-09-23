@@ -10,7 +10,7 @@
 | **Sistema** | Plataforma de Catálogo Comercial |
 | **Documento** | Contrato de la API |
 | **Código** | 05 |
-| **Versión** | 1.12.0 |
+| **Versión** | 1.13.0 |
 | **Estado** | 🟡 EN REVISIÓN |
 | **Fecha** | 22/09/2026 |
 | **Documentos previos** | [00_VISION_PROYECTO.md](00_VISION_PROYECTO.md) ✅ · [00.2_GLOSARIO.md](00.2_GLOSARIO.md) ✅ · [00.3_NOMENCLATURA.md](00.3_NOMENCLATURA.md) ✅ · [01_ANALISIS_NEGOCIO.md](01_ANALISIS_NEGOCIO.md) ✅ · [02_ARQUITECTURA.md](02_ARQUITECTURA.md) ✅ · [02.1_DECISIONES_ARQUITECTONICAS.md](02.1_DECISIONES_ARQUITECTONICAS.md) ✅ · [04_BASE_DATOS.md](04_BASE_DATOS.md) ✅ |
@@ -1123,7 +1123,7 @@ CRUD completo bajo `/api/v1/admin/banks`. Mismo criterio de guarda que Banners/P
 | `PUT` | `/api/v1/admin/banks/{id}` | Editar. | `BankUpdateDTO` (`multipart/form-data`) | `BankAdminDTO` |
 | `DELETE` | `/api/v1/admin/banks/{id}` | Soft delete. | — | `BankAdminDTO` |
 
-`BankCreateDTO`/`BankUpdateDTO`: `name` (string, obligatorio), `discount_percentage` (integer 1-99, obligatorio), `position` (integer ≥ 0), `is_active` (boolean), `image` (archivo, obligatorio al crear, omitible al editar para conservar la actual — mismo criterio que Banners §10.13). El almacenamiento sigue `99_AI_DEVELOPMENT_GUIDE.md` §17.1, espacio de nombres propio `banks`.
+`BankCreateDTO`/`BankUpdateDTO`: `name` (string, obligatorio), `description` (string | null, opcional, ≤ 500 caracteres, v1.13.0 — nota interna del panel, no viaja en el `BankDTO` público), `discount_percentage` (integer 1-99, obligatorio), `position` (integer ≥ 0), `is_active` (boolean), `image` (archivo, obligatorio al crear, omitible al editar para conservar la actual — mismo criterio que Banners §10.13). El almacenamiento sigue `99_AI_DEVELOPMENT_GUIDE.md` §17.1, espacio de nombres propio `banks`.
 
 No existe ningún endpoint público de escritura: la única puerta pública es `GET /api/v1/banks` (§7.2).
 
@@ -1501,6 +1501,7 @@ DTO exclusivo del panel, mismo criterio que `BannerAdminDTO`.
 |---|---|---|---|
 | `id` | `integer` | Sí | `banks.id` |
 | `name` | `string` | Sí | `banks.name` |
+| `description` | `string \| null` | No | `banks.description` (v1.13.0) — solo en el panel, `BankDTO` público no lo expone |
 | `discount_percentage` | `integer` | Sí | `banks.discount_percentage` |
 | `image_url` | `string \| null` | No | URL pública de `banks.image_path` |
 | `position` | `integer` | Sí | `banks.position` |
@@ -2261,6 +2262,7 @@ Esto se implementa en §8.2 y §8.3.
 
 | Versión | Fecha | Estado | Cambios |
 |---|---|---|---|
+| **1.13.0** | 22/09/2026 | 🟡 EN REVISIÓN | **`description` en bancos (`04_BASE_DATOS.md` v1.10.0, pedido explícito del usuario).** §9.11b/§10.3b: `BankCreateDTO`/`BankUpdateDTO` suman `description` (string opcional, ≤ 500). `BankAdminDTO` la expone; `BankDTO` público no cambia. |
 | **1.12.0** | 22/09/2026 | 🟡 EN REVISIÓN | **Promoción "todos los productos" (`01_ANALISIS_NEGOCIO.md` v2.9.0, `04_BASE_DATOS.md` v1.9.0, `07_PANEL_ADMIN.md` §14.5, pedido explícito del usuario).** §9.10/§10.9: `product_id`/`category_id`/`brand_id` de `PromotionCreateDTO`/`PromotionUpdateDTO` pasan a poder omitirse los tres a la vez — la promoción aplica entonces a todos los productos. `PromotionDTO.scope.type` suma el valor `all`, y `scope.entity` pasa a ser `NamedEntityDTO | null` (antes obligatorio), `null` cuando `type` es `all`. Sin cambios en `GET /api/v1/admin/promotions` ni en el resto del contrato. |
 | **1.11.0** | 22/09/2026 | 🟡 EN REVISIÓN | **Bancos de Superdescuentos (`04_BASE_DATOS.md` v1.8.0, `07_PANEL_ADMIN.md` v1.16.0, pedido explícito del usuario).** Nuevo `GET /api/v1/banks` público (§7.2) y CRUD completo bajo `/api/v1/admin/banks` (§9.11b): `BankDTO` (público, sin `id` ni estado) y `BankAdminDTO` (§10.3b). Reemplaza el array `BANK_PROMOTIONS` que vivía hardcodeado en el frontend. Sin endpoints públicos de escritura. |
 | **1.10.0** | 10/09/2026 | 🟡 EN REVISIÓN | **Sexos por categoría (`RN-83`).** Panel: `CategoryCreateDTO`/`CategoryUpdateDTO` (§10.13) aceptan `gender_ids` y `CategoryAdminDTO` (§10.5) lo devuelve; el `PUT` reemplaza la lista completa y un id inexistente responde `422`. Público: `CategoryTreeDTO` (§10.5) suma `genders` como array de **slugs** —`AD-12` prohíbe publicar identificadores— y sus `children` pasan de `NamedEntityDTO` a **`CategoryNodeDTO`**, nuevo, que es el mismo par slug/nombre más `genders`: una subcategoría puede restringirse sin que la madre lo esté. **Todo aditivo**: ningún campo existente cambia de tipo ni desaparece, y `gender_ids` es opcional, de modo que un cliente que no lo mande sigue funcionando igual (`AD-41`). |

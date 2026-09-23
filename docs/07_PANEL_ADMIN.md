@@ -10,7 +10,7 @@
 | **Sistema** | Plataforma de Catálogo Comercial |
 | **Documento** | Panel Administrativo |
 | **Código** | 07 |
-| **Versión** | 1.17.0 |
+| **Versión** | 1.18.0 |
 | **Estado** | 🟡 EN REVISIÓN |
 | **Fecha** | 22/09/2026 |
 | **Documentos previos** | [00_VISION_PROYECTO.md](00_VISION_PROYECTO.md) ✅ · [01_ANALISIS_NEGOCIO.md](01_ANALISIS_NEGOCIO.md) ✅ · [02_ARQUITECTURA.md](02_ARQUITECTURA.md) ✅ · [02.1_DECISIONES_ARQUITECTONICAS.md](02.1_DECISIONES_ARQUITECTONICAS.md) ✅ · [04_BASE_DATOS.md](04_BASE_DATOS.md) ✅ · [05_API.md](05_API.md) ✅ · [06_FRONTEND.md](06_FRONTEND.md) ✅ · [07.0_PANEL_ADMIN_ANALISIS_PREVIO.md](07.0_PANEL_ADMIN_ANALISIS_PREVIO.md) ✅ |
@@ -842,6 +842,8 @@ ningún campo administrable (pedido explícito del usuario).
 ### Formulario
 
 - Nombre del banco.
+- Descripción (opcional, v1.18.0, pedido explícito del usuario): nota interna
+  para el panel — no aparece en la tarjeta pública.
 - Porcentaje de descuento (entero, 1 a 99).
 - Posición de orden.
 - Mini banner (imagen): subir, reemplazar o quitar.
@@ -854,10 +856,13 @@ ningún campo administrable (pedido explícito del usuario).
 
 ### Reglas
 
-- Campos mínimos, por pedido explícito: no hay nota, detalle ni color por
-  banco — la tarjeta pública usa un estilo visual único para todos. Un caso
-  comercial con más de un porcentaje por banco (p. ej. débito/crédito
-  distintos) se carga como dos bancos separados, no como un campo compuesto.
+- La tarjeta pública sigue siendo mínima: nombre, porcentaje y mini banner,
+  sin nota, detalle ni color por banco — usa un estilo visual único para
+  todos (decisión original, sigue firme). La `description` que suma v1.18.0
+  es aparte: vive solo en el panel, como contexto para el administrador, y
+  nunca viaja al `BankDTO` público. Un caso comercial con más de un
+  porcentaje por banco (p. ej. débito/crédito distintos) se sigue cargando
+  como dos bancos separados, no como un campo compuesto.
 - El borrado es lógico (`AD-18`); el banco deja de mostrarse en
   Superdescuentos de inmediato. El archivo del mini banner solo se retira del
   disco si ningún otro banco vivo lo sigue usando.
@@ -932,6 +937,10 @@ ningún campo administrable (pedido explícito del usuario).
 ### Cambio de contraseña
 
 - Diálogo aparte con confirmación (§10). Pide la nueva contraseña dos veces.
+- Todo campo de contraseña del panel (login, alta de usuario, cambio de
+  contraseña) tiene un botón para mostrarla/ocultarla (v1.18.0, pedido
+  explícito del usuario) — puramente de presentación, no cambia validación
+  ni contrato.
 - Si el objetivo es la **propia** cuenta (desde el listado o desde «Mi cuenta»), pide además la contraseña actual (`05_API.md` §9.14) y, al terminar, cierra la sesión y lleva al login (§7.3).
 - Si un superadministrador cambia la de **otro**, no se pide la actual; se cierran las sesiones de ese usuario.
 - Límite: 3 intentos cada 15 minutos por sesión (`03_SEGURIDAD.md` §14.1); el `429` se traduce a "Demasiados intentos. Esperá unos minutos.".
@@ -1040,6 +1049,7 @@ ningún campo administrable (pedido explícito del usuario).
 
 | Versión | Fecha | Estado | Descripción |
 |---|---|---|---|
+| **1.18.0** | 22/09/2026 | 🟡 EN REVISIÓN | **Dos ajustes menores (pedido explícito del usuario).** (1) Botón de mostrar/ocultar en todo campo de contraseña del panel (login, alta de usuario, cambio de contraseña) — nuevo componente compartido `PasswordField`, sin cambios de validación ni de contrato. (2) §14.6b Bancos: nuevo campo **Descripción** (opcional, `04_BASE_DATOS.md` v1.10.0, `05_API.md` v1.13.0) — nota interna del panel; la tarjeta pública de Superdescuentos sigue sin mostrarla, según la decisión original de campos mínimos. |
 | **1.17.0** | 22/09/2026 | 🟡 EN REVISIÓN | **Promoción "todos los productos" (`01_ANALISIS_NEGOCIO.md` v2.9.0, `04_BASE_DATOS.md` v1.9.0, `05_API.md` v1.12.0, pedido explícito del usuario).** §14.5: el selector "Se aplica a" suma un cuarto tipo, "Todos los productos", sin selector de entidad. `RN-36` revisada: como máximo uno de producto/categoría/marca, o ninguno para aplicar a todo el catálogo. |
 | **1.16.0** | 22/09/2026 | 🟡 EN REVISIÓN | **Tanda funcional (pedido explícito del usuario, 4 cambios).** (1) §14.4 Talles: el nombre pasa a ser texto libre (`RN-15b` revisada, `01_ANALISIS_NEGOCIO.md`, `05_API.md`) — ya no valida numérico/alfabético según el tipo. (2) §14.7 Configuración: el horario de atención y el número de WhatsApp se actualizan al horario y teléfono oficiales vigentes; sin cambio de arquitectura, siguen siendo la única fuente de verdad ya existente. (3) Corrige un bug encontrado durante la implementación: la página de Contacto armaba su enlace de WhatsApp sin sanear el número (a diferencia del pie y "Nuestra historia"), lo que podía romper el enlace `wa.me` con un número que llevara espacios. (4) **Nuevo §14.6b Bancos (Superdescuentos)** (`04_BASE_DATOS.md` v1.8.0, `05_API.md` v1.11.0): panel administrativo nuevo para los bancos que antes vivían hardcodeados en el pie del catálogo — nombre, porcentaje de descuento, mini banner y estado activo/inactivo, siguiendo el mismo patrón que Banners (CRUD, `multipart/form-data`, borrado lógico). |
 | **1.15.0** | 10/09/2026 | 🟡 EN REVISIÓN | **Sexos por categoría (`RN-83` nueva, `04_BASE_DATOS.md` v1.7.0, `05_API.md` v1.10.0, pedido explícito del usuario: *"que al crear una categoria nueva aparezca la opcion de a que sexo permitir cada categoria, para de esta forma ordenar un poco mas el navbar"*).** §14.4: el formulario de categoría suma **Sexos de esta categoría**, cinco casillas que deciden en qué secciones del menú aparece. Hasta ahora la única forma de sacar una categoría del menú era una lista de slugs escrita en el código del frontend. **No tildar ninguna significa «sin restricción»** (`AD-41`), así que ninguna categoría ya cargada necesita tocarse y el menú se ve igual hasta que el administrador empiece a quitar. |

@@ -25,6 +25,7 @@ ENTITY_TYPE = "bank"
 
 AUDIT_FIELDS = (
     "name",
+    "description",
     "discount_percentage",
     "image_path",
     "position",
@@ -57,6 +58,7 @@ class AdminBankService:
         de esta transacción."""
         bank = AdminBankRepository.create(
             name=entrada.name,
+            description=entrada.description,
             discount_percentage=entrada.discount_percentage,
             image_path=image_path,
             position=entrada.position,
@@ -81,6 +83,7 @@ class AdminBankService:
 
         campos = {
             "name": entrada.name,
+            "description": entrada.description,
             "discount_percentage": entrada.discount_percentage,
             "position": entrada.position,
             "is_active": entrada.is_active,

@@ -85,6 +85,7 @@ def bank_to_admin_dto(bank) -> BankAdminDTO:
     return BankAdminDTO(
         id=bank.id,
         name=bank.name,
+        description=bank.description,
         discount_percentage=bank.discount_percentage,
         image_url=public_file_url(bank.image_path),
         position=bank.position,

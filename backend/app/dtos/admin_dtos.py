@@ -80,6 +80,7 @@ class BankAdminDTO(BaseDTO):
 
     id: int
     name: str
+    description: str | None
     discount_percentage: int
     image_url: str | None
     position: int

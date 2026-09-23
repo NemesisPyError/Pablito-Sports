@@ -109,7 +109,50 @@ def test_creacion_devuelve_201_y_el_dto_del_contrato(cliente):
 
     assert respuesta.status_code == 201
     datos = respuesta.get_json()["data"]
-    assert set(datos) == {"id", "name", "discount_percentage", "image_url", "position", "is_active"}
+    assert set(datos) == {
+        "id",
+        "name",
+        "description",
+        "discount_percentage",
+        "image_url",
+        "position",
+        "is_active",
+    }
+    assert datos["description"] is None
+
+
+def test_creacion_con_descripcion(cliente):
+    respuesta = _crear(cliente, description="Reintegro válido los fines de semana.")
+
+    assert respuesta.status_code == 201
+    assert respuesta.get_json()["data"]["description"] == "Reintegro válido los fines de semana."
+
+
+def test_descripcion_recorta_espacios(cliente):
+    respuesta = _crear(cliente, description="  con espacios  ")
+
+    assert respuesta.get_json()["data"]["description"] == "con espacios"
+
+
+def test_descripcion_demasiado_larga_es_422(cliente):
+    respuesta = cliente.post(
+        "/api/v1/admin/banks",
+        data=_formulario(description="x" * 501),
+        content_type="multipart/form-data",
+    )
+
+    assert respuesta.status_code == 422
+    assert "description" in {e["field"] for e in respuesta.get_json()["errors"]}
+
+
+def test_la_descripcion_no_se_expone_en_lo_publico(cliente):
+    """La tarjeta pública sigue siendo mínima: nombre, porcentaje, mini banner."""
+    _crear(cliente, sufijo="con-nota", description="Nota interna del panel")
+
+    publico = cliente.get("/api/v1/banks").get_json()["data"]
+    banco = next(b for b in publico if b["name"] == f"{PREFIJO}-con-nota")
+
+    assert "description" not in banco
 
 
 def test_el_dto_publico_no_expone_id_ni_estado(cliente):
@@ -284,6 +327,19 @@ def test_actualizacion_sin_imagen_conserva_la_actual(cliente):
     datos = respuesta.get_json()["data"]
     assert datos["name"] == f"{PREFIJO}-editado"
     assert datos["image_url"] == creado["image_url"]
+
+
+def test_actualizacion_cambia_la_descripcion(cliente):
+    creado = _crear(cliente, description="original").get_json()["data"]
+
+    respuesta = cliente.put(
+        f"/api/v1/admin/banks/{creado['id']}",
+        data=_formulario(con_imagen=False, description="actualizada"),
+        content_type="multipart/form-data",
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.get_json()["data"]["description"] == "actualizada"
 
 
 def test_actualizacion_con_imagen_la_reemplaza(cliente):

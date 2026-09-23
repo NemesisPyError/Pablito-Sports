@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { MAX_DISCOUNT, MAX_NAME_LENGTH, MIN_DISCOUNT, toFormData, toFormValues, validate } from './bankForm.js';
+import {
+  MAX_DESCRIPTION_LENGTH,
+  MAX_DISCOUNT,
+  MAX_NAME_LENGTH,
+  MIN_DISCOUNT,
+  toFormData,
+  toFormValues,
+  validate,
+} from './bankForm.js';
 
 function valores(overrides) {
   return {
@@ -16,6 +24,7 @@ describe('toFormValues', () => {
   it('parte de un formulario vacío y activo cuando no hay banco', () => {
     expect(toFormValues(null)).toEqual({
       name: '',
+      description: '',
       discount_percentage: '',
       position: '0',
       is_active: true,
@@ -26,6 +35,7 @@ describe('toFormValues', () => {
     const desde = toFormValues({
       id: 1,
       name: 'Banco X',
+      description: 'Reintegro los fines de semana.',
       discount_percentage: 25,
       image_url: '/uploads/banks/x-800.webp',
       position: 3,
@@ -34,10 +44,15 @@ describe('toFormValues', () => {
 
     expect(desde).toEqual({
       name: 'Banco X',
+      description: 'Reintegro los fines de semana.',
       discount_percentage: '25',
       position: '3',
       is_active: false,
     });
+  });
+
+  it('la descripción ausente en el DTO se precarga vacía', () => {
+    expect(toFormValues({ name: 'Banco X', discount_percentage: 25 }).description).toBe('');
   });
 });
 
@@ -92,6 +107,18 @@ describe('validate', () => {
     expect(validate(valores(), { hasImage: false }).image).toBeDefined();
     expect(validate(valores(), { hasImage: true }).image).toBeUndefined();
   });
+
+  it('la descripción es opcional', () => {
+    expect(validate(valores(), { hasImage: true }).description).toBeUndefined();
+    expect(
+      validate(valores({ description: 'Nota breve.' }), { hasImage: true }).description,
+    ).toBeUndefined();
+  });
+
+  it('rechaza una descripción demasiado larga', () => {
+    const larga = 'x'.repeat(MAX_DESCRIPTION_LENGTH + 1);
+    expect(validate(valores({ description: larga }), { hasImage: true }).description).toBeDefined();
+  });
 });
 
 describe('toFormData', () => {
@@ -122,5 +149,10 @@ describe('toFormData', () => {
     const formData = toFormData(valores({ is_active: false }), null);
 
     expect(formData.get('is_active')).toBe('false');
+  });
+
+  it('omite la descripción vacía en lugar de mandar una cadena vacía', () => {
+    expect(toFormData(valores({ description: '   ' }), null).get('description')).toBeNull();
+    expect(toFormData(valores({ description: 'Nota' }), null).get('description')).toBe('Nota');
   });
 });

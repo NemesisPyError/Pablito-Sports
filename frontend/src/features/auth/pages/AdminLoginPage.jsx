@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
+import { PasswordField } from '../../../shared/components/PasswordField.jsx';
 import { useAdminAuth, useAdminLogin } from '../hooks/useAdminAuth.js';
 import styles from './AdminLoginPage.module.css';
 
@@ -78,10 +79,10 @@ export function AdminLoginPage() {
               <label htmlFor="password" className={styles.label}>
                 Contraseña
               </label>
-              <input
+              <PasswordField
                 id="password"
-                type="password"
                 className={styles.field}
+                toggleClassName={styles.passwordToggle}
                 autoComplete="current-password"
                 required
                 value={credenciales.password}

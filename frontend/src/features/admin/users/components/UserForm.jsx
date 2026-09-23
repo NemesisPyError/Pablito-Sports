@@ -1,7 +1,14 @@
 import { useState } from 'react';
 
+import { PasswordField } from '../../../../shared/components/PasswordField.jsx';
 import { RATE_LIMIT_MESSAGE } from '../../../../shared/services/errorMessages.js';
-import { ROLES, toCreatePayload, toUpdatePayload, toFormValues, validateUser } from '../utils/userForm.js';
+import {
+  ROLES,
+  toCreatePayload,
+  toUpdatePayload,
+  toFormValues,
+  validateUser,
+} from '../utils/userForm.js';
 
 /**
  * Formulario de alta y edición de administradores (05_API.md §10.10,
@@ -20,8 +27,7 @@ export function UserForm({ user, onSubmit, onCancel, saving, submitError }) {
 
   function cambiar(campo) {
     return (evento) => {
-      const valor =
-        evento.target.type === 'checkbox' ? evento.target.checked : evento.target.value;
+      const valor = evento.target.type === 'checkbox' ? evento.target.checked : evento.target.value;
       const proximo = { ...values, [campo]: valor };
       setValues(proximo);
       if (tocado) setErrors(validateUser(proximo, { isEdit: esEdicion }));
@@ -90,9 +96,7 @@ export function UserForm({ user, onSubmit, onCancel, saving, submitError }) {
           {errors.role ? (
             <p className="invalid-feedback mb-0">{errors.role}</p>
           ) : (
-            <p className="form-text mb-0">
-              El superadministrador además gestiona usuarios.
-            </p>
+            <p className="form-text mb-0">El superadministrador además gestiona usuarios.</p>
           )}
         </div>
 
@@ -101,9 +105,8 @@ export function UserForm({ user, onSubmit, onCancel, saving, submitError }) {
             <label htmlFor="password" className="form-label">
               Contraseña inicial
             </label>
-            <input
+            <PasswordField
               id="password"
-              type="password"
               className={`form-control ${errors.password ? 'is-invalid' : ''}`}
               value={values.password}
               onChange={cambiar('password')}
@@ -112,7 +115,9 @@ export function UserForm({ user, onSubmit, onCancel, saving, submitError }) {
             {errors.password ? (
               <p className="invalid-feedback mb-0">{errors.password}</p>
             ) : (
-              <p className="form-text mb-0">Mínimo 12 caracteres. Pedile que la cambie al ingresar.</p>
+              <p className="form-text mb-0">
+                Mínimo 12 caracteres. Pedile que la cambie al ingresar.
+              </p>
             )}
           </div>
         )}
@@ -170,7 +175,9 @@ function mensajeDeGuardado(error) {
     if (campos.includes('username') || campos.includes('email')) {
       return 'El nombre de usuario o el correo ya están en uso.';
     }
-    return campos.length > 0 ? `Revisá estos campos: ${campos.join(', ')}.` : 'Algún dato no es válido.';
+    return campos.length > 0
+      ? `Revisá estos campos: ${campos.join(', ')}.`
+      : 'Algún dato no es válido.';
   }
   if (error?.status === 409) {
     // RN-71 / RN-72: el backend cita la regla en el error.

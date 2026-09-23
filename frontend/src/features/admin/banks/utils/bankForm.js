@@ -7,6 +7,7 @@
  */
 
 export const MAX_NAME_LENGTH = 100;
+export const MAX_DESCRIPTION_LENGTH = 500;
 export const MIN_DISCOUNT = 1;
 export const MAX_DISCOUNT = 99;
 
@@ -15,6 +16,7 @@ export function toFormValues(bank) {
   if (!bank) {
     return {
       name: '',
+      description: '',
       discount_percentage: '',
       position: '0',
       is_active: true,
@@ -23,6 +25,7 @@ export function toFormValues(bank) {
 
   return {
     name: bank.name ?? '',
+    description: bank.description ?? '',
     discount_percentage: String(bank.discount_percentage ?? ''),
     position: String(bank.position ?? 0),
     is_active: Boolean(bank.is_active),
@@ -65,6 +68,10 @@ export function validate(values, { hasImage = true } = {}) {
     errores.position = 'La posición debe ser un número entero de 0 o mayor.';
   }
 
+  if ((values.description?.trim().length ?? 0) > MAX_DESCRIPTION_LENGTH) {
+    errores.description = `La descripción no puede superar los ${MAX_DESCRIPTION_LENGTH} caracteres.`;
+  }
+
   if (!hasImage) {
     errores.image = 'El mini banner es obligatorio.';
   }
@@ -81,6 +88,8 @@ export function toFormData(values, file) {
   const formData = new FormData();
 
   formData.append('name', values.name.trim());
+  const descripcion = values.description?.trim();
+  if (descripcion) formData.append('description', descripcion);
   formData.append('discount_percentage', values.discount_percentage.toString().trim());
   formData.append('position', values.position.toString().trim());
   // Siempre viaja: su ausencia significa `true` para el servidor, de modo que

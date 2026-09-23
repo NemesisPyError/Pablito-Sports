@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { RATE_LIMIT_MESSAGE } from '../../../../shared/services/errorMessages.js';
 import { BankImageField } from './BankImageField.jsx';
 import {
+  MAX_DESCRIPTION_LENGTH,
   MAX_DISCOUNT,
   MAX_NAME_LENGTH,
   MIN_DISCOUNT,
@@ -14,8 +15,9 @@ import {
 /**
  * Formulario de banco de Superdescuentos, mismo criterio que `BannerForm`.
  *
- * Los campos son exactamente los de `BankCreateDTO` / `BankUpdateDTO`: nombre,
- * porcentaje, posición, mini banner y estado. Nada más, por pedido explícito.
+ * Los campos son los de `BankCreateDTO` / `BankUpdateDTO`: nombre, descripción
+ * (v1.6.0, pedido explícito del usuario — nota interna, no se muestra en la
+ * tarjeta pública), porcentaje, posición, mini banner y estado.
  */
 export function BankForm({ bank, onSubmit, onCancel, saving, submitError }) {
   const [values, setValues] = useState(() => toFormValues(bank));
@@ -70,6 +72,27 @@ export function BankForm({ bank, onSubmit, onCancel, saving, submitError }) {
             maxLength={MAX_NAME_LENGTH}
           />
           {errors.name && <p className="invalid-feedback mb-0">{errors.name}</p>}
+        </div>
+
+        <div className="col-12">
+          <label htmlFor="description" className="form-label">
+            Descripción <span className="text-muted fw-normal">(opcional)</span>
+          </label>
+          <textarea
+            id="description"
+            className={`form-control ${errors.description ? 'is-invalid' : ''}`}
+            value={values.description}
+            onChange={cambiar('description')}
+            maxLength={MAX_DESCRIPTION_LENGTH}
+            rows={2}
+          />
+          {errors.description ? (
+            <p className="invalid-feedback mb-0">{errors.description}</p>
+          ) : (
+            <p className="form-text mb-0">
+              Nota interna para el panel; no se muestra en Superdescuentos.
+            </p>
+          )}
         </div>
 
         <div className="col-6 col-lg-2">
