@@ -121,6 +121,12 @@ services:
       RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-redis://redis:6379/0}
       SITE_BASE_URL: ${SITE_BASE_URL:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # Cloudflare Turnstile (03_SEGURIDAD.md / 04_BASE_DATOS.md): verificación
+      # humana en el acceso. Opcional pero nunca a medias: `ProductionConfig.validate`
+      # exige ambas claves o ninguna. La SITE es pública (la copia el frontend como
+      # VITE_TURNSTILE_SITE_KEY); la SECRET la usa solo este proceso.
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
       # SESSION_COOKIE_SECURE lo fuerza ProductionConfig a True; no se pasa aquí.
     volumes:
       - uploads_data:${UPLOAD_FOLDER:-/var/lib/pablito/uploads}
@@ -232,6 +238,10 @@ services:
       # `ProductionConfig.validate` y necesita el mismo almacén que el backend:
       # sin esta variable la migración no arrancaría (§14.4).
       RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-redis://redis:6379/0}
+      # Mismas claves de Turnstile que el backend: `validate()` exige ambas o
+      # ninguna, y la migración no puede quedar en un estado distinto al runtime.
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
     volumes:
       - uploads_data:${UPLOAD_FOLDER:-/var/lib/pablito/uploads}
     depends_on:
@@ -258,6 +268,11 @@ services:
     environment:
       # Mismo-origen en producción: el fallback `/api/v1` de apiClient.js alcanza.
       VITE_API_BASE_URL: /api/v1
+      # Copia pública de TURNSTILE_SITE_KEY (ver `.env.example` y el bloque
+      # `backend` de más arriba): el frontend solo conoce la clave del sitio,
+      # nunca la secreta. Se fija en tiempo de build (`vite build`), así que
+      # `frontend/dist` debe regenerarse con la clave ya presente.
+      VITE_TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
       # Con un uid arbitrario, HOME sería `/` y npm no podría escribir su caché.
       HOME: /tmp
       npm_config_cache: /tmp/.npm
